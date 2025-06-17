@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .svg-container { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 SVG文件显示测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 内联SVG测试（当前组件使用的方式）</h2>
+        <div class="svg-container">
+            <span>Logo图标:</span>
+            <svg width="32" height="32" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1.90678 32.0955Q-2.49299 40.0703 3.25942 46.1745C5.38012 48.4249 8.39583 49.5156 11.4351 50.0851Q32.142 53.9657 42.0702 49.8891Q50.1668 46.5646 50.8877 39.2518C51.2649 35.426 49.3508 31.8566 47.1989 28.6709L45.2818 25.833C44.9067 25.2776 44.9594 24.5559 45.3193 23.9904Q47.287 20.8984 46.778 15.1107C45.9688 1.21411 25.1515 -3.93281 14.2647 3.19932Q3.7454 10.0908 7.16766 23.641C7.31281 24.2158 7.10745 24.8404 6.68837 25.2596Q4.65477 27.2939 1.90678 32.0955Z" fill="currentColor"/>
+            </svg>
+            <span>✅ 应该显示</span>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 外部SVG文件测试</h2>
+        <div class="svg-container">
+            <span>Logo文件:</span>
+            <img src="http://localhost:3000/src/components/OfferotterHome/images/logo-icon.svg" 
+                 alt="Logo" width="32" height="32" 
+                 onerror="this.nextElementSibling.textContent='❌ 加载失败'" 
+                 onload="this.nextElementSibling.textContent='✅ 加载成功'"/>
+            <span>⏳ 加载中...</span>
+        </div>
+        
+        <div class="svg-container">
+            <span>Check图标:</span>
+            <img src="http://localhost:3000/src/components/OfferotterHome/images/icon-check.svg" 
+                 alt="Check" width="32" height="32"
+                 onerror="this.nextElementSibling.textContent='❌ 加载失败'" 
+                 onload="this.nextElementSibling.textContent='✅ 加载成功'"/>
+            <span>⏳ 加载中...</span>
+        </div>
+        
+        <div class="svg-container">
+            <span>PM头像:</span>
+            <img src="http://localhost:3000/src/components/OfferotterHome/images/avatar-pm.svg" 
+                 alt="PM Avatar" width="64" height="64"
+                 onerror="this.nextElementSibling.textContent='❌ 加载失败'" 
+                 onload="this.nextElementSibling.textContent='✅ 加载成功'"/>
+            <span>⏳ 加载中...</span>
+        </div>
+        
+        <div class="svg-container">
+            <span>Marketing头像:</span>
+            <img src="http://localhost:3000/src/components/OfferotterHome/images/avatar-marketing.svg" 
+                 alt="Marketing Avatar" width="64" height="64"
+                 onerror="this.nextElementSibling.textContent='❌ 加载失败'" 
+                 onload="this.nextElementSibling.textContent='✅ 加载成功'"/>
+            <span>⏳ 加载中...</span>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 当前React应用状态</h2>
+        <div id="react-test">
+            <p>正在检查React应用是否正常运行...</p>
+            <iframe src="http://localhost:3000/" width="100%" height="300" style="border: 1px solid #ccc;"></iframe>
+        </div>
+    </div>
+    
+    <script>
+        // 检查React应用加载状态
+        setTimeout(() => {
+            const iframe = document.querySelector('iframe');
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const rootDiv = iframeDoc.getElementById('root');
+                if (rootDiv && rootDiv.innerHTML.trim() === '') {
+                    document.getElementById('react-test').innerHTML += '<p style="color: red;">❌ React应用未正确挂载 - root div为空</p>';
+                } else if (rootDiv && rootDiv.innerHTML.includes('OfferOtter')) {
+                    document.getElementById('react-test').innerHTML += '<p style="color: green;">✅ React应用正常运行 - 检测到OfferOtter内容</p>';
+                } else {
+                    document.getElementById('react-test').innerHTML += '<p style="color: orange;">⚠️ React应用状态未知</p>';
+                }
+            } catch (e) {
+                document.getElementById('react-test').innerHTML += '<p style="color: orange;">⚠️ 无法检查iframe内容 (跨域限制)</p>';
+            }
+        }, 3000);
+    </script>
+</body>
+</html> 

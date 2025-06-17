@@ -1,0 +1,6 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="32" fill="#DC2626"/>
+  <circle cx="32" cy="24" r="8" fill="white"/>
+  <path d="M32 36c-8 0-16 4-16 8v4h32v-4c0-4-8-8-16-8z" fill="white"/>
+  <text x="32" y="56" text-anchor="middle" fill="white" font-size="7" font-weight="bold">DA</text>
+</svg> 

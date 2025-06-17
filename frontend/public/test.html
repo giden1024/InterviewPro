@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>React状态测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>🔍 React和SVG状态检测</h1>
+    
+    <div class="test">
+        <h3>1. JavaScript基础测试</h3>
+        <div id="js-test" class="status">⏳ 测试中...</div>
+    </div>
+    
+    <div class="test">
+        <h3>2. 外部SVG文件加载测试</h3>
+        <div>
+            <img src="/src/components/OfferotterHome/images/logo-icon.svg" 
+                 width="32" height="32" 
+                 onload="document.getElementById('svg1').className='status success'; document.getElementById('svg1').textContent='✅ logo-icon.svg 加载成功';"
+                 onerror="document.getElementById('svg1').className='status error'; document.getElementById('svg1').textContent='❌ logo-icon.svg 加载失败';">
+            <div id="svg1" class="status">⏳ 加载中...</div>
+        </div>
+        
+        <div>
+            <img src="/src/components/OfferotterHome/images/avatar-pm.svg" 
+                 width="64" height="64" 
+                 onload="document.getElementById('svg2').className='status success'; document.getElementById('svg2').textContent='✅ avatar-pm.svg 加载成功';"
+                 onerror="document.getElementById('svg2').className='status error'; document.getElementById('svg2').textContent='❌ avatar-pm.svg 加载失败';">
+            <div id="svg2" class="status">⏳ 加载中...</div>
+        </div>
+    </div>
+    
+    <div class="test">
+        <h3>3. React应用检测</h3>
+        <div id="react-status" class="status">⏳ 检测中...</div>
+        <iframe src="/" width="100%" height="200" style="border: 1px solid #ccc; margin-top: 10px;"></iframe>
+    </div>
+    
+    <script>
+        // JavaScript基础测试
+        document.getElementById('js-test').className = 'status success';
+        document.getElementById('js-test').textContent = '✅ JavaScript正常运行';
+        
+        // React应用检测
+        setTimeout(() => {
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const rootDiv = doc.getElementById('root');
+                    
+                    if (!rootDiv) {
+                        document.getElementById('react-status').className = 'status error';
+                        document.getElementById('react-status').textContent = '❌ 未找到root元素';
+                    } else {
+                        document.getElementById('react-status').className = 'status warning';
+                        document.getElementById('react-status').textContent = '⚠️ 找到root元素，但需要检查内容是否渲染';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('react-status').className = 'status error';
+                    document.getElementById('react-status').textContent = '❌ 无法获取页面内容: ' + err.message;
+                });
+        }, 1000);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterviewGenius WebSocket 演示</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2d3748;
+        }
+        
+        .status {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        button:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .log-container {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        
+        .log-entry.info { color: #68d391; }
+        .log-entry.error { color: #f56565; }
+        .log-entry.warning { color: #f6e05e; }
+        .log-entry.event { color: #63b3ed; }
+        
+        .timestamp {
+            color: #a0aec0;
+            font-size: 11px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 InterviewGenius WebSocket 演示</h1>
+            <p>实时面试功能测试控制台</p>
+        </div>
+        
+        <div id="connectionStatus" class="status disconnected">
+            ❌ 未连接
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('connection')">连接管理</div>
+            <div class="tab" onclick="switchTab('interview')">面试功能</div>
+            <div class="tab" onclick="switchTab('voice')">语音功能</div>
+            <div class="tab" onclick="switchTab('advanced')">高级功能</div>
+        </div>
+        
+        <!-- 连接管理 -->
+        <div id="connection" class="tab-content active">
+            <div class="input-group">
+                <label for="serverUrl">服务器地址:</label>
+                <input type="text" id="serverUrl" value="http://localhost:5000" placeholder="http://localhost:5000">
+            </div>
+            
+            <div class="input-group">
+                <label for="authToken">认证Token (可选):</label>
+                <input type="text" id="authToken" placeholder="JWT Token">
+            </div>
+            
+            <div class="controls">
+                <button onclick="connectSocket()">🔌 连接</button>
+                <button onclick="disconnectSocket()">❌ 断开连接</button>
+                <button onclick="testPing()">🏓 Ping测试</button>
+                <button onclick="clearLogs()">🧹 清空日志</button>
+            </div>
+        </div>
+        
+        <!-- 面试功能 -->
+        <div id="interview" class="tab-content">
+            <div class="input-group">
+                <label for="interviewId">面试ID:</label>
+                <input type="text" id="interviewId" value="demo_interview_001" placeholder="面试会话ID">
+            </div>
+            
+            <div class="input-group">
+                <label for="userId">用户ID:</label>
+                <input type="number" id="userId" value="1" placeholder="用户ID">
+            </div>
+            
+            <div class="controls">
+                <button onclick="joinInterview()">🏠 加入面试房间</button>
+                <button onclick="leaveInterview()">🚪 离开房间</button>
+                <button onclick="getInterviewStatus()">📊 获取状态</button>
+                <button onclick="startQuestion()">❓ 开始问题</button>
+                <button onclick="submitAnswer()">✅ 提交答案</button>
+                <button onclick="endInterview()">🏁 结束面试</button>
+            </div>
+            
+            <div class="input-group">
+                <label for="messageText">消息内容:</label>
+                <textarea id="messageText" rows="3" placeholder="输入消息内容..."></textarea>
+                <button onclick="sendMessage()" style="margin-top: 10px;">💬 发送消息</button>
+            </div>
+        </div>
+        
+        <!-- 语音功能 -->
+        <div id="voice" class="tab-content">
+            <div class="controls">
+                <button onclick="startRecording()">🎤 开始录音</button>
+                <button onclick="stopRecording()">🛑 停止录音</button>
+                <button onclick="sendVoiceData()">📤 发送语音数据</button>
+            </div>
+            
+            <div class="input-group">
+                <label>录音状态: <span id="recordingStatus">未开始</span></label>
+                <audio id="audioPlayback" controls style="width: 100%; margin-top: 10px;"></audio>
+            </div>
+        </div>
+        
+        <!-- 高级功能 -->
+        <div id="advanced" class="tab-content">
+            <div class="controls">
+                <button onclick="requestHelp()">🆘 请求帮助</button>
+                <button onclick="emergencyStop()">🚨 紧急停止</button>
+                <button onclick="getServerStatus()">📊 服务器状态</button>
+                <button onclick="testConcurrentConnections()">👥 并发测试</button>
+            </div>
+            
+            <div class="input-group">
+                <label for="helpType">帮助类型:</label>
+                <select id="helpType">
+                    <option value="hint">提示</option>
+                    <option value="clarification">澄清</option>
+                    <option value="technical">技术问题</option>
+                    <option value="general">一般帮助</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>📋 实时日志</h3>
+        <div id="logContainer" class="log-container"></div>
+    </div>
+
+    <script>
+        let socket = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        
+        // 日志功能
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(connected, message = '') {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connected) {
+                statusElement.className = 'status connected';
+                statusElement.innerHTML = `✅ 已连接 ${message}`;
+            } else {
+                statusElement.className = 'status disconnected';
+                statusElement.innerHTML = `❌ 未连接 ${message}`;
+            }
+        }
+        
+        // WebSocket连接
+        function connectSocket() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const authToken = document.getElementById('authToken').value;
+            
+            if (socket && socket.connected) {
+                log('已经连接到服务器', 'warning');
+                return;
+            }
+            
+            try {
+                log(`正在连接到 ${serverUrl}...`, 'info');
+                
+                const options = {};
+                if (authToken) {
+                    options.auth = { token: authToken };
+                }
+                
+                socket = io(serverUrl, options);
+                
+                // 连接事件
+                socket.on('connect', () => {
+                    log('WebSocket连接成功！', 'info');
+                    updateConnectionStatus(true);
+                });
+                
+                socket.on('connected', (data) => {
+                    log(`服务器确认连接: ${JSON.stringify(data)}`, 'event');
+                    updateConnectionStatus(true, `(Session: ${data.session_id})`);
+                });
+                
+                socket.on('disconnect', () => {
+                    log('WebSocket连接断开', 'warning');
+                    updateConnectionStatus(false);
+                });
+                
+                socket.on('error', (error) => {
+                    log(`WebSocket错误: ${JSON.stringify(error)}`, 'error');
+                });
+                
+                // 业务事件监听
+                setupEventListeners();
+                
+            } catch (error) {
+                log(`连接失败: ${error.message}`, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+        
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('主动断开连接', 'info');
+                updateConnectionStatus(false);
+            }
+        }
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            if (!socket) return;
+            
+            // 通用响应
+            socket.on('pong', (data) => {
+                log(`Pong响应: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('test_response', (data) => {
+                log(`测试响应: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            // 在线用户数
+            socket.on('online_users', (data) => {
+                log(`在线用户数: ${data.count}`, 'info');
+            });
+            
+            // 面试相关事件
+            socket.on('joined_interview', (data) => {
+                log(`加入面试房间: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('left_interview', (data) => {
+                log(`离开面试房间: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('participant_joined', (data) => {
+                log(`新参与者加入: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('participant_left', (data) => {
+                log(`参与者离开: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('question_started', (data) => {
+                log(`问题开始: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('answer_submitted', (data) => {
+                log(`答案提交: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('answer_confirmed', (data) => {
+                log(`答案确认: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('interview_ended', (data) => {
+                log(`面试结束: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('interview_status_response', (data) => {
+                log(`面试状态: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            // 消息事件
+            socket.on('new_message', (data) => {
+                log(`新消息: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('user_typing', (data) => {
+                log(`用户正在输入: ${JSON.stringify(data)}`, 'info');
+            });
+            
+            // 语音事件
+            socket.on('voice_processing', (data) => {
+                log(`语音处理中: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('voice_transcribed', (data) => {
+                log(`语音转录完成: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('live_transcription', (data) => {
+                log(`实时转录: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            // 帮助事件
+            socket.on('help_requested', (data) => {
+                log(`帮助请求: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            socket.on('help_request_sent', (data) => {
+                log(`帮助请求已发送: ${JSON.stringify(data)}`, 'event');
+            });
+            
+            // 系统消息
+            socket.on('system_message', (data) => {
+                log(`系统消息: ${JSON.stringify(data)}`, 'info');
+            });
+        }
+        
+        // 测试功能
+        function testPing() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const timestamp = Date.now();
+            socket.emit('ping', { timestamp });
+            log(`发送Ping: ${timestamp}`, 'info');
+        }
+        
+        // 面试功能
+        function joinInterview() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            socket.emit('join_interview', {
+                interview_id: interviewId,
+                user_id: userId
+            });
+            
+            log(`加入面试房间: ${interviewId}`, 'info');
+        }
+        
+        function leaveInterview() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            socket.emit('leave_interview', {
+                interview_id: interviewId,
+                user_id: userId
+            });
+            
+            log(`离开面试房间: ${interviewId}`, 'info');
+        }
+        
+        function getInterviewStatus() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            
+            socket.emit('interview_status', {
+                interview_id: interviewId
+            });
+            
+            log(`获取面试状态: ${interviewId}`, 'info');
+        }
+        
+        function startQuestion() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            
+            socket.emit('start_question', {
+                interview_id: interviewId,
+                question_id: Date.now(),
+                question_text: '请介绍一下您的编程经验和项目经历。'
+            });
+            
+            log('开始新问题', 'info');
+        }
+        
+        function submitAnswer() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            socket.emit('submit_answer', {
+                interview_id: interviewId,
+                question_id: Date.now(),
+                answer_text: '我有3年的Python开发经验，参与过多个Web应用项目...',
+                user_id: userId,
+                response_time: 45
+            });
+            
+            log('提交答案', 'info');
+        }
+        
+        function endInterview() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            socket.emit('end_interview', {
+                interview_id: interviewId,
+                user_id: userId
+            });
+            
+            log('结束面试', 'info');
+        }
+        
+        function sendMessage() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            const message = document.getElementById('messageText').value;
+            
+            if (!message.trim()) {
+                log('请输入消息内容', 'warning');
+                return;
+            }
+            
+            socket.emit('send_message', {
+                interview_id: interviewId,
+                user_id: userId,
+                message: message,
+                type: 'text'
+            });
+            
+            log(`发送消息: ${message}`, 'info');
+            document.getElementById('messageText').value = '';
+        }
+        
+        // 语音功能
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(blob);
+                    document.getElementById('audioPlayback').src = audioUrl;
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                
+                document.getElementById('recordingStatus').textContent = '录音中...';
+                log('开始录音', 'info');
+                
+            } catch (error) {
+                log(`录音失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                document.getElementById('recordingStatus').textContent = '录音完成';
+                log('录音结束', 'info');
+            }
+        }
+        
+        function sendVoiceData() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            if (recordedChunks.length === 0) {
+                log('请先录音', 'warning');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            // 模拟发送音频数据
+            const mockAudioData = new ArrayBuffer(1024); // 1KB模拟数据
+            
+            socket.emit('voice_data', {
+                interview_id: interviewId,
+                audio_data: mockAudioData,
+                user_id: userId,
+                chunk_id: 0,
+                is_final: true
+            });
+            
+            log('发送语音数据', 'info');
+        }
+        
+        // 高级功能
+        function requestHelp() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            const helpType = document.getElementById('helpType').value;
+            
+            socket.emit('request_help', {
+                interview_id: interviewId,
+                user_id: userId,
+                help_type: helpType,
+                question_id: Date.now()
+            });
+            
+            log(`请求帮助: ${helpType}`, 'info');
+        }
+        
+        function emergencyStop() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            const interviewId = document.getElementById('interviewId').value;
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            socket.emit('end_interview', {
+                interview_id: interviewId,
+                user_id: userId,
+                emergency: true
+            });
+            
+            log('触发紧急停止', 'warning');
+        }
+        
+        function getServerStatus() {
+            if (!socket || !socket.connected) {
+                log('请先连接到服务器', 'error');
+                return;
+            }
+            
+            socket.emit('test_message', {
+                message: 'Server Status Check',
+                timestamp: Date.now()
+            });
+            
+            log('请求服务器状态', 'info');
+        }
+        
+        function testConcurrentConnections() {
+            log('并发连接测试功能开发中...', 'info');
+        }
+        
+        // 标签页切换
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            // 移除所有标签页活动状态
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // 显示选中的标签页
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('WebSocket演示页面加载完成', 'info');
+            log('请点击"连接"按钮开始测试', 'info');
+        });
+    </script>
+</body>
+</html> 
