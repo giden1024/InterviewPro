@@ -11,8 +11,8 @@ load_dotenv()
 app = Flask(__name__)
 
 # 加载配置类
-from app.config import DevelopmentConfig
-app.config.from_object(DevelopmentConfig)
+from app.config import ProductionConfig
+app.config.from_object(ProductionConfig)
 
 # 补充JWT配置
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
