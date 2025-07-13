@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存清除和更新验证</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .test-link:hover {
+            background-color: #0056b3;
+        }
+        .code {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            border: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 缓存清除和隐私协议更新验证</h1>
+    
+    <div class="alert">
+        <strong>✅ 部署状态:</strong> 隐私协议和用户协议分离功能已成功部署到AWS服务器！
+    </div>
+
+    <div class="alert warning">
+        <strong>⚠️ 重要提示:</strong> 如果您仍然看不到更新，请按照以下步骤清除浏览器缓存。
+    </div>
+
+    <h2>🧹 清除浏览器缓存步骤</h2>
+    
+    <h3>方法一：强制刷新</h3>
+    <div class="code">
+        • Windows/Linux: Ctrl + F5 或 Ctrl + Shift + R
+        • Mac: Cmd + Shift + R
+    </div>
+
+    <h3>方法二：清除缓存</h3>
+    <div class="code">
+        • Chrome: 按 F12 → Network 标签 → 右键点击刷新按钮 → "Empty Cache and Hard Reload"
+        • 或者: 设置 → 隐私和安全 → 清除浏览数据 → 选择"缓存的图片和文件"
+    </div>
+
+    <h3>方法三：无痕模式测试</h3>
+    <div class="code">
+        • 打开无痕/隐私浏览模式
+        • 访问网站测试功能
+    </div>
+
+    <h2>🔗 测试链接</h2>
+    <div class="alert info">
+        <strong>当前JavaScript文件:</strong> index-CQJ0se4A.js (已更新)
+    </div>
+
+    <h3>主要功能页面</h3>
+    <a href="https://offerott.com/privacy-policy" class="test-link" target="_blank">
+        隐私协议页面 (应该只显示隐私政策)
+    </a>
+    <a href="https://offerott.com/terms-of-use" class="test-link" target="_blank">
+        用户协议页面 (应该只显示用户协议)
+    </a>
+
+    <h3>登录注册页面</h3>
+    <a href="https://offerott.com/login" class="test-link" target="_blank">
+        登录页面 (检查链接是否正确)
+    </a>
+    <a href="https://offerott.com/register" class="test-link" target="_blank">
+        注册页面 (检查链接是否正确)
+    </a>
+
+    <h2>✅ 验证要点</h2>
+    <ol>
+        <li><strong>隐私协议页面</strong> - 只显示隐私政策内容，不包含用户协议</li>
+        <li><strong>用户协议页面</strong> - 只显示用户协议内容，不包含隐私政策</li>
+        <li><strong>登录页面</strong> - "Privacy Policy"链接指向/privacy-policy，"Terms of Use"链接指向/terms-of-use</li>
+        <li><strong>注册页面</strong> - "Terms of Use"链接指向/terms-of-use，"Privacy Policy"链接指向/privacy-policy</li>
+    </ol>
+
+    <h2>🆘 如果仍然有问题</h2>
+    <div class="alert warning">
+        如果清除缓存后仍然看不到更新，请尝试：
+        <ul>
+            <li>等待几分钟让CDN缓存过期</li>
+            <li>使用不同的浏览器测试</li>
+            <li>检查浏览器控制台是否有错误信息</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('测试页面加载时间:', new Date().toLocaleString());
+        console.log('当前页面URL:', window.location.href);
+        
+        // 检测当前JavaScript文件版本
+        const scripts = document.querySelectorAll('script[src*="index-"]');
+        if (scripts.length > 0) {
+            console.log('检测到的JavaScript文件:', scripts[0].src);
+        }
+    </script>
+</body>
+</html>

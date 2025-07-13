@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Deployment Verification - InterviewPro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 11px;
+        }
+        .deployment-info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 AWS Deployment Verification</h1>
+        
+        <div class="deployment-info">
+            <h3>📋 Deployment Information</h3>
+            <p><strong>Server:</strong> 3.14.247.189</p>
+            <p><strong>Frontend:</strong> https://3.14.247.189</p>
+            <p><strong>Backend API:</strong> https://3.14.247.189/api/v1</p>
+            <p><strong>Deployment Time:</strong> <span id="deploymentTime"></span></p>
+        </div>
+
+        <div class="section">
+            <h3>🌐 Frontend Access Test</h3>
+            <button onclick="testFrontend()">Test Frontend</button>
+            <span id="frontendStatus" class="status loading">Testing...</span>
+            <div id="frontendLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Backend API Test</h3>
+            <button onclick="testBackend()">Test Backend</button>
+            <span id="backendStatus" class="status loading">Testing...</span>
+            <div id="backendLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>🌍 Internationalization Test</h3>
+            <button onclick="testI18n()">Test I18n</button>
+            <span id="i18nStatus" class="status loading">Testing...</span>
+            <div id="i18nLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>🔐 OAuth Integration Test</h3>
+            <button onclick="testOAuth()">Test OAuth</button>
+            <span id="oauthStatus" class="status loading">Testing...</span>
+            <div id="oauthLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 Overall Status</h3>
+            <div id="overallStatus" class="status loading">Running Tests...</div>
+            <div id="overallLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h3>⚡ Quick Actions</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <button onclick="window.open('https://3.14.247.189', '_blank')">Open Live Site</button>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = 'https://3.14.247.189';
+        const API_URL = 'https://3.14.247.189/api/v1';
+        
+        function log(sectionId, message) {
+            const logDiv = document.getElementById(sectionId + 'Log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function setStatus(sectionId, status, className) {
+            const statusSpan = document.getElementById(sectionId + 'Status');
+            statusSpan.textContent = status;
+            statusSpan.className = 'status ' + className;
+        }
+        
+        async function testFrontend() {
+            log('frontend', 'Testing frontend access...');
+            setStatus('frontend', 'Testing...', 'loading');
+            
+            try {
+                const response = await fetch(SERVER_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/html',
+                    }
+                });
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    log('frontend', `✅ Frontend accessible (${response.status})`);
+                    
+                    // Check for updated content
+                    if (html.includes('InterviewPro - AI-powered Interview Platform')) {
+                        log('frontend', '✅ Updated title detected');
+                    }
+                    
+                    if (html.includes('index-DR72cJb5.js')) {
+                        log('frontend', '✅ New build artifacts detected');
+                    }
+                    
+                    setStatus('frontend', 'Success', 'success');
+                } else {
+                    log('frontend', `❌ Frontend error: ${response.status}`);
+                    setStatus('frontend', 'Error', 'error');
+                }
+            } catch (error) {
+                log('frontend', `❌ Frontend test failed: ${error.message}`);
+                setStatus('frontend', 'Error', 'error');
+            }
+        }
+        
+        async function testBackend() {
+            log('backend', 'Testing backend API...');
+            setStatus('backend', 'Testing...', 'loading');
+            
+            try {
+                // Test health endpoint
+                const response = await fetch(`${API_URL}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.text();
+                    log('backend', `✅ Health endpoint accessible (${response.status})`);
+                    log('backend', `Response: ${data}`);
+                    setStatus('backend', 'Success', 'success');
+                } else {
+                    log('backend', `❌ Health endpoint error: ${response.status}`);
+                    setStatus('backend', 'Error', 'error');
+                }
+            } catch (error) {
+                log('backend', `❌ Backend test failed: ${error.message}`);
+                setStatus('backend', 'Error', 'error');
+            }
+        }
+        
+        async function testI18n() {
+            log('i18n', 'Testing internationalization...');
+            setStatus('i18n', 'Testing...', 'loading');
+            
+            try {
+                const response = await fetch(SERVER_URL);
+                const html = await response.text();
+                
+                // Check for English content
+                const englishTerms = [
+                    'AI-powered Interview Platform',
+                    'Loading...',
+                    'Generate New Questions',
+                    'Mock Interview',
+                    'Formal Interview'
+                ];
+                
+                let englishFound = 0;
+                englishTerms.forEach(term => {
+                    if (html.includes(term)) {
+                        englishFound++;
+                        log('i18n', `✅ English term found: "${term}"`);
+                    }
+                });
+                
+                if (englishFound >= englishTerms.length / 2) {
+                    log('i18n', '✅ Internationalization appears successful');
+                    setStatus('i18n', 'Success', 'success');
+                } else {
+                    log('i18n', '⚠️ Some English terms not found');
+                    setStatus('i18n', 'Partial', 'loading');
+                }
+            } catch (error) {
+                log('i18n', `❌ I18n test failed: ${error.message}`);
+                setStatus('i18n', 'Error', 'error');
+            }
+        }
+        
+        async function testOAuth() {
+            log('oauth', 'Testing OAuth integration...');
+            setStatus('oauth', 'Testing...', 'loading');
+            
+            try {
+                const response = await fetch(SERVER_URL);
+                const html = await response.text();
+                
+                // Check for OAuth-related content
+                if (html.includes('oauth') || html.includes('google') || html.includes('facebook')) {
+                    log('oauth', '✅ OAuth related content detected');
+                    setStatus('oauth', 'Success', 'success');
+                } else {
+                    log('oauth', '⚠️ OAuth content not detected in HTML');
+                    setStatus('oauth', 'Partial', 'loading');
+                }
+                
+                // Note: Full OAuth testing would require actual authentication flow
+                log('oauth', 'ℹ️ Full OAuth testing requires user interaction');
+            } catch (error) {
+                log('oauth', `❌ OAuth test failed: ${error.message}`);
+                setStatus('oauth', 'Error', 'error');
+            }
+        }
+        
+        async function runAllTests() {
+            log('overall', 'Running all verification tests...');
+            setStatus('overall', 'Running...', 'loading');
+            
+            await testFrontend();
+            await testBackend();
+            await testI18n();
+            await testOAuth();
+            
+            log('overall', '✅ All tests completed');
+            setStatus('overall', 'Complete', 'success');
+        }
+        
+        function clearLogs() {
+            document.querySelectorAll('.log').forEach(log => log.innerHTML = '');
+        }
+        
+        // Initialize
+        document.getElementById('deploymentTime').textContent = new Date().toLocaleString();
+        
+        // Run tests automatically
+        setTimeout(() => {
+            runAllTests();
+        }, 1000);
+    </script>
+</body>
+</html> 
