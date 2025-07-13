@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { authService } from '../services/authService';
 import { useUserStore } from '../stores/userStore';
 
@@ -27,10 +26,12 @@ export const useUserInfo = () => {
       console.error('获取用户信息失败:', error);
       setError(error instanceof Error ? error.message : '获取用户信息失败');
       
-      // 如果是认证错误，清除用户信息
-      if (error instanceof Error && error.message === 'Unauthorized') {
+      // 如果是认证错误，清除用户信息并重定向到登录页
+      if (error instanceof Error && (error.message === 'Unauthorized' || error.message.includes('401'))) {
         clearUser();
         authService.logout();
+        // 触发重定向到登录页
+        window.location.href = '/login';
       }
     } finally {
       setLoading(false);

@@ -21,6 +21,7 @@ class InterviewType(enum.Enum):
     TECHNICAL = "technical"           # 技术面试
     HR = "hr"                        # HR面试
     COMPREHENSIVE = "comprehensive"   # 综合面试
+    MOCK = "mock"                    # 模拟面试
 
 class Question(db.Model):
     """面试问题模型"""

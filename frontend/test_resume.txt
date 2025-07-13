@@ -1,0 +1,23 @@
+John Doe - Software Engineer
+
+Experience:
+- 3+ years in React and Node.js development
+- Led team of 5 developers at TechCorp
+- Built scalable web applications serving 100k+ users
+- Implemented CI/CD pipelines and automated testing
+
+Skills:
+- Frontend: JavaScript, TypeScript, React, Vue.js
+- Backend: Node.js, Python, Django, Flask
+- Database: PostgreSQL, MongoDB, Redis
+- Cloud: AWS, Docker, Kubernetes
+- Tools: Git, Jenkins, JIRA
+
+Education:
+- Bachelor of Computer Science
+- Stanford University (2018-2022)
+
+Contact:
+- Email: john.doe@email.com
+- Phone: +1-555-123-4567
+- LinkedIn: linkedin.com/in/johndoe

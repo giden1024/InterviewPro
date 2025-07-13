@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LoginPageProps, LoginFormData } from './types';
-
-// SVG 图标组件
-const LogoIcon: React.FC<{ className?: string }> = ({ className = "w-[116px] h-[47px]" }) => (
-  <svg className={className} viewBox="0 0 116 47" xmlns="http://www.w3.org/2000/svg">
-    <path d="M1.52543 25.6764Q-1.99439 32.0562 2.60753 36.9396C4.3041 38.7399 6.71666 39.6125 9.14809 40.0681Q25.7136 43.1725 33.6562 39.9113Q40.1334 37.2517 40.7102 31.4015C41.0119 28.3408 39.4807 25.4853 37.7591 22.9368L36.2255 20.6664C35.9253 20.2221 35.9675 19.6447 36.2554 19.1923Q37.8296 16.7188 37.4224 12.0886C36.7751 0.971287 20.1212 -3.14625 11.4118 2.55946Q2.99632 8.07261 5.73413 18.9128C5.85025 19.3726 5.68596 19.8723 5.35069 20.2077Q3.72382 21.8351 1.52543 25.6764Z" fill="#634B41"/>
-    <path d="M-0.536443 24.5389Q-4.88558 32.4218 0.89375 38.5546Q3.59757 41.4238 8.71434 42.3827Q25.9641 45.6153 34.5506 42.0897Q42.3379 38.8921 43.0537 31.6325Q43.4894 27.2127 39.7105 21.6186L38.5595 19.9147Q40.1999 16.8659 39.7712 11.9165Q39.1915 2.30175 28.1578 -1.22752Q17.9024 -4.50783 10.1213 0.589663Q0.523824 6.87719 3.31547 18.9299Q1.60383 20.7985 -0.518391 24.5068L-0.536443 24.5389ZM11.4118 2.55946C20.1212 -3.14625 36.7751 0.971287 37.4224 12.0886Q37.8296 16.7188 36.2554 19.1923C35.9675 19.6447 35.9253 20.2221 36.2255 20.6664L37.7591 22.9368C39.4807 25.4853 41.0119 28.3408 40.7102 31.4015Q40.1334 37.2517 33.6562 39.9113Q25.7136 43.1725 9.14809 40.0681C6.71666 39.6125 4.3041 38.7399 2.60753 36.9396Q-1.99439 32.0562 1.52543 25.6764Q3.72382 21.8351 5.35069 20.2077C5.68596 19.8723 5.85025 19.3726 5.73413 18.9128Q2.99632 8.07261 11.4118 2.55946Z" fill="#8FD3F4"/>
-  </svg>
-);
+import logoImg from '../../assets/logo02.png';
 
 const EmailIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -63,32 +57,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onFacebookLogin,
   onForgotPassword,
   onSignUp,
+  isLoading: externalIsLoading,
+  errorMessage,
+  onClearError,
 }) => {
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [internalIsLoading, setInternalIsLoading] = useState(false);
+  const [agreeToPrivacy, setAgreeToPrivacy] = useState(false);
+  const navigate = useNavigate();
+
+  // 使用外部传入的loading状态，如果没有则使用内部状态
+  const isLoading = externalIsLoading !== undefined ? externalIsLoading : internalIsLoading;
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     setFormData((prev: LoginFormData) => ({ ...prev, [field]: value }));
+    // 当用户开始输入时，清除错误信息
+    if (errorMessage && onClearError) {
+      onClearError();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) return;
+    if (!formData.email || !formData.password || !agreeToPrivacy) return;
     
-    setIsLoading(true);
+    setInternalIsLoading(true);
     try {
       await onLogin?.(formData);
     } finally {
-      setIsLoading(false);
+      setInternalIsLoading(false);
     }
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-    setIsLoading(true);
+    setInternalIsLoading(true);
     try {
       if (provider === 'google') {
         await onGoogleLogin?.();
@@ -96,7 +102,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         await onFacebookLogin?.();
       }
     } finally {
-      setIsLoading(false);
+      setInternalIsLoading(false);
     }
   };
 
@@ -107,7 +113,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       
       {/* Logo */}
       <div className="absolute top-28 left-1/2 transform -translate-x-1/2 flex items-center space-x-3">
-        <LogoIcon className="w-[47px] h-[47px]" />
+        <img src={logoImg} alt="OfferOtter Logo" className="w-[47px] h-[47px]" />
         <span className="font-bold text-xl text-amber-700" style={{ fontFamily: 'Pump Demi Bold LET' }}>
           Offerotter
         </span>
@@ -127,6 +133,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               AI-Powered Simulation！
             </p>
           </div>
+
+          {/* Error Message Display */}
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-red-800 leading-relaxed">
+                    {errorMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={onClearError}
+                  className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -167,6 +199,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </div>
             </div>
 
+            {/* Privacy Policy Checkbox */}
+            <div className="flex items-start space-x-3">
+              <div className="flex items-center h-5">
+                <input
+                  id="privacy-policy"
+                  type="checkbox"
+                  checked={agreeToPrivacy}
+                  onChange={(e) => setAgreeToPrivacy(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                />
+              </div>
+              <div className="text-sm">
+                <label htmlFor="privacy-policy" className="text-gray-700">
+                  I have read and agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/privacy-policy')}
+                    className="text-blue-600 hover:text-blue-700 underline font-medium"
+                  >
+                    Privacy Policy
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/terms-of-use')}
+                    className="text-blue-600 hover:text-blue-700 underline font-medium"
+                  >
+                    Terms of Use
+                  </button>
+                </label>
+              </div>
+            </div>
+
             {/* Forgot Password */}
             <div className="text-left">
               <button
@@ -182,23 +247,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             {/* Continue Button */}
             <button
               type="submit"
-              disabled={!formData.email || !formData.password || isLoading}
+              disabled={!formData.email || !formData.password || !agreeToPrivacy || isLoading}
               className="w-full bg-gradient-to-r from-blue-300 via-blue-400 to-blue-500 hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 font-medium py-4 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
               style={{ fontFamily: 'Poppins', fontSize: '28px' }}
             >
               {isLoading ? 'Loading...' : 'Continue'}
             </button>
+            
+            {/* Privacy Policy Warning */}
+            {(!agreeToPrivacy && (formData.email || formData.password)) && (
+              <div className="text-center">
+                <p className="text-red-500 text-sm">
+                  Please read and agree to the Privacy Policy and Terms of Use
+                </p>
+              </div>
+            )}
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center my-6">
+          {/* Divider - Hidden */}
+          <div className="flex items-center my-6" style={{ display: 'none' }}>
             <div className="flex-1 border-t border-gray-300"></div>
             <span className="px-4 text-gray-600 font-medium">OR</span>
             <div className="flex-1 border-t border-gray-300"></div>
           </div>
 
-          {/* Social Login Buttons */}
-          <div className="space-y-3">
+          {/* Social Login Buttons - Hidden */}
+          <div className="space-y-3" style={{ display: 'none' }}>
             <button
               type="button"
               onClick={() => handleSocialLogin('google')}

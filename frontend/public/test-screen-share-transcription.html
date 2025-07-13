@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>屏幕共享和语音转录功能测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #EEF9FF;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(145, 215, 255, 0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #E0F2FF;
+        }
+
+        .header h1 {
+            color: #282828;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #E0F2FF;
+            border-radius: 8px;
+            background: #F8FCFF;
+        }
+
+        .demo-section h2 {
+            color: #282828;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #68C6F1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5AB5E0;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .video-container {
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .video-preview {
+            max-width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .transcription-area {
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .transcription-entry {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #68C6F1;
+        }
+
+        .transcription-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .transcription-text {
+            color: #333;
+        }
+
+        .interim-text {
+            color: #999;
+            font-style: italic;
+        }
+
+        .listening-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #e3f2fd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #68C6F1;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        .pulse-dot:nth-child(2) { animation-delay: 0.1s; }
+        .pulse-dot:nth-child(3) { animation-delay: 0.2s; }
+
+        @keyframes pulse {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #bee5eb;
+        }
+
+        .info-box h4 {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ 屏幕共享和语音转录功能测试</h1>
+            <p>测试面试页面的屏幕共享和实时语音转录功能</p>
+        </div>
+
+        <div class="info-box">
+            <h4>📋 功能说明</h4>
+            <ul>
+                <li><strong>屏幕共享</strong>：点击"开始屏幕共享"可以选择共享整个屏幕、应用窗口或浏览器标签页</li>
+                <li><strong>语音转录</strong>：使用浏览器内置的语音识别API，支持实时转录和历史记录</li>
+                <li><strong>音频捕获</strong>：从屏幕共享中提取音频流进行处理</li>
+                <li><strong>实时显示</strong>：转录结果实时显示，支持置信度显示</li>
+            </ul>
+        </div>
+
+        <div class="feature-grid">
+            <!-- 屏幕共享功能 -->
+            <div class="demo-section">
+                <h2>🖥️ 屏幕共享功能</h2>
+                
+                <div id="screenShareStatus" class="status inactive">
+                    ❌ 屏幕共享未激活
+                </div>
+
+                <div class="controls">
+                    <button id="startScreenShare" class="btn btn-primary">
+                        🖥️ 开始屏幕共享
+                    </button>
+                    <button id="stopScreenShare" class="btn btn-danger" disabled>
+                        🛑 停止屏幕共享
+                    </button>
+                </div>
+
+                <div class="video-container">
+                    <video id="screenVideo" class="video-preview" autoplay muted style="display: none;"></video>
+                </div>
+
+                <div id="screenShareInfo" style="display: none;">
+                    <p><strong>分辨率:</strong> <span id="resolution">-</span></p>
+                    <p><strong>帧率:</strong> <span id="frameRate">-</span></p>
+                    <p><strong>音频轨道:</strong> <span id="audioTracks">-</span></p>
+                </div>
+            </div>
+
+            <!-- 语音转录功能 -->
+            <div class="demo-section">
+                <h2>🎤 语音转录功能</h2>
+                
+                <div id="speechStatus" class="status inactive">
+                    ❌ 语音识别未激活
+                </div>
+
+                <div class="controls">
+                    <button id="startSpeech" class="btn btn-success">
+                        🎤 开始语音识别
+                    </button>
+                    <button id="stopSpeech" class="btn btn-danger" disabled>
+                        🛑 停止语音识别
+                    </button>
+                    <button id="clearTranscription" class="btn btn-primary">
+                        🧹 清除记录
+                    </button>
+                </div>
+
+                <div id="listeningIndicator" style="display: none;" class="listening-indicator">
+                    <div class="pulse-dot"></div>
+                    <div class="pulse-dot"></div>
+                    <div class="pulse-dot"></div>
+                    <span>正在监听...</span>
+                </div>
+
+                <div id="transcription-section" style="margin-top: 20px;">
+                    <h3>🎤 语音转录 (智能分段)</h3>
+                    
+                    <!-- 转录历史 -->
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; font-size: 14px;">转录历史</h4>
+                            <button onclick="clearTranscription()" style="font-size: 12px; color: #666; text-decoration: underline; background: none; border: none; cursor: pointer;">
+                                清除历史
+                            </button>
+                        </div>
+                        <div id="transcription-history" style="
+                            max-height: 300px; 
+                            overflow-y: auto; 
+                            border: 1px solid #ddd; 
+                            border-radius: 8px; 
+                            padding: 15px; 
+                            background: #f8f9fa;
+                            min-height: 100px;
+                        ">
+                            <p style="color: #999; text-align: center; margin: 40px 0;">点击"开始语音识别"开始转录...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 当前分段 -->
+                    <div id="current-segment-container" style="margin-bottom: 15px; display: none;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #f39c12;">
+                            🟡 当前分段
+                        </h4>
+                        <div style="
+                            background: #fff3cd; 
+                            border: 1px solid #ffeaa7; 
+                            border-radius: 6px; 
+                            padding: 10px;
+                            min-height: 40px;
+                        ">
+                            <p id="current-segment" style="margin: 0; color: #856404;"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- 实时转录 -->
+                    <div id="interim-container" style="margin-bottom: 15px; display: none;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #007acc;">
+                            🔵 实时转录
+                        </h4>
+                        <div style="
+                            background: #e3f2fd; 
+                            border: 1px solid #90caf9; 
+                            border-radius: 6px; 
+                            padding: 10px;
+                            min-height: 40px;
+                        ">
+                            <p id="interim-transcript" style="margin: 0; color: #1565c0; font-style: italic;"></p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="speech-btn" onclick="toggleSpeechRecognition()" style="
+                            padding: 10px 20px; 
+                            background: #28a745; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 14px;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                        ">
+                            🎤 开始语音识别
+                        </button>
+                        
+                        <button onclick="clearTranscription()" style="
+                            padding: 10px 20px; 
+                            background: #6c757d; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">
+                            清除历史
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 综合演示区域 -->
+        <div class="demo-section">
+            <h2>🔄 综合功能演示</h2>
+            <p style="margin-bottom: 15px; color: #666;">
+                同时启用屏幕共享和语音识别，模拟真实面试场景
+            </p>
+            
+            <div class="controls">
+                <button id="startAll" class="btn btn-primary">
+                    🚀 启动所有功能
+                </button>
+                <button id="stopAll" class="btn btn-danger">
+                    🛑 停止所有功能
+                </button>
+            </div>
+
+            <div id="combinedStatus" class="info-box" style="display: none;">
+                <h4>📊 当前状态</h4>
+                <p>屏幕共享: <span id="screenStatus">未激活</span></p>
+                <p>语音识别: <span id="voiceStatus">未激活</span></p>
+                <p>转录条目: <span id="transcriptionCount">0</span></p>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+    </div>
+
+    <script>
+        // 全局变量
+        let screenStream = null;
+        let recognition = null;
+        let isScreenSharing = false;
+        let isListening = false;
+        let transcriptionHistory = [];
+        let currentSegment = '';
+        let lastSpeechTime = 0;
+        let segmentStartTime = 0;
+
+        // DOM 元素
+        const elements = {
+            startScreenShare: document.getElementById('startScreenShare'),
+            stopScreenShare: document.getElementById('stopScreenShare'),
+            screenShareStatus: document.getElementById('screenShareStatus'),
+            screenVideo: document.getElementById('screenVideo'),
+            screenShareInfo: document.getElementById('screenShareInfo'),
+            
+            startSpeech: document.getElementById('startSpeech'),
+            stopSpeech: document.getElementById('stopSpeech'),
+            speechStatus: document.getElementById('speechStatus'),
+            listeningIndicator: document.getElementById('listeningIndicator'),
+            transcriptionArea: document.getElementById('transcriptionArea'),
+            clearTranscription: document.getElementById('clearTranscription'),
+            
+            startAll: document.getElementById('startAll'),
+            stopAll: document.getElementById('stopAll'),
+            combinedStatus: document.getElementById('combinedStatus'),
+            errorContainer: document.getElementById('errorContainer')
+        };
+
+        // 错误处理
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            elements.errorContainer.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+            
+            console.error('❌', message);
+        }
+
+        // 更新状态显示
+        function updateStatus() {
+            // 屏幕共享状态
+            if (isScreenSharing) {
+                elements.screenShareStatus.className = 'status active';
+                elements.screenShareStatus.textContent = '✅ 屏幕共享已激活';
+                elements.startScreenShare.disabled = true;
+                elements.stopScreenShare.disabled = false;
+            } else {
+                elements.screenShareStatus.className = 'status inactive';
+                elements.screenShareStatus.textContent = '❌ 屏幕共享未激活';
+                elements.startScreenShare.disabled = false;
+                elements.stopScreenShare.disabled = true;
+            }
+
+            // 语音识别状态
+            if (isListening) {
+                elements.speechStatus.className = 'status active';
+                elements.speechStatus.textContent = '✅ 语音识别已激活';
+                elements.startSpeech.disabled = true;
+                elements.stopSpeech.disabled = false;
+                elements.listeningIndicator.style.display = 'flex';
+            } else {
+                elements.speechStatus.className = 'status inactive';
+                elements.speechStatus.textContent = '❌ 语音识别未激活';
+                elements.startSpeech.disabled = false;
+                elements.stopSpeech.disabled = true;
+                elements.listeningIndicator.style.display = 'none';
+            }
+
+            // 综合状态
+            if (isScreenSharing || isListening) {
+                elements.combinedStatus.style.display = 'block';
+                document.getElementById('screenStatus').textContent = isScreenSharing ? '✅ 激活' : '❌ 未激活';
+                document.getElementById('voiceStatus').textContent = isListening ? '✅ 激活' : '❌ 未激活';
+                document.getElementById('transcriptionCount').textContent = transcriptionHistory.length;
+            }
+        }
+
+        // 屏幕共享功能
+        async function startScreenShare() {
+            try {
+                console.log('🖥️ 开始请求屏幕共享权限...');
+                
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 },
+                        frameRate: { ideal: 30, max: 60 }
+                    },
+                    audio: true
+                });
+
+                console.log('✅ 屏幕共享权限获取成功');
+                isScreenSharing = true;
+                
+                // 显示视频预览
+                elements.screenVideo.srcObject = screenStream;
+                elements.screenVideo.style.display = 'block';
+                elements.screenShareInfo.style.display = 'block';
+
+                // 显示流信息
+                const videoTrack = screenStream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                document.getElementById('resolution').textContent = `${settings.width}x${settings.height}`;
+                document.getElementById('frameRate').textContent = `${settings.frameRate || 'Unknown'} fps`;
+                document.getElementById('audioTracks').textContent = screenStream.getAudioTracks().length > 0 ? '✅ 有音频' : '❌ 无音频';
+
+                // 监听屏幕共享结束事件
+                screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    console.log('🛑 用户停止了屏幕共享');
+                    stopScreenShare();
+                });
+
+                updateStatus();
+
+            } catch (error) {
+                console.error('❌ 屏幕共享失败:', error);
+                let errorMessage = '屏幕共享失败';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = '用户拒绝了屏幕共享权限';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = '没有找到可共享的屏幕';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage = '浏览器不支持屏幕共享';
+                } else {
+                    errorMessage = `屏幕共享错误: ${error.message}`;
+                }
+                
+                showError(errorMessage);
+            }
+        }
+
+        function stopScreenShare() {
+            console.log('🛑 停止屏幕共享');
+            
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log(`🔇 停止轨道: ${track.kind}`);
+                });
+                screenStream = null;
+            }
+            
+            isScreenSharing = false;
+            elements.screenVideo.style.display = 'none';
+            elements.screenShareInfo.style.display = 'none';
+            elements.screenVideo.srcObject = null;
+            
+            updateStatus();
+        }
+
+        // 语音识别功能
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                showError('浏览器不支持语音识别功能');
+                elements.startSpeech.disabled = true;
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'zh-CN'; // 支持中文
+
+            recognition.onstart = () => {
+                console.log('🎤 语音识别开始');
+                isListening = true;
+                updateStatus();
+            };
+
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                if (finalTranscript) {
+                    const confidence = event.results[event.resultIndex][0].confidence || 0.8;
+                    processTranscriptSegment(finalTranscript.trim(), confidence);
+                    console.log('📝 语音转录:', finalTranscript);
+                }
+                
+                // 更新实时转录显示
+                document.getElementById('interim-transcript').textContent = interimTranscript;
+                
+                // 更新当前分段显示
+                document.getElementById('current-segment').textContent = currentSegment;
+                
+                // 更新显示状态
+                updateDisplayVisibility();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('❌ 语音识别错误:', event.error);
+                showError(`语音识别错误: ${event.error}`);
+                isListening = false;
+                updateStatus();
+            };
+
+            recognition.onend = () => {
+                console.log('🛑 语音识别结束');
+                isListening = false;
+                updateStatus();
+            };
+        }
+
+        function startSpeechRecognition() {
+            if (!recognition) {
+                showError('语音识别未初始化');
+                return;
+            }
+
+            try {
+                recognition.start();
+            } catch (error) {
+                showError('启动语音识别失败: ' + error.message);
+            }
+        }
+
+        function stopSpeechRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function updateTranscriptionDisplay() {
+            const container = document.getElementById('transcription-history');
+            
+            container.innerHTML = transcriptionHistory.map((entry, index) => {
+                const segmentClass = entry.segmentType === 'pause' 
+                    ? 'opacity-60' 
+                    : entry.segmentType === 'paragraph'
+                    ? 'border-l-4 border-blue-500 pl-3'
+                    : '';
+                
+                const segmentLabel = entry.segmentType === 'sentence' ? '句' :
+                                   entry.segmentType === 'paragraph' ? '段' : '停';
+                
+                const segmentColor = entry.segmentType === 'sentence' 
+                    ? 'bg-green-100 text-green-700'
+                    : entry.segmentType === 'paragraph'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600';
+                
+                const textClass = entry.segmentType === 'pause' 
+                    ? 'text-gray-500 italic font-mono text-center'
+                    : entry.segmentType === 'paragraph'
+                    ? 'text-gray-800 font-medium'
+                    : 'text-gray-800';
+                
+                return `
+                    <div class="transcription-entry ${segmentClass}" style="margin-bottom: 12px; padding: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 12px; color: #666;">${entry.timestamp}</span>
+                                <span class="${segmentColor}" style="font-size: 11px; padding: 2px 6px; border-radius: 10px;">
+                                    ${segmentLabel}
+                                </span>
+                                ${entry.duration ? `<span style="font-size: 12px; color: #666;">${entry.duration.toFixed(1)}s</span>` : ''}
+                            </div>
+                            <span style="font-size: 12px; color: #007acc;">
+                                ${Math.round(entry.confidence * 100)}%
+                            </span>
+                        </div>
+                        <p class="${textClass}" style="margin: 0; line-height: 1.4;">
+                            ${entry.text}
+                        </p>
+                        ${entry.segmentType === 'paragraph' && index < transcriptionHistory.length - 1 ? 
+                            '<div style="border-top: 1px dashed #ccc; margin-top: 8px;"></div>' : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            // 自动滚动到底部
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearTranscription() {
+            transcriptionHistory = [];
+            currentSegment = '';
+            lastSpeechTime = 0;
+            segmentStartTime = 0;
+            
+            document.getElementById('transcription-history').innerHTML = 
+                '<p style="color: #999; text-align: center; margin: 40px 0;">点击"开始语音识别"开始转录...</p>';
+            document.getElementById('current-segment').textContent = '';
+            document.getElementById('interim-transcript').textContent = '';
+            
+            // 隐藏当前分段和实时转录容器
+            document.getElementById('current-segment-container').style.display = 'none';
+            document.getElementById('interim-container').style.display = 'none';
+            
+            console.log('🧹 清除转录历史');
+        }
+
+        // 更新显示状态
+        function updateDisplayVisibility() {
+            // 显示/隐藏当前分段容器
+            const currentSegmentContainer = document.getElementById('current-segment-container');
+            if (currentSegment) {
+                currentSegmentContainer.style.display = 'block';
+                document.getElementById('current-segment').textContent = currentSegment;
+            } else {
+                currentSegmentContainer.style.display = 'none';
+            }
+            
+            // 显示/隐藏实时转录容器
+            const interimContainer = document.getElementById('interim-container');
+            const interimText = document.getElementById('interim-transcript').textContent;
+            if (interimText) {
+                interimContainer.style.display = 'block';
+            } else {
+                interimContainer.style.display = 'none';
+            }
+        }
+
+        // 智能分段处理函数
+        function processTranscriptSegment(text, confidence) {
+            const now = Date.now();
+            const timeSinceLastSpeech = now - lastSpeechTime;
+            
+            // 更新最后语音时间
+            lastSpeechTime = now;
+            
+            // 如果是第一次识别或者距离上次识别超过2秒，开始新段落
+            if (lastSpeechTime === 0 || timeSinceLastSpeech > 2000) {
+                segmentStartTime = now;
+                currentSegment = text;
+                
+                // 如果有停顿，添加停顿标记
+                if (lastSpeechTime !== 0 && timeSinceLastSpeech > 3000) {
+                    const pauseEntry = {
+                        id: `pause-${now}`,
+                        text: `[${Math.round(timeSinceLastSpeech / 1000)}s pause]`,
+                        timestamp: new Date().toLocaleTimeString(),
+                        confidence: 1.0,
+                        segmentType: 'pause',
+                        duration: timeSinceLastSpeech / 1000
+                    };
+                    
+                    transcriptionHistory.push(pauseEntry);
+                }
+            } else {
+                // 继续当前段落
+                currentSegment = currentSegment + ' ' + text;
+            }
+            
+            // 检查是否需要分段
+            const combinedText = currentSegment + ' ' + text;
+            const shouldCreateSegment = 
+                text.endsWith('.') || 
+                text.endsWith('!') || 
+                text.endsWith('?') || 
+                combinedText.length > 200 || // 超过200字符自动分段
+                timeSinceLastSpeech > 5000; // 超过5秒停顿
+            
+            if (shouldCreateSegment) {
+                const segmentType = 
+                    (text.endsWith('.') || text.endsWith('!') || text.endsWith('?')) ? 'sentence' :
+                    combinedText.length > 200 ? 'paragraph' : 'sentence';
+                
+                const newEntry = {
+                    id: `segment-${now}`,
+                    text: combinedText.trim(),
+                    timestamp: new Date().toLocaleTimeString(),
+                    confidence: confidence,
+                    segmentType: segmentType,
+                    duration: (now - segmentStartTime) / 1000
+                };
+                
+                transcriptionHistory.push(newEntry);
+                currentSegment = '';
+                
+                console.log('📝 分段完成:', combinedText.trim());
+                updateTranscriptionDisplay();
+            }
+        }
+
+        // 综合功能
+        async function startAllFeatures() {
+            try {
+                await startScreenShare();
+                setTimeout(() => {
+                    startSpeechRecognition();
+                }, 1000);
+            } catch (error) {
+                showError('启动综合功能失败: ' + error.message);
+            }
+        }
+
+        function stopAllFeatures() {
+            stopScreenShare();
+            stopSpeechRecognition();
+        }
+
+        // 事件监听器
+        elements.startScreenShare.addEventListener('click', startScreenShare);
+        elements.stopScreenShare.addEventListener('click', stopScreenShare);
+        elements.startSpeech.addEventListener('click', startSpeechRecognition);
+        elements.stopSpeech.addEventListener('click', stopSpeechRecognition);
+        elements.clearTranscription.addEventListener('click', clearTranscription);
+        elements.startAll.addEventListener('click', startAllFeatures);
+        elements.stopAll.addEventListener('click', stopAllFeatures);
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 屏幕共享和语音转录测试页面已加载');
+            initSpeechRecognition();
+            updateStatus();
+            
+            // 检查浏览器支持
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                showError('浏览器不支持屏幕共享功能');
+                elements.startScreenShare.disabled = true;
+                elements.startAll.disabled = true;
+            }
+        });
+
+        // 页面卸载时清理资源
+        window.addEventListener('beforeunload', () => {
+            stopAllFeatures();
+        });
+    </script>
+</body>
+</html> 

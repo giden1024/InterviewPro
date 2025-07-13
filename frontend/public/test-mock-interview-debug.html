@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .data-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .data-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mock Interview Debug Test</h1>
+        <p>测试Mock Interview功能的完整流程</p>
+        
+        <div>
+            <button class="button" onclick="login()">1. 登录</button>
+            <button class="button" onclick="getJobs()">2. 获取职位</button>
+            <button class="button" onclick="getResumes()">3. 获取简历</button>
+            <button class="button" onclick="testModalLogic()">4. 测试Modal逻辑</button>
+            <button class="button" onclick="clearResults()">清除结果</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>测试结果</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let token = '';
+        let jobsData = [];
+        let resumesData = [];
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function addDataSection(title, data) {
+            const results = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = 'data-section';
+            section.innerHTML = \`
+                <div class="data-title">\${title}</div>
+                <pre>\${JSON.stringify(data, null, 2)}</pre>
+            \`;
+            results.appendChild(section);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function login() {
+            try {
+                addResult('🔄 正在登录...', 'info');
+                
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'testuser',
+                        password: 'testpass'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    token = data.data.access_token;
+                    addResult('✅ 登录成功', 'success');
+                    addDataSection('用户信息', data.data.user);
+                } else {
+                    addResult('❌ 登录失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addResult('❌ 登录请求失败: ' + error.message, 'error');
+            }
+        }
+
+        async function getJobs() {
+            if (!token) {
+                addResult('❌ 请先登录', 'error');
+                return;
+            }
+
+            try {
+                addResult('🔄 正在获取职位数据...', 'info');
+                
+                const response = await fetch('http://localhost:5001/api/v1/jobs?per_page=50', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': \`Bearer \${token}\`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    jobsData = data.data.jobs || [];
+                    addResult(\`✅ 获取到 \${jobsData.length} 个职位\`, 'success');
+                    addDataSection('职位数据', jobsData);
+                } else {
+                    addResult('❌ 获取职位失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addResult('❌ 获取职位请求失败: ' + error.message, 'error');
+            }
+        }
+
+        async function getResumes() {
+            if (!token) {
+                addResult('❌ 请先登录', 'error');
+                return;
+            }
+
+            try {
+                addResult('🔄 正在获取简历数据...', 'info');
+                
+                const response = await fetch('http://localhost:5001/api/v1/resumes?per_page=50', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': \`Bearer \${token}\`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resumesData = data.data.resumes || [];
+                    addResult(\`✅ 获取到 \${resumesData.length} 个简历\`, 'success');
+                    addDataSection('简历数据', resumesData);
+                } else {
+                    addResult('❌ 获取简历失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addResult('❌ 获取简历请求失败: ' + error.message, 'error');
+            }
+        }
+
+        function testModalLogic() {
+            addResult('🔄 测试Modal筛选逻辑...', 'info');
+            
+            // 模拟JobSelectionModal的筛选逻辑
+            const processedResumes = resumesData.filter(resume => 
+                resume.status === 'completed' || resume.status === 'processed'
+            );
+            
+            addResult(\`📊 总简历数: \${resumesData.length}\`, 'info');
+            addResult(\`📊 已处理简历数: \${processedResumes.length}\`, 'info');
+            addResult(\`📊 职位数: \${jobsData.length}\`, 'info');
+            
+            // 检查是否有可用的数据
+            if (!jobsData || jobsData.length === 0) {
+                addResult('❌ 暂无可用职位，请先添加职位信息', 'error');
+            } else if (processedResumes.length === 0) {
+                addResult('❌ 暂无已处理完成的简历，请先上传并等待简历处理完成', 'error');
+            } else {
+                addResult('✅ 数据检查通过，可以开始面试', 'success');
+                
+                // 显示筛选后的数据
+                addDataSection('可用职位', jobsData);
+                addDataSection('已处理简历', processedResumes);
+                
+                // 测试自动选择逻辑
+                if (jobsData.length === 1) {
+                    addResult('🎯 自动选择唯一职位: ' + jobsData[0].title, 'info');
+                }
+                
+                if (processedResumes.length === 1) {
+                    addResult('📄 自动选择唯一简历: ' + processedResumes[0].filename, 'info');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

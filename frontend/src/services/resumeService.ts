@@ -7,7 +7,7 @@ export interface Resume {
   original_filename: string;
   file_path: string;
   file_size: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'processed' | 'failed';
   skills: string[];
   experience: string[];
   education: string[];
@@ -17,6 +17,7 @@ export interface Resume {
   analysis_result: any;
   created_at: string;
   updated_at: string;
+  uploaded_at?: string;
 }
 
 export interface CreateResumeData {
@@ -59,7 +60,9 @@ class ResumeService {
       
       const endpoint = queryParams.toString() ? `/resumes?${queryParams.toString()}` : '/resumes';
       const response: any = await apiClient.get(endpoint);
-      return response.data;
+      
+      // 直接返回响应，因为apiClient.get已经解析了JSON
+      return response;
     } catch (error) {
       console.error('获取简历列表失败:', error);
       throw error;
@@ -71,15 +74,20 @@ class ResumeService {
    */
   async uploadResume(file: File): Promise<Resume> {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const response: any = await apiClient.uploadFile('/resumes', file);
       
-      const response: any = await apiClient.post('/resumes', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return response.data.resume;
+      // 检查响应格式并提取简历数据
+      if (response.data && response.data.resume) {
+        return response.data.resume;
+      } else if (response.resume) {
+        return response.resume;
+      } else if (response.data) {
+        return response.data;
+      } else {
+        // 如果响应格式不符合预期，抛出错误
+        console.error('Unexpected response format:', response);
+        throw new Error('服务器响应格式错误');
+      }
     } catch (error) {
       console.error('上传简历失败:', error);
       throw error;
@@ -142,10 +150,20 @@ class ResumeService {
    */
   async downloadResume(resumeId: number): Promise<Blob> {
     try {
-      const response: any = await apiClient.get(`/resumes/${resumeId}/download`, {
-        responseType: 'blob'
+      // 需要使用原生fetch来处理blob响应
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:5001/api/v1/resumes/${resumeId}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
       });
-      return response.data;
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return await response.blob();
     } catch (error) {
       console.error('下载简历失败:', error);
       throw error;
@@ -229,13 +247,25 @@ class ResumeService {
    */
   async exportResumes(format: 'json' | 'csv' | 'pdf' = 'json', resumeIds?: number[]): Promise<Blob> {
     try {
-      const response: any = await apiClient.post('/resumes/export', {
-        format,
-        resume_ids: resumeIds
-      }, {
-        responseType: 'blob'
+      // 需要使用原生fetch来处理blob响应
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`http://localhost:5001/api/v1/resumes/export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          format,
+          resume_ids: resumeIds
+        }),
       });
-      return response.data;
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return await response.blob();
     } catch (error) {
       console.error('导出简历失败:', error);
       throw error;

@@ -11,4 +11,8 @@ export interface LoginPageProps {
   onFacebookLogin?: () => Promise<void> | void;
   onForgotPassword?: () => void;
   onSignUp?: () => void;
+  // 新增的错误提示和加载状态属性
+  isLoading?: boolean;
+  errorMessage?: string;
+  onClearError?: () => void;
 } 

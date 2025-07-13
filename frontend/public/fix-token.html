@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修复 Token - InterviewPro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .token-display {
+            word-break: break-all;
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .status.success {
+            background-color: #28a745;
+            color: white;
+        }
+        .status.error {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 InterviewPro Token 修复工具</h1>
+        
+        <div class="section info">
+            <h3>📋 当前状态</h3>
+            <p><strong>后端服务:</strong> <span id="backend-status" class="status">检查中...</span></p>
+            <p><strong>Token 状态:</strong> <span id="token-status" class="status">检查中...</span></p>
+            <p><strong>Mock Interview:</strong> <span id="mock-status" class="status">检查中...</span></p>
+        </div>
+
+        <div class="section">
+            <h3>🔑 Token 管理</h3>
+            <button onclick="getNewToken()">获取新 Token</button>
+            <button onclick="setToken()">设置 Token</button>
+            <button onclick="checkToken()">验证 Token</button>
+            <button onclick="clearToken()">清除 Token</button>
+            
+            <div id="current-token" class="token-display" style="display:none;">
+                <strong>当前 Token:</strong><br>
+                <span id="token-value"></span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 API 测试</h3>
+            <button onclick="testMockInterview()">测试 Mock Interview</button>
+            <button onclick="testProfile()">测试用户信息</button>
+            <button onclick="testQuestions()">测试题目生成</button>
+            
+            <div id="test-results" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 操作日志</h3>
+            <div id="log" style="max-height: 200px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 3px;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 最新有效 Token (2025-06-25 15:57:36 数据库死锁问题根本修复后更新)
+        const VALID_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MDgzODI1NiwianRpIjoiYWZiNzRiZDgtZWVlZC00OGJiLTkxMzctNDU5ZjI3YmE1NjExIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NTA4MzgyNTYsImNzcmYiOiJkOWVlMGVkZS02YmNjLTQ3NjQtODBiOS1lNTYxYTNiMmMzNWYiLCJleHAiOjE3NTA5MjQ2NTZ9.lCiE-M5-zh83TSnHmEKvQmM5ci3QuA412JmXVRBuW0Q';
+        const API_BASE = 'http://localhost:5001';
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (type === 'error') logEntry.style.color = '#dc3545';
+            if (type === 'success') logEntry.style.color = '#28a745';
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(elementId, status, isSuccess) {
+            const element = document.getElementById(elementId);
+            element.textContent = status;
+            element.className = `status ${isSuccess ? 'success' : 'error'}`;
+        }
+
+        async function checkBackendStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    updateStatus('backend-status', '✅ 正常', true);
+                    log('后端服务状态正常', 'success');
+                    return true;
+                } else {
+                    updateStatus('backend-status', '❌ 异常', false);
+                    log('后端服务响应异常', 'error');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('backend-status', '❌ 离线', false);
+                log(`后端服务连接失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function getNewToken() {
+            try {
+                log('正在获取新的 Token...');
+                const response = await fetch(`${API_BASE}/api/v1/dev/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: '393893095@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const token = data.data.access_token;
+                    log('✅ 成功获取新 Token', 'success');
+                    document.getElementById('token-value').textContent = token;
+                    document.getElementById('current-token').style.display = 'block';
+                    return token;
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ 获取 Token 失败: ${errorData.message || response.statusText}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                log(`❌ 获取 Token 出错: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        function setToken() {
+            try {
+                localStorage.setItem('token', VALID_TOKEN);
+                log('✅ Token 已设置到 localStorage', 'success');
+                updateStatus('token-status', '✅ 已设置', true);
+                document.getElementById('token-value').textContent = VALID_TOKEN;
+                document.getElementById('current-token').style.display = 'block';
+            } catch (error) {
+                log(`❌ 设置 Token 失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkToken() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                updateStatus('token-status', '❌ 未设置', false);
+                log('❌ localStorage 中没有 Token', 'error');
+                return false;
+            }
+
+            try {
+                log('正在验证 Token...');
+                const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus('token-status', '✅ 有效', true);
+                    log(`✅ Token 验证成功，用户: ${data.data.email}`, 'success');
+                    return true;
+                } else {
+                    updateStatus('token-status', '❌ 无效', false);
+                    log(`❌ Token 验证失败: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('token-status', '❌ 错误', false);
+                log(`❌ Token 验证出错: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function clearToken() {
+            localStorage.removeItem('token');
+            updateStatus('token-status', '❌ 已清除', false);
+            log('🗑️ Token 已从 localStorage 清除');
+            document.getElementById('current-token').style.display = 'none';
+        }
+
+        async function testMockInterview() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ 请先设置 Token', 'error');
+                return;
+            }
+
+            try {
+                log('正在测试 Mock Interview API...');
+                const response = await fetch(`${API_BASE}/api/v1/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 9,
+                        interview_type: 'comprehensive',
+                        total_questions: 3
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus('mock-status', '✅ 正常', true);
+                    log(`✅ Mock Interview 测试成功，生成了 ${data.data.questions.length} 个问题`, 'success');
+                } else {
+                    updateStatus('mock-status', '❌ 失败', false);
+                    const errorData = await response.json();
+                    log(`❌ Mock Interview 测试失败: ${errorData.message || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                updateStatus('mock-status', '❌ 错误', false);
+                log(`❌ Mock Interview 测试出错: ${error.message}`, 'error');
+            }
+        }
+
+        async function testProfile() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ 请先设置 Token', 'error');
+                return;
+            }
+
+            try {
+                log('正在测试用户信息 API...');
+                const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ 用户信息获取成功: ${data.data.email}`, 'success');
+                } else {
+                    log(`❌ 用户信息获取失败: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ 用户信息测试出错: ${error.message}`, 'error');
+            }
+        }
+
+        async function testQuestions() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ 请先设置 Token', 'error');
+                return;
+            }
+
+            try {
+                log('正在测试题目列表 API...');
+                const response = await fetch(`${API_BASE}/api/v1/questions?per_page=5`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ 题目列表获取成功，共 ${data.data.questions.length} 个题目`, 'success');
+                } else {
+                    log(`❌ 题目列表获取失败: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ 题目列表测试出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动检查状态
+        window.onload = async function() {
+            log('🚀 InterviewPro Token 修复工具启动');
+            log('📍 当前使用账号: 393893095@qq.com');
+            
+            await checkBackendStatus();
+            await checkToken();
+            
+            // 如果没有有效token，自动设置
+            const tokenValid = await checkToken();
+            if (!tokenValid) {
+                log('⚠️ 检测到无效 Token，自动设置新的有效 Token');
+                setToken();
+            }
+            
+            log('✅ 初始化完成，您可以开始测试各项功能');
+        };
+    </script>
+</body>
+</html> 

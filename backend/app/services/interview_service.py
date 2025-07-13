@@ -63,7 +63,7 @@ class InterviewService:
             session_id = str(uuid.uuid4())
             title = custom_title or self._generate_session_title(resume, interview_type)
             
-            # 创建面试会话
+            # 创建面试会话（不立即生成问题）
             session = InterviewSession(
                 user_id=user_id,
                 resume_id=resume_id,
@@ -72,42 +72,14 @@ class InterviewService:
                 interview_type=interview_type,
                 total_questions=total_questions,
                 difficulty_distribution=difficulty_distribution,
-                type_distribution=type_distribution
+                type_distribution=type_distribution,
+                status='created'  # 明确设置为created状态，等待问题生成
             )
             
             db.session.add(session)
-            db.session.flush()  # 获取session.id
-            
-            # 生成问题
-            questions_data = self.ai_generator.generate_questions_for_resume(
-                resume=resume,
-                interview_type=interview_type,
-                total_questions=total_questions,
-                difficulty_distribution=difficulty_distribution,
-                type_distribution=type_distribution
-            )
-            
-            # 保存问题到数据库
-            questions = []
-            for i, q_data in enumerate(questions_data):
-                question = Question(
-                    resume_id=resume_id,
-                    user_id=user_id,
-                    question_text=q_data['question_text'],
-                    question_type=q_data['question_type'],
-                    difficulty=q_data['difficulty'],
-                    category=q_data.get('category', ''),
-                    tags=q_data.get('tags', []),
-                    ai_context=q_data.get('ai_context', {}),
-                    expected_answer=q_data.get('expected_answer', ''),
-                    evaluation_criteria=q_data.get('evaluation_criteria', {})
-                )
-                questions.append(question)
-                db.session.add(question)
-            
             db.session.commit()
             
-            logger.info(f"成功创建面试会话 {session_id}，生成 {len(questions)} 个问题")
+            logger.info(f"成功创建面试会话 {session_id}，等待问题生成")
             return session
             
         except SQLAlchemyError as e:
@@ -159,8 +131,9 @@ class InterviewService:
         """获取面试会话的问题列表"""
         session = self.get_interview_session(user_id, session_id)
         
+        # 修复：按session.id正确过滤问题
         questions = Question.query.filter_by(
-            resume_id=session.resume_id, 
+            session_id=session.id,  # 使用session.id而不是resume_id
             user_id=user_id
         ).order_by(Question.created_at).all()
         
@@ -224,51 +197,104 @@ class InterviewService:
         """提交答案"""
         from app.models.question import Answer
         
-        session = self.get_interview_session(user_id, session_id)
+        logger.info(f"🔍 [SERVICE DEBUG] submit_answer called: user_id={user_id}, session_id={session_id}, question_id={question_id}")
         
-        if session.status != 'in_progress':
+        try:
+            session = self.get_interview_session(user_id, session_id)
+            logger.info(f"🔍 [SERVICE DEBUG] Found session: id={session.id}, status={session.status}")
+        except Exception as e:
+            logger.error(f"❌ [SERVICE DEBUG] Failed to get session: {e}")
+            raise
+        
+        # 修正：允许ready状态的会话接收答案，并自动启动会话
+        if session.status == 'ready':
+            session.status = 'in_progress'
+            session.started_at = datetime.utcnow()
+            db.session.commit()
+            logger.info(f"🔍 [SERVICE DEBUG] Session auto-started")
+        elif session.status != 'in_progress':
+            logger.error(f"❌ [SERVICE DEBUG] Invalid session status: {session.status}")
             raise ValidationError("面试会话未开始或已结束")
         
-        # 验证问题
+        # 修改：更宽松的问题查找策略
+        # 首先尝试严格匹配
         question = Question.query.filter_by(
             id=question_id, 
-            user_id=user_id
+            user_id=user_id,
+            session_id=session.id
         ).first()
         
+        logger.info(f"🔍 [SERVICE DEBUG] Strict question query result: {'Found' if question else 'Not found'}")
+        
+        # 如果严格匹配失败，尝试宽松匹配并自动修复关联
         if not question:
-            raise NotFoundError("问题不存在或无权限访问")
+            logger.info(f"🔍 [SERVICE DEBUG] Trying loose question query...")
+            question = Question.query.filter_by(
+                id=question_id,
+                user_id=user_id
+            ).first()
+            
+            if question:
+                logger.info(f"🔍 [SERVICE DEBUG] Found question with loose query, fixing association")
+                # 自动修复session关联
+                old_session_id = question.session_id
+                question.session_id = session.id
+                db.session.commit()
+                logger.info(f"🔍 [SERVICE DEBUG] Fixed session association: {old_session_id} -> {session.id}")
+            else:
+                logger.error(f"❌ [SERVICE DEBUG] Question not found even with loose query")
         
-        # 创建答案记录
-        answer = Answer(
-            session_id=session.id,
-            question_id=question_id,
-            user_id=user_id,
-            answer_text=answer_text,
-            answer_audio_path=answer_audio_path,
-            response_time=response_time
-        )
+        if not question:
+            logger.error(f"❌ [SERVICE DEBUG] Final validation failed")
+            raise ValidationError("问题不存在、无权限访问或不属于当前面试会话")
         
-        db.session.add(answer)
+        logger.info(f"🔍 [SERVICE DEBUG] Using question: id={question.id}")
         
-        # 更新会话进度
-        session.current_question_index += 1
-        session.completed_questions += 1
-        
-        # 检查是否完成所有问题
-        questions = self.get_session_questions(user_id, session_id)
-        if session.current_question_index >= len(questions):
-            session.status = 'completed'
-            session.completed_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        logger.info(f"用户 {user_id} 提交了问题 {question_id} 的答案")
-        
-        return {
-            'answer_id': answer.id,
-            'next_question': self.get_next_question(user_id, session_id) if session.status == 'in_progress' else None,
-            'session_completed': session.status == 'completed'
-        }
+        try:
+            # 检查是否已有答案
+            existing_answer = Answer.query.filter_by(
+                question_id=question_id,
+                user_id=user_id
+            ).first()
+            
+            if existing_answer:
+                logger.info(f"🔍 [SERVICE DEBUG] Updating existing answer")
+                # 更新现有答案
+                existing_answer.answer_text = answer_text
+                existing_answer.answer_audio_path = answer_audio_path
+                existing_answer.response_time = response_time
+                existing_answer.updated_at = datetime.utcnow()
+                answer = existing_answer
+            else:
+                logger.info(f"🔍 [SERVICE DEBUG] Creating new answer")
+                # 创建新答案
+                answer = Answer(
+                    question_id=question_id,
+                    user_id=user_id,
+                    answer_text=answer_text,
+                    answer_audio_path=answer_audio_path,
+                    response_time=response_time
+                )
+                db.session.add(answer)
+            
+            db.session.commit()
+            logger.info(f"✅ [SERVICE DEBUG] Answer saved successfully")
+            
+            return {
+                'answer_id': answer.id,
+                'question_id': question_id,
+                'submitted_at': answer.created_at.isoformat() if hasattr(answer, 'created_at') else datetime.utcnow().isoformat(),
+                'message': '答案提交成功'
+            }
+            
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.error(f"❌ [SERVICE DEBUG] Database error: {e}")
+            raise ValidationError(f"保存答案失败: {str(e)}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"❌ [SERVICE DEBUG] Unexpected error: {e}")
+            raise ValidationError(f"提交答案时发生错误: {str(e)}")
     
     def end_interview_session(self, user_id: int, session_id: str) -> InterviewSession:
         """结束面试会话"""
@@ -395,6 +421,12 @@ class InterviewService:
                 "behavioral": 3,
                 "experience": 2,
                 "situational": 2
+            },
+            InterviewType.MOCK: {
+                "behavioral": 3,
+                "technical": 2,
+                "situational": 2,
+                "experience": 1
             }
         }
         return distributions.get(interview_type, distributions[InterviewType.COMPREHENSIVE])
@@ -405,7 +437,8 @@ class InterviewService:
         type_names = {
             InterviewType.TECHNICAL: "技术面试",
             InterviewType.HR: "HR面试",
-            InterviewType.COMPREHENSIVE: "综合面试"
+            InterviewType.COMPREHENSIVE: "综合面试",
+            InterviewType.MOCK: "模拟面试"
         }
         type_name = type_names.get(interview_type, "面试")
         

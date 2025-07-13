@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview 新功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 32px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button.success {
+            background: #10b981;
+        }
+        .button.warning {
+            background: #f59e0b;
+        }
+        .result {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+        .error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Mock Interview 新功能测试</h1>
+        <p>测试用户可以选择职位和简历的新Mock Interview功能</p>
+
+        <div class="test-section">
+            <h3>🔐 认证设置</h3>
+            <button class="button" onclick="setToken()">设置认证Token</button>
+            <button class="button warning" onclick="clearToken()">清除Token</button>
+            <div id="auth-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 数据检查</h3>
+            <button class="button" onclick="checkData()">检查用户数据</button>
+            <div id="data-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Mock Interview 测试</h3>
+            <p><strong>测试步骤：</strong></p>
+            <ol>
+                <li>点击下方按钮打开HomePage</li>
+                <li>点击"Mock Interview"按钮</li>
+                <li>应该弹出职位选择弹窗，显示职位和简历列表</li>
+                <li>选择一个职位和一个简历</li>
+                <li>点击"开始模拟面试"按钮</li>
+                <li>应该成功创建面试并跳转到面试页面</li>
+            </ol>
+            
+            <a href="http://localhost:3000/home" target="_blank" class="button success">打开 HomePage 测试</a>
+            <button class="button" onclick="testMockInterviewAPI()">直接测试 API</button>
+            <div id="mock-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 预期功能对比</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>❌ 旧功能问题</h4>
+                    <ul>
+                        <li>要求职位预先关联简历</li>
+                        <li>显示"该职位没有关联的简历"错误</li>
+                        <li>用户无法选择职位</li>
+                        <li>流程复杂，用户体验差</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>✅ 新功能特点</h4>
+                    <ul>
+                        <li>用户可以选择任意职位</li>
+                        <li>自动显示已处理的简历</li>
+                        <li>智能配对职位和简历</li>
+                        <li>流程简单，用户体验好</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        
+        function setToken() {
+            const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MDY2NTgzNSwianRpIjoiMTUzM2I0MDQtYjdkYy00NmRjLTgwODYtZDkzNjlhMTJhYjcxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NTA2NjU4MzUsImNzcmYiOiJhMTZlOGE2Mi00NTYxLTRkOTAtOTFlNi1lNGI5NDRkYTdlMmIifQ.oUy7ZYa-hLnc4t_UmDXZKbgY2251yalh53BZIfdPnKg';
+            localStorage.setItem('auth_token', token);
+            
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = `
+                <p>✅ 认证Token已设置</p>
+                <p>Token: ${token.substring(0, 30)}...</p>
+                <p>现在可以访问需要认证的API了</p>
+            `;
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('auth_token');
+            
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>🗑️ 认证Token已清除</p>';
+        }
+        
+        async function checkData() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert('请先设置认证Token');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('data-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>🔄 检查中...</p>';
+            
+            try {
+                // 并行获取职位和简历数据
+                const [jobsResponse, resumesResponse] = await Promise.all([
+                    fetch(`${API_BASE}/jobs?per_page=50`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_BASE}/resumes?per_page=50`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+                
+                const jobsData = await jobsResponse.json();
+                const resumesData = await resumesResponse.json();
+                
+                if (!jobsData.success || !resumesData.success) {
+                    throw new Error('API请求失败');
+                }
+                
+                const jobs = jobsData.data.jobs || [];
+                const resumes = resumesData.data.resumes || [];
+                const processedResumes = resumes.filter(r => r.status === 'completed' || r.status === 'processed');
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h4>✅ 数据检查结果</h4>
+                    <p><strong>职位数量:</strong> ${jobs.length}</p>
+                    <p><strong>简历数量:</strong> ${resumes.length} (已处理: ${processedResumes.length})</p>
+                    
+                    <details style="margin-top: 16px;">
+                        <summary>详细信息</summary>
+                        <div style="margin-top: 12px;">
+                            <strong>职位列表:</strong>
+                            <pre>${JSON.stringify(jobs, null, 2)}</pre>
+                            
+                            <strong>简历列表:</strong>
+                            <pre>${JSON.stringify(resumes, null, 2)}</pre>
+                        </div>
+                    </details>
+                    
+                    ${jobs.length > 0 && processedResumes.length > 0 ? 
+                        '<p style="color: green; font-weight: bold;">✅ 数据充足，可以测试Mock Interview功能</p>' : 
+                        '<p style="color: orange; font-weight: bold;">⚠️ 缺少职位或简历数据，建议先创建</p>'
+                    }
+                `;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <p>❌ 检查失败: ${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testMockInterviewAPI() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert('请先设置认证Token');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('mock-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>🔄 测试Mock Interview API...</p>';
+            
+            try {
+                // 1. 获取用户数据
+                const [jobsResponse, resumesResponse] = await Promise.all([
+                    fetch(`${API_BASE}/jobs?per_page=50`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_BASE}/resumes?per_page=50`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+                
+                const jobsData = await jobsResponse.json();
+                const resumesData = await resumesResponse.json();
+                
+                const jobs = jobsData.data.jobs || [];
+                const resumes = resumesData.data.resumes || [];
+                const processedResumes = resumes.filter(r => r.status === 'completed' || r.status === 'processed');
+                
+                if (jobs.length === 0 || processedResumes.length === 0) {
+                    throw new Error('缺少必要的职位或简历数据');
+                }
+                
+                // 2. 模拟用户选择第一个职位和第一个简历
+                const selectedJob = jobs[0];
+                const selectedResume = processedResumes[0];
+                
+                // 3. 创建面试会话
+                const createResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume_id: selectedResume.id,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: `${selectedJob.title} @ ${selectedJob.company} 模拟面试`
+                    })
+                });
+                
+                const createData = await createResponse.json();
+                
+                if (!createResponse.ok || !createData.success) {
+                    throw new Error(createData.message || '创建面试失败');
+                }
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h4>✅ Mock Interview API 测试成功</h4>
+                    <p><strong>选择的职位:</strong> ${selectedJob.title} @ ${selectedJob.company}</p>
+                    <p><strong>选择的简历:</strong> ${selectedResume.filename}</p>
+                    <p><strong>面试会话ID:</strong> ${createData.data.session_id}</p>
+                    <p><strong>面试类型:</strong> ${createData.data.interview_type}</p>
+                    <p><strong>问题数量:</strong> ${createData.data.total_questions}</p>
+                    
+                    <div style="margin-top: 16px; padding: 12px; background: #e0f7fa; border-radius: 6px;">
+                        <p style="margin: 0; font-weight: bold; color: #006064;">
+                            🎉 新功能工作正常！用户现在可以自由选择职位和简历进行模拟面试了。
+                        </p>
+                    </div>
+                    
+                    <details style="margin-top: 16px;">
+                        <summary>API响应详情</summary>
+                        <pre>${JSON.stringify(createData, null, 2)}</pre>
+                    </details>
+                `;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <p>❌ 测试失败: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // 页面加载时检查token状态
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                const resultDiv = document.getElementById('auth-result');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.innerHTML = `
+                    <p>✅ 检测到已保存的认证Token</p>
+                    <p>Token: ${token.substring(0, 30)}...</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

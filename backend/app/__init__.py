@@ -20,7 +20,8 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    # CORS配置已在run_complete.py中处理
+    # cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
     
     # 优化SocketIO配置
     socketio.init_app(
@@ -54,6 +55,7 @@ def register_blueprints(app):
     from app.api.questions import questions_bp
     from app.api.analysis import analysis
     from app.api.jobs import jobs_bp
+    from app.api.health import health_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/v1/resumes')
@@ -61,6 +63,7 @@ def register_blueprints(app):
     app.register_blueprint(questions_bp, url_prefix='/api/v1/questions')
     app.register_blueprint(analysis, url_prefix='/api/v1/analysis')
     app.register_blueprint(jobs_bp, url_prefix='/api/v1/jobs')
+    app.register_blueprint(health_bp, url_prefix='/api/v1')
 
 def register_error_handlers(app):
     """注册错误处理器"""

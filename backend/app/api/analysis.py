@@ -13,9 +13,36 @@ from datetime import datetime, timedelta
 import logging
 
 # 创建蓝图
-analysis = Blueprint('analysis', __name__, url_prefix='/api/analysis')
+analysis = Blueprint('analysis', __name__)
 logger = logging.getLogger(__name__)
 
+@analysis.route('/test', methods=['GET'])
+def test_route():
+    """测试路由"""
+    print("🔍 [DEBUG] 测试路由被调用!")
+    return {"message": "测试路由工作正常", "success": True}
+
+@analysis.route('/test-no-auth/<session_id>', methods=['GET'])
+def test_no_auth(session_id):
+    """无认证测试路由"""
+    print(f"🔍 [DEBUG] 无认证测试路由被调用: session_id={session_id}")
+    try:
+        from app.models.question import InterviewSession
+        total_sessions = InterviewSession.query.count()
+        print(f"🔍 [DEBUG] 数据库中总共有 {total_sessions} 个会话")
+        
+        session = InterviewSession.query.filter_by(session_id=session_id).first()
+        if session:
+            print(f"🔍 [DEBUG] 找到会话: {session.session_id}, user_id: {session.user_id}")
+            return {"message": f"找到会话 {session_id}", "success": True, "user_id": session.user_id}
+        else:
+            print(f"🔍 [DEBUG] 未找到会话: {session_id}")
+            return {"message": f"未找到会话 {session_id}", "success": False}
+    except Exception as e:
+        print(f"🔍 [DEBUG] 异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"message": f"错误: {str(e)}", "success": False}
 
 @analysis.route('/session/<session_id>', methods=['GET'])
 @jwt_required()
@@ -31,6 +58,13 @@ def analyze_session(session_id):
     """
     try:
         user_id = int(get_jwt_identity())
+        logger.info(f"🔍 [DEBUG] 分析会话请求: session_id={session_id}, user_id={user_id}")
+        print(f"🔍 [DEBUG] 分析会话请求: session_id={session_id}, user_id={user_id}")
+        
+        # 调试：检查数据库连接
+        total_sessions = InterviewSession.query.count()
+        logger.info(f"数据库中总共有 {total_sessions} 个会话")
+        print(f"🔍 [DEBUG] 数据库中总共有 {total_sessions} 个会话")
         
         # 验证会话存在
         session = InterviewSession.query.filter_by(
@@ -39,23 +73,41 @@ def analyze_session(session_id):
         ).first()
         
         if not session:
+            logger.warning(f"会话未找到: session_id={session_id}, user_id={user_id}")
+            print(f"🔍 [DEBUG] 会话未找到: session_id={session_id}, user_id={user_id}")
+            # 调试：查看是否有同名会话
+            all_sessions = InterviewSession.query.filter_by(session_id=session_id).all()
+            logger.info(f"同session_id的所有会话: {[s.user_id for s in all_sessions]}")
+            print(f"🔍 [DEBUG] 同session_id的所有会话: {[s.user_id for s in all_sessions]}")
+            # 调试：查看该用户的所有会话
+            user_sessions = InterviewSession.query.filter_by(user_id=user_id).all()
+            logger.info(f"用户 {user_id} 的所有会话: {[s.session_id for s in user_sessions]}")
+            print(f"🔍 [DEBUG] 用户 {user_id} 的所有会话: {[s.session_id for s in user_sessions]}")
             return error_response("面试会话不存在", 404)
         
-        # 确保面试已完成
-        if session.status.value not in ['completed', 'paused']:
-            return error_response("面试尚未完成，无法进行分析", 400)
+        print(f"🔍 [DEBUG] 找到会话: {session.session_id}, 状态: {session.status}")
+        
+        # 检查面试状态 - 允许分析进行中的面试
+        if session.status in ['created', 'ready']:
+            return error_response("面试尚未开始，无法进行分析", 400)
         
         # 执行分析
+        print(f"🔍 [DEBUG] 开始执行分析...")
         analyzer = InterviewAnalyzer()
         analysis_result = analyzer.analyze_interview_session(session_id, user_id)
         
         if 'error' in analysis_result:
+            print(f"🔍 [DEBUG] 分析失败: {analysis_result['error']}")
             return error_response(f"分析失败: {analysis_result['error']}", 500)
         
+        print(f"🔍 [DEBUG] 分析成功，返回结果")
         return success_response(analysis_result, "面试分析完成")
         
     except Exception as e:
         logger.error(f"面试会话分析失败: {str(e)}")
+        print(f"🔍 [DEBUG] 异常: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return error_response(f"分析失败: {str(e)}", 500)
 
 

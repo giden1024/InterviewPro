@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .record {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+        }
+        .loading {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Interview Records API Test</h1>
+    <div id="status">Loading...</div>
+    <div id="records"></div>
+
+    <script>
+        async function loadInterviewRecords() {
+            const statusDiv = document.getElementById('status');
+            const recordsDiv = document.getElementById('records');
+            
+            try {
+                statusDiv.innerHTML = '<span class="loading">Loading interview records...</span>';
+                
+                const response = await fetch('http://localhost:5001/api/v1/interviews?per_page=10');
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerHTML = `<span style="color: green;">Successfully loaded ${data.data.sessions.length} records</span>`;
+                    
+                    recordsDiv.innerHTML = data.data.sessions.map(session => `
+                        <div class="record">
+                            <h3>${session.title}</h3>
+                            <p><strong>ID:</strong> ${session.session_id}</p>
+                            <p><strong>Type:</strong> ${session.interview_type}</p>
+                            <p><strong>Status:</strong> ${session.status}</p>
+                            <p><strong>Questions:</strong> ${session.completed_questions}/${session.total_questions}</p>
+                            <p><strong>Score:</strong> ${session.total_score || 'N/A'}</p>
+                            <p><strong>Created:</strong> ${session.created_at}</p>
+                            <p><strong>Started:</strong> ${session.started_at || 'Not started'}</p>
+                            <p><strong>Completed:</strong> ${session.completed_at || 'Not completed'}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    statusDiv.innerHTML = '<span class="error">API returned success: false</span>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                console.error('Error loading interview records:', error);
+            }
+        }
+        
+        // Load records when page loads
+        loadInterviewRecords();
+    </script>
+</body>
+</html> 

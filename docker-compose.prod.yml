@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8080:5001"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///instance/interview.db
+      - JWT_SECRET_KEY=super-secret-jwt-key-for-production-e44a98f58724257596e5e14c0f04bcc9
+      - CORS_ORIGINS=http://3.14.247.189,https://3.14.247.189
+      - REDIS_URL=redis://redis:6379/0
+      - UPLOAD_FOLDER=/app/uploads
+      - LOG_LEVEL=INFO
+      - SECRET_KEY=production-secret-key-8476febfb2364831d0570137745ca057
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+      - ./backend/instance:/app/instance
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_API_BASE_URL=https://3.14.247.189/api/v1
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: interviewpro-network 

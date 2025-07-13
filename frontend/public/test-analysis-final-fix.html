@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面试分析API最终修复测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .json-display {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 面试分析API最终修复测试</h1>
+        <div class="info">
+            <strong>测试目标:</strong> 验证面试分析API的enum访问问题已完全修复
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🚀 快速测试</h2>
+        <button onclick="runQuickTest()">运行快速测试</button>
+        <button onclick="runFullTest()">运行完整测试</button>
+        <button onclick="testMultipleSessions()">测试多个会话</button>
+        <button onclick="clearResults()">清除结果</button>
+        
+        <div id="quickTestResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>📊 测试统计</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalTests">0</div>
+                <div class="stat-label">总测试数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="passedTests">0</div>
+                <div class="stat-label">通过测试</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="failedTests">0</div>
+                <div class="stat-label">失败测试</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successRate">0%</div>
+                <div class="stat-label">成功率</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 详细测试结果</h2>
+        <div id="detailedResults"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 测试日志</h2>
+        <div id="testLogs" class="json-display"></div>
+    </div>
+
+    <script>
+        let testStats = {
+            total: 0,
+            passed: 0,
+            failed: 0
+        };
+
+        let authToken = null;
+        let testLogs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            testLogs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            updateLogsDisplay();
+        }
+
+        function updateLogsDisplay() {
+            document.getElementById('testLogs').textContent = testLogs.join('\n');
+        }
+
+        function updateStats() {
+            document.getElementById('totalTests').textContent = testStats.total;
+            document.getElementById('passedTests').textContent = testStats.passed;
+            document.getElementById('failedTests').textContent = testStats.failed;
+            const rate = testStats.total > 0 ? Math.round((testStats.passed / testStats.total) * 100) : 0;
+            document.getElementById('successRate').textContent = rate + '%';
+        }
+
+        function addTestResult(name, success, details) {
+            testStats.total++;
+            if (success) {
+                testStats.passed++;
+            } else {
+                testStats.failed++;
+            }
+            updateStats();
+
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `
+                <strong>${success ? '✅' : '❌'} ${name}</strong>
+                <div style="margin-top: 10px;">${details}</div>
+            `;
+            document.getElementById('detailedResults').appendChild(resultDiv);
+        }
+
+        async function getAuthToken() {
+            if (authToken) return authToken;
+            
+            try {
+                log('获取认证token...');
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    authToken = data.data.access_token;
+                    log('认证token获取成功');
+                    return authToken;
+                } else {
+                    throw new Error('登录失败: ' + data.message);
+                }
+            } catch (error) {
+                log('获取认证token失败: ' + error.message, 'error');
+                throw error;
+            }
+        }
+
+        async function testAnalysisAPI(sessionId, testName) {
+            try {
+                const token = await getAuthToken();
+                log(`测试分析API: ${sessionId}`);
+                
+                const response = await fetch(`http://localhost:5001/api/v1/analysis/session/${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`分析API测试成功: ${sessionId}`);
+                    
+                    // 验证返回数据的完整性
+                    const analysis = data.data;
+                    const checks = [
+                        { name: '包含会话信息', check: analysis.session_info && analysis.session_info.session_id },
+                        { name: '包含总分', check: typeof analysis.overall_score === 'number' },
+                        { name: '包含答案分析', check: Array.isArray(analysis.answer_analysis) },
+                        { name: '包含推荐建议', check: Array.isArray(analysis.recommendations) },
+                        { name: '包含详细反馈', check: analysis.detailed_feedback && typeof analysis.detailed_feedback === 'object' },
+                        { name: '包含可视化数据', check: analysis.visualization_data && typeof analysis.visualization_data === 'object' }
+                    ];
+
+                    const passedChecks = checks.filter(c => c.check).length;
+                    const details = `
+                        <div>总分: ${analysis.overall_score.toFixed(2)}</div>
+                        <div>答案数量: ${analysis.answer_analysis.length}</div>
+                        <div>推荐建议: ${analysis.recommendations.length}条</div>
+                        <div>数据完整性: ${passedChecks}/${checks.length} 项通过</div>
+                        <details>
+                            <summary>详细检查结果</summary>
+                            ${checks.map(c => `<div>${c.check ? '✅' : '❌'} ${c.name}</div>`).join('')}
+                        </details>
+                    `;
+
+                    addTestResult(testName, passedChecks === checks.length, details);
+                    return { success: true, data: analysis };
+                } else {
+                    const errorMsg = data.message || `HTTP ${response.status}`;
+                    log(`分析API测试失败: ${sessionId} - ${errorMsg}`, 'error');
+                    addTestResult(testName, false, `错误: ${errorMsg}`);
+                    return { success: false, error: errorMsg };
+                }
+            } catch (error) {
+                log(`分析API测试异常: ${sessionId} - ${error.message}`, 'error');
+                addTestResult(testName, false, `异常: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function runQuickTest() {
+            document.getElementById('quickTestResult').innerHTML = '<div class="loading"></div> 运行快速测试...';
+            
+            try {
+                // 测试已知的有效会话ID
+                const result = await testAnalysisAPI('3ade81b1-0259-4833-b204-e642095f3a2a', '快速测试 - 有效会话');
+                
+                if (result.success) {
+                    document.getElementById('quickTestResult').innerHTML = `
+                        <div class="success">
+                            <strong>✅ 快速测试通过!</strong>
+                            <div>分析API工作正常，enum访问问题已修复</div>
+                            <div>总分: ${result.data.overall_score.toFixed(2)}</div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('quickTestResult').innerHTML = `
+                        <div class="error">
+                            <strong>❌ 快速测试失败!</strong>
+                            <div>错误: ${result.error}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('quickTestResult').innerHTML = `
+                    <div class="error">
+                        <strong>❌ 快速测试异常!</strong>
+                        <div>异常: ${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function runFullTest() {
+            log('开始运行完整测试套件');
+            
+            // 测试多个场景
+            const testCases = [
+                { sessionId: '3ade81b1-0259-4833-b204-e642095f3a2a', name: '完整测试 - 已完成会话' },
+                { sessionId: 'non-existent-session', name: '完整测试 - 不存在会话' },
+                { sessionId: '', name: '完整测试 - 空会话ID' }
+            ];
+
+            for (const testCase of testCases) {
+                await testAnalysisAPI(testCase.sessionId, testCase.name);
+                // 添加延迟避免请求过快
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            log('完整测试套件运行完成');
+        }
+
+        async function testMultipleSessions() {
+            log('开始测试多个会话');
+            
+            try {
+                const token = await getAuthToken();
+                
+                // 获取用户的面试列表
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success && data.data.interviews.length > 0) {
+                    log(`发现 ${data.data.interviews.length} 个面试会话`);
+                    
+                    // 测试前3个会话
+                    const sessionsToTest = data.data.interviews.slice(0, 3);
+                    for (const interview of sessionsToTest) {
+                        await testAnalysisAPI(interview.session_id, `多会话测试 - ${interview.session_id.substring(0, 8)}...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                } else {
+                    log('没有找到可测试的面试会话', 'warning');
+                    addTestResult('多会话测试', false, '没有可用的面试会话');
+                }
+            } catch (error) {
+                log(`多会话测试失败: ${error.message}`, 'error');
+                addTestResult('多会话测试', false, `异常: ${error.message}`);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('detailedResults').innerHTML = '';
+            document.getElementById('quickTestResult').innerHTML = '';
+            testLogs = [];
+            updateLogsDisplay();
+            testStats = { total: 0, passed: 0, failed: 0 };
+            updateStats();
+            log('测试结果已清除');
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            log('面试分析API最终修复测试页面已加载');
+            log('准备测试enum访问修复是否成功');
+        };
+    </script>
+</body>
+</html> 

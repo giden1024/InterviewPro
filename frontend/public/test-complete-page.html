@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CompletePage 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CompletePage 功能测试</h1>
+        
+        <div class="test-section">
+            <h2 class="test-title">1. 后端连接测试</h2>
+            <button onclick="testBackendConnection()">测试后端连接</button>
+            <div id="backend-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">2. 用户认证测试</h2>
+            <button onclick="testAuthentication()">测试用户认证</button>
+            <div id="auth-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">3. 面试会话分析测试</h2>
+            <button onclick="testAnalysisAPI()">测试分析API</button>
+            <div id="analysis-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">4. CompletePage 路由测试</h2>
+            <button onclick="testCompletePageAccess()">测试页面访问</button>
+            <button onclick="testCompletePageWithData()">测试带数据访问</button>
+            <div id="page-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">5. 错误诊断</h2>
+            <button onclick="diagnoseErrors()">诊断错误</button>
+            <div id="diagnosis-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let authToken = null;
+
+        // 显示结果
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.textContent = message;
+        }
+
+        // 测试后端连接
+        async function testBackendConnection() {
+            try {
+                const response = await fetch('http://localhost:5001/health');
+                const data = await response.json();
+                showResult('backend-result', `✅ 后端连接成功\n${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                showResult('backend-result', `❌ 后端连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试用户认证
+        async function testAuthentication() {
+            try {
+                const response = await fetch(`${API_BASE}/dev/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_id: 3 })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    authToken = data.data.access_token;
+                    localStorage.setItem('access_token', authToken);
+                    showResult('auth-result', `✅ 认证成功\n用户: ${data.data.user.username}\nToken: ${authToken.substring(0, 50)}...`, 'success');
+                } else {
+                    showResult('auth-result', `❌ 认证失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('auth-result', `❌ 认证请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试分析API
+        async function testAnalysisAPI() {
+            if (!authToken) {
+                showResult('analysis-result', '❌ 请先进行用户认证', 'error');
+                return;
+            }
+
+            try {
+                // 使用实际存在的会话ID
+                const sessionId = '3ade81b1-0259-4833-b204-e642095f3a2a';
+                const response = await fetch(`${API_BASE}/analysis/session/${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('analysis-result', `✅ 分析API成功\n会话: ${data.data.session_info.session_id}\n总分: ${data.data.overall_score.toFixed(2)}%\n完成问题: ${data.data.session_info.completed_questions}/${data.data.session_info.total_questions}`, 'success');
+                } else {
+                    showResult('analysis-result', `❌ 分析API失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('analysis-result', `❌ 分析API请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试CompletePage访问
+        function testCompletePageAccess() {
+            try {
+                const url = 'http://localhost:3000/complete';
+                window.open(url, '_blank');
+                showResult('page-result', `✅ 已打开页面: ${url}`, 'info');
+            } catch (error) {
+                showResult('page-result', `❌ 页面访问失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试带数据的CompletePage访问
+        function testCompletePageWithData() {
+            try {
+                const testData = {
+                    sessionId: '3ade81b1-0259-4833-b204-e642095f3a2a',
+                    jobTitle: '测试工程师',
+                    completed: true,
+                    totalQuestions: 3,
+                    answeredQuestions: 3,
+                    duration: 120,
+                    questionsGenerated: true
+                };
+
+                // 将数据存储到sessionStorage
+                sessionStorage.setItem('completePageTestData', JSON.stringify(testData));
+                
+                const url = `http://localhost:3000/complete?test=true`;
+                window.open(url, '_blank');
+                showResult('page-result', `✅ 已打开带测试数据的页面: ${url}\n测试数据: ${JSON.stringify(testData, null, 2)}`, 'info');
+            } catch (error) {
+                showResult('page-result', `❌ 带数据页面访问失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 诊断错误
+        async function diagnoseErrors() {
+            let diagnosis = [];
+
+            // 检查前端服务
+            try {
+                const frontendResponse = await fetch('http://localhost:3000/');
+                diagnosis.push(`✅ 前端服务 (3000): ${frontendResponse.status}`);
+            } catch (error) {
+                diagnosis.push(`❌ 前端服务 (3000): ${error.message}`);
+            }
+
+            // 检查后端服务
+            try {
+                const backendResponse = await fetch('http://localhost:5001/health');
+                diagnosis.push(`✅ 后端服务 (5001): ${backendResponse.status}`);
+            } catch (error) {
+                diagnosis.push(`❌ 后端服务 (5001): ${error.message}`);
+            }
+
+            // 检查认证状态
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                diagnosis.push(`✅ 认证Token: 已存储 (${token.substring(0, 20)}...)`);
+            } else {
+                diagnosis.push(`❌ 认证Token: 未找到`);
+            }
+
+            // 检查CompletePage组件
+            try {
+                const response = await fetch('http://localhost:3000/src/pages/CompletePage.tsx');
+                diagnosis.push(`✅ CompletePage组件: 可访问`);
+            } catch (error) {
+                diagnosis.push(`❌ CompletePage组件: ${error.message}`);
+            }
+
+            showResult('diagnosis-result', diagnosis.join('\n'), 'info');
+        }
+
+        // 页面加载时自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查是否有存储的token
+            const storedToken = localStorage.getItem('access_token');
+            if (storedToken) {
+                authToken = storedToken;
+            }
+        });
+    </script>
+</body>
+</html> 

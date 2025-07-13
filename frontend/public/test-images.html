@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片测试页面</title>
+    <style>
+        body { margin: 0; padding: 20px; background-color: #f0f0f0; font-family: Arial, sans-serif; }
+        .test-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .image-test { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .image-preview { width: 200px; height: 200px; border: 2px solid #ddd; border-radius: 8px; overflow: hidden; margin: 10px 0; }
+        .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>图片资源测试</h1>
+        
+        <div class="image-test">
+            <h3>Mock Interview 图片</h3>
+            <div class="image-preview">
+                <img src="/images/mock-interview.png" alt="Mock Interview">
+            </div>
+        </div>
+        
+        <div class="image-test">
+            <h3>Formal Interview 图片</h3>
+            <div class="image-preview">
+                <img src="/images/formal-interview.png" alt="Formal Interview">
+            </div>
+        </div>
+        
+        <div class="image-test">
+            <h3>直接访问链接</h3>
+            <p>
+                <a href="/images/mock-interview.png" target="_blank">Mock Interview 图片</a><br>
+                <a href="/images/formal-interview.png" target="_blank">Formal Interview 图片</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

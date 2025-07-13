@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历页面 Job保存和问题生成测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%);
+            color: #383838;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            margin-top: 10px;
+        }
+        pre {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>简历页面 Job保存和问题生成功能测试</h1>
+    
+    <!-- 认证部分 -->
+    <div class="container">
+        <h2>1. 用户认证</h2>
+        <button class="button" onclick="login()">登录获取Token</button>
+        <div id="authResult"></div>
+    </div>
+
+    <!-- Job创建测试 -->
+    <div class="container">
+        <h2>2. Job信息保存测试</h2>
+        <div class="form-group">
+            <label>职位标题:</label>
+            <input type="text" id="jobTitle" value="Senior Frontend Developer" />
+        </div>
+        <div class="form-group">
+            <label>公司名称:</label>
+            <input type="text" id="company" value="Tech Innovation Inc" />
+        </div>
+        <div class="form-group">
+            <label>职位描述:</label>
+            <textarea id="jobDescription">We are looking for a senior frontend developer with React and TypeScript experience...</textarea>
+        </div>
+        <div class="form-group">
+            <label>经验级别:</label>
+            <select id="experienceLevel">
+                <option value="Interns">Interns</option>
+                <option value="Graduate">Graduate</option>
+                <option value="Junior">Junior</option>
+                <option value="Senior" selected>Senior</option>
+            </select>
+        </div>
+        <button class="button" onclick="createJob()">创建Job记录</button>
+        <div id="jobResult"></div>
+    </div>
+
+    <!-- 问题生成测试 -->
+    <div class="container">
+        <h2>3. 问题生成测试</h2>
+        <div class="form-group">
+            <label>简历ID:</label>
+            <input type="number" id="resumeId" value="1" />
+        </div>
+        <div class="form-group">
+            <label>面试类型:</label>
+            <select id="interviewType">
+                <option value="technical">Technical</option>
+                <option value="hr">HR</option>
+                <option value="comprehensive" selected>Comprehensive</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>问题数量:</label>
+            <input type="number" id="totalQuestions" value="5" min="1" max="20" />
+        </div>
+        <button class="button" onclick="generateQuestions()">生成面试问题</button>
+        <div id="questionResult"></div>
+    </div>
+
+    <!-- 完整流程测试 -->
+    <div class="container">
+        <h2>4. 完整流程模拟</h2>
+        <p>模拟用户从简历页面点击Next按钮的完整流程</p>
+        <button class="button" onclick="simulateCompleteFlow()">模拟完整流程</button>
+        <div id="flowResult"></div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let currentJobId = null;
+        let currentSessionId = null;
+
+        // 设置认证token到localStorage（如果有的话）
+        const savedToken = localStorage.getItem('auth_token');
+        if (savedToken) {
+            authToken = savedToken;
+            document.getElementById('authResult').innerHTML = '<div class="success">已从localStorage加载token</div>';
+        }
+
+        async function login() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.innerHTML = '<div class="loading">正在登录...</div>';
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com',
+                        password: 'test123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    authToken = data.data.access_token;
+                    localStorage.setItem('auth_token', authToken);
+                    resultDiv.innerHTML = `
+                        <div class="success">登录成功！</div>
+                        <div class="result">
+                            <strong>用户信息:</strong><br>
+                            ID: ${data.data.user.id}<br>
+                            Email: ${data.data.user.email}<br>
+                            用户名: ${data.data.user.username}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">登录失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">登录出错: ${error.message}</div>`;
+            }
+        }
+
+        async function createJob() {
+            if (!authToken) {
+                alert('请先登录获取token');
+                return;
+            }
+
+            const resultDiv = document.getElementById('jobResult');
+            resultDiv.innerHTML = '<div class="loading">正在创建Job...</div>';
+
+            const jobData = {
+                title: document.getElementById('jobTitle').value,
+                company: document.getElementById('company').value,
+                description: document.getElementById('jobDescription').value,
+                experience_level: document.getElementById('experienceLevel').value,
+                job_type: 'full-time',
+                requirements: [],
+                responsibilities: [],
+                skills_required: ['React', 'TypeScript', 'JavaScript']
+            };
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/jobs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(jobData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentJobId = data.data.job.id;
+                    resultDiv.innerHTML = `
+                        <div class="success">Job创建成功！</div>
+                        <div class="result">
+                            <strong>Job信息:</strong><br>
+                            ID: ${data.data.job.id}<br>
+                            标题: ${data.data.job.title}<br>
+                            公司: ${data.data.job.company}<br>
+                            状态: ${data.data.job.status}<br>
+                            创建时间: ${data.data.job.created_at}
+                        </div>
+                        <pre>${JSON.stringify(data.data.job, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Job创建失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Job创建出错: ${error.message}</div>`;
+            }
+        }
+
+        async function generateQuestions() {
+            if (!authToken) {
+                alert('请先登录获取token');
+                return;
+            }
+
+            const resultDiv = document.getElementById('questionResult');
+            resultDiv.innerHTML = '<div class="loading">正在生成问题...</div>';
+
+            const questionData = {
+                resume_id: parseInt(document.getElementById('resumeId').value),
+                interview_type: document.getElementById('interviewType').value,
+                total_questions: parseInt(document.getElementById('totalQuestions').value),
+                title: `${document.getElementById('jobTitle').value} - ${document.getElementById('experienceLevel').value} 级别`
+            };
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(questionData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentSessionId = data.data.session.session_id;
+                    resultDiv.innerHTML = `
+                        <div class="success">问题生成成功！</div>
+                        <div class="result">
+                            <strong>会话信息:</strong><br>
+                            Session ID: ${data.data.session.session_id}<br>
+                            标题: ${data.data.session.title}<br>
+                            问题数量: ${data.data.questions.length}<br>
+                            面试类型: ${data.data.session.interview_type}<br>
+                            状态: ${data.data.session.status}
+                        </div>
+                        <div class="result">
+                            <strong>生成的问题:</strong><br>
+                            ${data.data.questions.map((q, i) => `
+                                <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <strong>问题 ${i + 1}:</strong> ${q.question_text}<br>
+                                    <small>类型: ${q.question_type} | 难度: ${q.difficulty} | 分类: ${q.category}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">问题生成失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">问题生成出错: ${error.message}</div>`;
+            }
+        }
+
+        async function simulateCompleteFlow() {
+            if (!authToken) {
+                alert('请先登录获取token');
+                return;
+            }
+
+            const resultDiv = document.getElementById('flowResult');
+            resultDiv.innerHTML = '<div class="loading">正在执行完整流程...</div>';
+
+            try {
+                // 1. 创建Job
+                resultDiv.innerHTML += '<div>步骤1: 创建Job记录...</div>';
+                await createJob();
+                
+                if (!currentJobId) {
+                    throw new Error('Job创建失败');
+                }
+
+                // 2. 生成问题
+                resultDiv.innerHTML += '<div>步骤2: 生成面试问题...</div>';
+                await generateQuestions();
+                
+                if (!currentSessionId) {
+                    throw new Error('问题生成失败');
+                }
+
+                // 3. 模拟导航到Complete页面的状态
+                const completePageState = {
+                    jobTitle: document.getElementById('jobTitle').value,
+                    jobDescription: document.getElementById('jobDescription').value,
+                    jobId: currentJobId.toString(),
+                    company: document.getElementById('company').value,
+                    resumeId: parseInt(document.getElementById('resumeId').value),
+                    experienceLevel: document.getElementById('experienceLevel').value,
+                    sessionId: currentSessionId,
+                    totalQuestions: parseInt(document.getElementById('totalQuestions').value),
+                    completed: false,
+                    questionsGenerated: true
+                };
+
+                resultDiv.innerHTML += `
+                    <div class="success">完整流程执行成功！</div>
+                    <div class="result">
+                        <strong>Complete页面状态数据:</strong>
+                        <pre>${JSON.stringify(completePageState, null, 2)}</pre>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button class="button" onclick="navigateToComplete()">跳转到Complete页面测试</button>
+                    </div>
+                `;
+
+                // 保存状态到localStorage供Complete页面使用
+                localStorage.setItem('completePageState', JSON.stringify(completePageState));
+
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="error">流程执行失败: ${error.message}</div>`;
+            }
+        }
+
+        function navigateToComplete() {
+            // 在新标签页打开Complete页面
+            window.open('http://localhost:3004/complete', '_blank');
+        }
+
+        // 页面加载时自动尝试登录
+        window.onload = function() {
+            if (!authToken) {
+                setTimeout(login, 1000);
+            }
+        };
+    </script>
+</body>
+</html> 

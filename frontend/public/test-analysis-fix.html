@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面试分析API修复测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>面试分析API修复测试</h1>
+        
+        <div class="test-section info">
+            <h3>测试说明</h3>
+            <p>此页面用于测试面试分析API的修复情况，特别是解决"'str' object has no attribute 'value'"错误。</p>
+        </div>
+
+        <div class="test-section">
+            <h3>步骤1: 用户登录</h3>
+            <button onclick="testLogin()">测试登录</button>
+            <div id="loginResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>步骤2: 创建测试数据</h3>
+            <button onclick="createTestData()">创建简历和面试会话</button>
+            <div id="testDataResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>步骤3: 测试分析API</h3>
+            <button onclick="testAnalysisAPI()">测试面试分析</button>
+            <div id="analysisResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>步骤4: 测试统计API</h3>
+            <button onclick="testStatisticsAPI()">测试统计数据</button>
+            <div id="statisticsResult" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>测试结果汇总</h3>
+            <div id="summary" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let sessionId = '';
+        let testResults = {
+            login: false,
+            testData: false,
+            analysis: false,
+            statistics: false
+        };
+
+        // API配置
+        const API_BASE = 'http://localhost:5001';
+        
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}\n`;
+            element.textContent += logMessage;
+            element.scrollTop = element.scrollHeight;
+            
+            if (isError) {
+                element.style.color = '#dc3545';
+            }
+            
+            console.log(logMessage);
+        }
+
+        async function testLogin() {
+            log('loginResult', '开始测试用户登录...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/dev/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    testResults.login = true;
+                    log('loginResult', `✅ 登录成功! Token: ${authToken.substring(0, 20)}...`);
+                } else {
+                    throw new Error(data.message || '登录失败');
+                }
+            } catch (error) {
+                log('loginResult', `❌ 登录失败: ${error.message}`, true);
+            }
+            
+            updateSummary();
+        }
+
+        async function createTestData() {
+            if (!authToken) {
+                log('testDataResult', '❌ 请先登录', true);
+                return;
+            }
+            
+            log('testDataResult', '开始创建测试数据...');
+            
+            try {
+                // 创建简历
+                const resumeFormData = new FormData();
+                const resumeBlob = new Blob(['测试简历内容：\n软件工程师\n3年Python开发经验\n熟悉React和Node.js'], {type: 'text/plain'});
+                resumeFormData.append('file', resumeBlob, 'test_resume.txt');
+                resumeFormData.append('name', '测试分析修复简历');
+
+                const resumeResponse = await fetch(`${API_BASE}/api/v1/resumes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: resumeFormData
+                });
+
+                const resumeData = await resumeResponse.json();
+                if (!resumeResponse.ok) {
+                    throw new Error(`简历创建失败: ${resumeData.message}`);
+                }
+
+                const resumeId = resumeData.data.resume.id;
+                log('testDataResult', `✅ 简历创建成功，ID: ${resumeId}`);
+
+                // 创建职位
+                const jobResponse = await fetch(`${API_BASE}/api/v1/jobs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        company: '测试公司',
+                        position: '高级软件工程师',
+                        description: '负责后端开发和系统架构设计',
+                        requirements: ['Python', 'Django', 'React', '数据库设计'],
+                        location: '北京',
+                        salary_range: '20-30K'
+                    })
+                });
+
+                const jobData = await jobResponse.json();
+                if (!jobResponse.ok) {
+                    throw new Error(`职位创建失败: ${jobData.message}`);
+                }
+
+                const jobId = jobData.data.id;
+                log('testDataResult', `✅ 职位创建成功，ID: ${jobId}`);
+
+                // 生成问题
+                const questionsResponse = await fetch(`${API_BASE}/api/v1/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        job_id: jobId,
+                        question_count: 5,
+                        difficulty_distribution: {
+                            'easy': 2,
+                            'medium': 2,
+                            'hard': 1
+                        }
+                    })
+                });
+
+                const questionsData = await questionsResponse.json();
+                if (!questionsResponse.ok) {
+                    throw new Error(`问题生成失败: ${questionsData.message}`);
+                }
+
+                sessionId = questionsData.data.session_id;
+                testResults.testData = true;
+                log('testDataResult', `✅ 测试数据创建完成! Session ID: ${sessionId}`);
+                
+            } catch (error) {
+                log('testDataResult', `❌ 创建测试数据失败: ${error.message}`, true);
+            }
+            
+            updateSummary();
+        }
+
+        async function testAnalysisAPI() {
+            if (!authToken || !sessionId) {
+                log('analysisResult', '❌ 请先登录并创建测试数据', true);
+                return;
+            }
+            
+            log('analysisResult', '开始测试面试分析API...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/analysis/session/${sessionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    testResults.analysis = true;
+                    log('analysisResult', `✅ 面试分析API调用成功!`);
+                    log('analysisResult', `分析结果概览:`);
+                    log('analysisResult', `- 会话ID: ${data.data.session_info?.session_id || 'N/A'}`);
+                    log('analysisResult', `- 面试类型: ${data.data.session_info?.interview_type || 'N/A'}`);
+                    log('analysisResult', `- 状态: ${data.data.session_info?.status || 'N/A'}`);
+                    log('analysisResult', `- 总体得分: ${data.data.overall_score || 0}`);
+                    log('analysisResult', `- 答案分析数量: ${data.data.answer_analysis?.length || 0}`);
+                } else {
+                    throw new Error(data.message || '分析API调用失败');
+                }
+            } catch (error) {
+                log('analysisResult', `❌ 面试分析API测试失败: ${error.message}`, true);
+            }
+            
+            updateSummary();
+        }
+
+        async function testStatisticsAPI() {
+            if (!authToken) {
+                log('statisticsResult', '❌ 请先登录', true);
+                return;
+            }
+            
+            log('statisticsResult', '开始测试统计数据API...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/analysis/statistics?days=30`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    testResults.statistics = true;
+                    log('statisticsResult', `✅ 统计数据API调用成功!`);
+                    log('statisticsResult', `统计数据概览:`);
+                    log('statisticsResult', `- 总面试次数: ${data.data.total_interviews || 0}`);
+                    log('statisticsResult', `- 平均分数: ${data.data.average_score || 0}`);
+                    log('statisticsResult', `- 改进趋势: ${data.data.improvement_trend?.length || 0} 项`);
+                } else {
+                    throw new Error(data.message || '统计API调用失败');
+                }
+            } catch (error) {
+                log('statisticsResult', `❌ 统计数据API测试失败: ${error.message}`, true);
+            }
+            
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            const totalTests = Object.keys(testResults).length;
+            
+            let summaryText = `测试进度: ${passedTests}/${totalTests}\n\n`;
+            summaryText += `✅ 登录测试: ${testResults.login ? '通过' : '待测试'}\n`;
+            summaryText += `✅ 测试数据创建: ${testResults.testData ? '通过' : '待测试'}\n`;
+            summaryText += `✅ 面试分析API: ${testResults.analysis ? '通过' : '待测试'}\n`;
+            summaryText += `✅ 统计数据API: ${testResults.statistics ? '通过' : '待测试'}\n\n`;
+            
+            if (passedTests === totalTests) {
+                summaryText += '🎉 所有测试通过！面试分析API修复成功！';
+                summary.className = 'log success';
+            } else if (passedTests > 0) {
+                summaryText += '⚠️ 部分测试通过，请继续完成剩余测试';
+                summary.className = 'log info';
+            } else {
+                summaryText += '❌ 尚未开始测试';
+                summary.className = 'log';
+            }
+            
+            summary.textContent = summaryText;
+        }
+
+        // 页面加载时初始化
+        updateSummary();
+    </script>
+</body>
+</html> 

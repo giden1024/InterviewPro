@@ -1,175 +1,229 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+interface LocationState {
+  sessionId?: string;
+  jobTitle?: string;
+  jobId?: string;
+  resumeId?: number;
+  completed?: boolean;
+  totalQuestions?: number;
+  answeredQuestions?: number;
+  duration?: number;
+  questionsGenerated?: boolean;
+  experienceLevel?: string;
+  error?: string;
+}
 
 const CompletePage: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { 
+    sessionId, 
     jobTitle, 
-    jobDescription, 
-    resumeText, 
-    experienceLevel, 
-    uploadedFile 
-  } = location.state || {};
+    jobId, 
+    resumeId, 
+    completed, 
+    totalQuestions, 
+    answeredQuestions, 
+    duration,
+    questionsGenerated,
+    experienceLevel,
+    error: stateError
+  } = (location.state as LocationState) || {};
 
-  const handleStartInterview = () => {
-    // 这里可以跳转到面试练习页面
-    navigate('/interview', {
-      state: {
-        jobTitle,
-        jobDescription,
-        resumeText,
-        experienceLevel,
-        uploadedFile
-      }
-    });
+  // Start new interview
+  const startNewInterview = () => {
+    navigate('/mock-interview');
   };
 
-  const handleHome = () => {
-    navigate('/');
+  // Return to home
+  const goHome = () => {
+    navigate('/home');
+  };
+
+  // View interview records
+  const viewInterviewHistory = () => {
+    navigate('/profile', { state: { activeTab: 'interviews' } });
+  };
+
+  // Format duration
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="min-h-screen bg-blue-50 py-12">
+    <div className="min-h-screen bg-gray-100 py-8">
       <div className="container mx-auto px-6 max-w-4xl">
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-12">
-          <div className="bg-white rounded-full px-8 py-4 shadow-lg flex items-center space-x-16">
-            {/* Job Step - Completed */}
-            <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-green-100 border-2 border-green-500 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <span className="text-green-600 text-lg">Job</span>
-            </div>
-
-            {/* Arrow */}
-            <div className="w-9 h-9 bg-green-100 border-2 border-green-500 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
-            </div>
-
-            {/* Resume Step - Completed */}
-            <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-green-100 border-2 border-green-500 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <span className="text-green-600 text-lg">Resume</span>
-            </div>
-
-            {/* Arrow */}
-            <div className="w-9 h-9 bg-green-100 border-2 border-green-500 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
-            </div>
-
-            {/* Complete Step - Current */}
-            <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-blue-100 border-2 border-blue-500 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              </div>
-              <span className="text-blue-800 text-lg font-semibold">Complete</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Success Content */}
-        <div className="text-center mb-12">
-          {/* Success Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
-            </div>
-          </div>
-
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">
-            Setup Complete!
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Great! We've got everything we need to generate personalized interview questions for you.
-          </p>
-        </div>
-
-        {/* Summary */}
+        {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Your Interview Setup</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Job Information */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="font-medium text-blue-800 mb-2">Position</h3>
-              <p className="text-gray-700">{jobTitle || 'Not specified'}</p>
+          <div className="text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              {completed ? 'Interview Complete!' : 'Interview Preparation Complete!'}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {completed 
+                ? 'Congratulations on completing your interview, thank you for participating' 
+                : 'Your interview preparation is complete, you can now start the formal interview'}
+            </p>
+            
+            {jobTitle && (
+              <div className="inline-block bg-blue-50 px-4 py-2 rounded-lg">
+                <span className="text-blue-600 font-medium">{jobTitle}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {stateError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div className="flex items-start space-x-3">
+              <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <div className="text-red-700 font-medium mb-2">Operation Failed</div>
+                <div className="text-red-600 text-sm mb-3">{stateError}</div>
+                
+                {/* Action buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => navigate('/home')}
+                    className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                  >
+                    Return Home
+                  </button>
+                  <button
+                    onClick={() => navigate('/profile', { state: { activeTab: 'interviews' } })}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  >
+                    View Interview Records
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Messages */}
+        {questionsGenerated && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div className="text-green-700">
+                <strong>Preparation Complete!</strong> Successfully generated {totalQuestions || 8} interview questions
+                {jobId && <span>, job information has been saved</span>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Interview Summary */}
+        {completed && (
+          <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6">Interview Overview</h2>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{answeredQuestions || 0}</div>
+                <div className="text-sm text-gray-600">Answered Questions</div>
+                <div className="text-xs text-gray-500">/ {totalQuestions || 0} questions</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {duration ? formatDuration(duration) : '00:00'}
+                </div>
+                <div className="text-sm text-gray-600">Interview Duration</div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {sessionId ? 'Completed' : 'Preparing'}
+                </div>
+                <div className="text-sm text-gray-600">Status</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Session Information */}
+        {sessionId && (
+          <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6">Session Information</h2>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                <span className="text-gray-600">Session ID</span>
+                <span className="text-gray-800 font-mono text-sm">{sessionId}</span>
+              </div>
+              
+              {jobTitle && (
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Position</span>
+                  <span className="text-gray-800">{jobTitle}</span>
+                </div>
+              )}
+              
               {experienceLevel && (
-                <div className="mt-2">
-                  <span className="inline-block bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded">
-                    {experienceLevel}
-                  </span>
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Experience Level</span>
+                  <span className="text-gray-800">{experienceLevel}</span>
+                </div>
+              )}
+              
+              {resumeId && (
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Resume ID</span>
+                  <span className="text-gray-800">#{resumeId}</span>
                 </div>
               )}
             </div>
-
-            {/* Resume Information */}
-            <div className="bg-green-50 rounded-lg p-4">
-              <h3 className="font-medium text-green-800 mb-2">Resume</h3>
-              {uploadedFile ? (
-                <p className="text-gray-700">File: {uploadedFile}</p>
-              ) : resumeText ? (
-                <p className="text-gray-700">Text resume uploaded</p>
-              ) : (
-                <p className="text-gray-500">No resume provided</p>
-              )}
-            </div>
           </div>
-
-          {/* Job Description Preview */}
-          {jobDescription && (
-            <div className="mt-6 bg-gray-50 rounded-lg p-4">
-              <h3 className="font-medium text-gray-800 mb-2">Job Description</h3>
-              <p className="text-gray-600 text-sm line-clamp-3">{jobDescription}</p>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Action Buttons */}
-        <div className="flex justify-center space-x-6">
-          {/* Home Button */}
-          <button
-            onClick={handleHome}
-            className="bg-white text-gray-700 px-8 py-3 rounded-full font-medium text-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
-            </svg>
-            <span>Home</span>
-          </button>
+        <div className="bg-white rounded-xl shadow-sm p-8">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={goHome}
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+              </svg>
+              <span>Return Home</span>
+            </button>
 
-          {/* Start Interview Button */}
-          <button
-            onClick={handleStartInterview}
-            className="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white px-8 py-3 rounded-full font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2"
-          >
-            <span>Start Interview Practice</span>
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* Additional Info */}
-        <div className="text-center mt-8">
-          <p className="text-gray-500 text-sm">
-            We'll generate customized questions based on your job requirements and experience level.
-          </p>
+            <button
+              onClick={viewInterviewHistory}
+              className="px-6 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+            >
+              View History
+            </button>
+            
+            <button
+              onClick={startNewInterview}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Start New Interview
+            </button>
+          </div>
         </div>
       </div>
     </div>

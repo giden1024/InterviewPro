@@ -144,15 +144,23 @@ class InterviewAnalyzer:
         """获取会话基本信息"""
         return {
             'session_id': session.session_id,
-            'interview_type': session.interview_type.value,
+            'interview_type': self._get_enum_value(session.interview_type),
             'title': session.title,
             'total_questions': session.total_questions,
             'completed_questions': session.completed_questions,
-            'start_time': session.start_time.isoformat() if session.start_time else None,
-            'end_time': session.end_time.isoformat() if session.end_time else None,
+            'start_time': session.started_at.isoformat() if session.started_at else None,
+            'end_time': session.completed_at.isoformat() if session.completed_at else None,
             'duration_minutes': self._calculate_duration(session),
-            'status': session.status.value
+            'status': session.status
         }
+    
+    def _get_enum_value(self, enum_obj):
+        """安全获取枚举值"""
+        if enum_obj is None:
+            return None
+        if hasattr(enum_obj, 'value'):
+            return enum_obj.value
+        return str(enum_obj)
     
     def _analyze_answers(self, answers: List[Answer], questions: List[Question]) -> List[Dict]:
         """分析所有答案"""
@@ -170,12 +178,12 @@ class InterviewAnalyzer:
         """分析单个答案"""
         analysis = {
             'question_id': question.id,
-            'question_type': question.question_type.value,
-            'question_difficulty': question.difficulty.value,
+            'question_type': self._get_enum_value(question.question_type),
+            'question_difficulty': self._get_enum_value(question.difficulty),
             'question_text': question.question_text[:100] + "...",
             'answer_text': answer.answer_text or "",
             'response_time_seconds': answer.response_time or 0,
-            'submitted_at': answer.submitted_at.isoformat() if answer.submitted_at else None
+            'answered_at': answer.answered_at.isoformat() if answer.answered_at else None
         }
         
         # 答案质量评分
@@ -184,8 +192,9 @@ class InterviewAnalyzer:
         )
         
         # 响应时间评分
+        difficulty_value = self._get_enum_value(question.difficulty)
         analysis['time_score'] = self._score_response_time(
-            answer.response_time, question.difficulty.value
+            answer.response_time, difficulty_value
         )
         
         # 完整性评分
@@ -300,7 +309,7 @@ class InterviewAnalyzer:
             score += 10
         
         # 问题类型特定的完整性检查
-        question_type = question.question_type.value
+        question_type = self._get_enum_value(question.question_type)
         
         if question_type == 'behavioral':
             # STAR方法检查 (Situation, Task, Action, Result)
@@ -308,18 +317,18 @@ class InterviewAnalyzer:
             found_indicators = sum(1 for indicator in star_indicators 
                                  if indicator in answer_text.lower())
             score += min(found_indicators * 10, 30)
-            
-        elif question_type == 'technical':
-            # 技术问题完整性
-            tech_aspects = ['approach', 'implementation', 'consideration', 'trade-off', 'alternative']
-            found_aspects = sum(1 for aspect in tech_aspects 
-                              if aspect in answer_text.lower())
-            score += min(found_aspects * 6, 30)
         
-        # 结论或总结检查
-        if any(conclusion in answer_text.lower() for conclusion in 
-               ['conclusion', 'summary', 'in summary', 'overall', 'to conclude']):
-            score += 10
+        elif question_type == 'technical':
+            # 技术问题完整性检查
+            tech_indicators = ['algorithm', 'complexity', 'implementation', 'solution', 'approach']
+            found_indicators = sum(1 for indicator in tech_indicators 
+                                 if indicator in answer_text.lower())
+            score += min(found_indicators * 8, 30)
+        
+        # 结论和总结检查
+        conclusion_indicators = ['conclusion', 'summary', 'in summary', 'overall', 'finally']
+        if any(indicator in answer_text.lower() for indicator in conclusion_indicators):
+            score += 15
         
         return min(score, 100.0)
     
@@ -452,12 +461,12 @@ class InterviewAnalyzer:
             }
         
         # 会话总时长
-        if session.start_time and session.end_time:
-            duration = session.end_time - session.start_time
+        if session.started_at and session.completed_at:
+            duration = session.completed_at - session.started_at
             metrics['total_session_time'] = duration.total_seconds()
         
         # 问题类型分布
-        type_counts = Counter(q.question_type.value for q in questions)
+        type_counts = Counter(self._get_enum_value(q.question_type) for q in questions)
         metrics['question_type_distribution'] = dict(type_counts)
         
         return metrics
@@ -614,8 +623,8 @@ class InterviewAnalyzer:
     # 辅助方法
     def _calculate_duration(self, session: InterviewSession) -> Optional[float]:
         """计算面试时长（分钟）"""
-        if session.start_time and session.end_time:
-            duration = session.end_time - session.start_time
+        if session.started_at and session.completed_at:
+            duration = session.completed_at - session.started_at
             return duration.total_seconds() / 60
         return None
     

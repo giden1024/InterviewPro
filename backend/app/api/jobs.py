@@ -7,8 +7,12 @@ from app.extensions import db
 from app.models.job import Job, JobType, JobStatus
 from app.models.resume import Resume
 from app.services.job_parser import JobParser
+from app.services.ocr_service import OCRService
 from app.utils.exceptions import APIError, ValidationError, NotFoundError
 from app.utils.response import success_response, error_response
+import os
+import time
+from werkzeug.utils import secure_filename
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -17,6 +21,7 @@ class CreateJobSchema(Schema):
     title = fields.Str(required=True, validate=lambda x: len(x.strip()) > 0)
     company = fields.Str(allow_none=True)
     description = fields.Str(allow_none=True)
+    resume_id = fields.Int(allow_none=True)  # 关联的简历ID
     requirements = fields.List(fields.Str(), allow_none=True)
     responsibilities = fields.List(fields.Str(), allow_none=True)
     salary_range = fields.Str(allow_none=True)
@@ -60,9 +65,17 @@ def create_job():
         schema = CreateJobSchema()
         data = schema.load(request.get_json() or {})
         
+        # 验证关联的简历是否存在
+        resume_id = data.get('resume_id')
+        if resume_id:
+            resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
+            if not resume:
+                return error_response("关联的简历不存在", 404)
+        
         # 创建职位
         job = Job(
             user_id=user_id,
+            resume_id=resume_id,
             title=data['title'],
             company=data.get('company', ''),
             description=data.get('description', ''),
@@ -150,8 +163,14 @@ def get_job(job_id):
         if not job:
             return error_response("职位不存在", 404)
         
+        job_data = job.to_dict()
+        
+        # 如果有关联的简历，添加简历信息
+        if job.resume_id and job.resume:
+            job_data['resume'] = job.resume.to_dict()
+        
         return success_response({
-            'job': job.to_dict()
+            'job': job_data
         })
         
     except Exception as e:
@@ -320,6 +339,74 @@ def parse_job_text():
     except Exception as e:
         current_app.logger.error(f"文本解析失败: {str(e)}")
         return error_response("文本解析失败", 500)
+
+
+@jobs_bp.route('/ocr-extract', methods=['POST'])
+@jwt_required()
+def extract_text_from_image():
+    """从上传的图片中提取文字"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 检查是否有上传的文件
+        if 'image' not in request.files:
+            return error_response("请上传图片文件", 400)
+        
+        file = request.files['image']
+        if file.filename == '':
+            return error_response("请选择要上传的图片", 400)
+        
+        # 验证文件类型
+        if not _allowed_image_file(file.filename):
+            return error_response("不支持的图片格式，支持: jpg, jpeg, png, bmp, tiff, webp", 400)
+        
+        # 确保上传目录存在
+        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        # 保存上传的文件
+        filename = secure_filename(file.filename)
+        timestamp = str(int(time.time()))
+        safe_filename = f"ocr_{user_id}_{timestamp}_{filename}"
+        file_path = os.path.join(upload_dir, safe_filename)
+        
+        file.save(file_path)
+        
+        try:
+            # 使用OCR服务提取文字
+            ocr_service = OCRService()
+            result = ocr_service.extract_text_from_image(file_path)
+            
+            if not result['success']:
+                return error_response(result['error'], 400)
+            
+            return success_response({
+                'text': result['text'],
+                'original_text': result.get('original_text', ''),
+                'language': result.get('language', 'unknown'),
+                'message': 'OCR文字识别成功'
+            })
+            
+        finally:
+            # 清理临时文件
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                current_app.logger.warning(f"清理临时文件失败: {e}")
+                
+    except Exception as e:
+        current_app.logger.error(f"OCR文字识别失败: {str(e)}")
+        return error_response("图片文字识别失败", 500)
+
+
+def _allowed_image_file(filename):
+    """检查是否为允许的图片文件格式"""
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
 
 @jobs_bp.route('/templates', methods=['GET'])
 @jwt_required()

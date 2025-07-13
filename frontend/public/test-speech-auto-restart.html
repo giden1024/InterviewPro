@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音识别自动重启功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-panel {
+            background-color: #f0f8ff;
+            border: 1px solid #e0f2ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #68C6F1;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        .status-listening {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-stopped {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status-auto-restart {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .log {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .transcript-area {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            min-height: 100px;
+            margin: 10px 0;
+        }
+        .test-scenario {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 语音识别自动重启功能测试</h1>
+        <p>测试修改后的语音识别是否在页面失去焦点或长时间无声音时不会自动结束</p>
+
+        <div class="status-panel">
+            <h3>当前状态</h3>
+            <div id="statusIndicators">
+                <span class="status-indicator status-stopped">🛑 未启动</span>
+                <span class="status-indicator" id="autoRestartStatus">🔄 自动重启：未启用</span>
+            </div>
+            <div style="margin-top: 10px;">
+                <strong>语音识别状态：</strong> <span id="recognitionStatus">未启动</span><br>
+                <strong>最后活动时间：</strong> <span id="lastActivity">-</span><br>
+                <strong>重启次数：</strong> <span id="restartCount">0</span>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <h3>控制面板</h3>
+            <button class="btn btn-primary" onclick="startRecognition()">🎤 启动语音识别（带自动重启）</button>
+            <button class="btn btn-danger" onclick="stopRecognition()">🛑 停止语音识别</button>
+            <button class="btn btn-success" onclick="clearLog()">🧹 清除日志</button>
+        </div>
+
+        <div class="test-scenario">
+            <h3>🧪 测试场景</h3>
+            <p><strong>测试1：</strong> 启动语音识别后，切换到其他标签页15秒，然后回来检查是否还在运行</p>
+            <p><strong>测试2：</strong> 启动语音识别后，保持静默30秒，检查是否自动重启</p>
+            <p><strong>测试3：</strong> 说话一段时间，然后静默，观察自动重启行为</p>
+            <button class="btn btn-primary" onclick="simulateTabSwitch()">模拟标签页切换测试</button>
+            <button class="btn btn-primary" onclick="testLongSilence()">测试长时间静默</button>
+        </div>
+
+        <div class="status-panel">
+            <h3>实时转录</h3>
+            <div class="transcript-area" id="transcriptArea">
+                <em>语音转录内容将显示在这里...</em>
+            </div>
+            <div>
+                <strong>临时转录：</strong> <span id="interimTranscript" style="color: #666; font-style: italic;"></span>
+            </div>
+        </div>
+
+        <div id="logContainer" class="log">
+            <strong>操作日志:</strong><br>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+        let shouldAutoRestart = false;
+        let isManuallyStoppedRef = false;
+        let restartCount = 0;
+        let lastActivityTime = null;
+
+        function log(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `[${timestamp}] ${message}<br>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function updateStatus() {
+            const statusIndicators = document.getElementById('statusIndicators');
+            const recognitionStatus = document.getElementById('recognitionStatus');
+            const autoRestartStatus = document.getElementById('autoRestartStatus');
+            const lastActivity = document.getElementById('lastActivity');
+            const restartCountEl = document.getElementById('restartCount');
+
+            // 更新状态指示器
+            if (isListening) {
+                statusIndicators.innerHTML = '<span class="status-indicator status-listening">🎤 正在监听</span>';
+                recognitionStatus.textContent = '正在运行';
+            } else {
+                statusIndicators.innerHTML = '<span class="status-indicator status-stopped">🛑 已停止</span>';
+                recognitionStatus.textContent = '未运行';
+            }
+
+            // 自动重启状态
+            if (shouldAutoRestart) {
+                autoRestartStatus.textContent = '🔄 自动重启：已启用';
+                autoRestartStatus.className = 'status-indicator status-auto-restart';
+            } else {
+                autoRestartStatus.textContent = '🔄 自动重启：未启用';
+                autoRestartStatus.className = 'status-indicator';
+            }
+
+            // 最后活动时间
+            lastActivity.textContent = lastActivityTime ? lastActivityTime.toLocaleTimeString() : '-';
+            
+            // 重启次数
+            restartCountEl.textContent = restartCount;
+        }
+
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                log('❌ 浏览器不支持语音识别');
+                return false;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                log('🎤 语音识别开始');
+                isListening = true;
+                lastActivityTime = new Date();
+                updateStatus();
+            };
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    const transcriptArea = document.getElementById('transcriptArea');
+                    transcriptArea.innerHTML += `<div><strong>[${new Date().toLocaleTimeString()}]</strong> ${finalTranscript}</div>`;
+                    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+                    log(`📝 语音转录: ${finalTranscript.substring(0, 50)}...`);
+                    lastActivityTime = new Date();
+                    updateStatus();
+                }
+
+                document.getElementById('interimTranscript').textContent = interimTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                log(`🔍 语音识别事件: ${event.error}`);
+                
+                if (event.error === 'no-speech') {
+                    log('⚠️ 未检测到语音，这是正常的');
+                    return;
+                } else if (event.error === 'audio-capture') {
+                    log('❌ 麦克风访问错误');
+                    isListening = false;
+                    updateStatus();
+                } else if (event.error === 'not-allowed') {
+                    log('❌ 麦克风权限被拒绝');
+                    isListening = false;
+                    updateStatus();
+                } else if (event.error === 'network') {
+                    log('❌ 网络错误');
+                    isListening = false;
+                    updateStatus();
+                } else {
+                    log(`❌ 其他语音识别错误: ${event.error}`);
+                    isListening = false;
+                    updateStatus();
+                }
+            };
+
+            recognition.onend = () => {
+                log('🛑 语音识别结束');
+                isListening = false;
+                document.getElementById('interimTranscript').textContent = '';
+                updateStatus();
+                
+                // 自动重启逻辑
+                if (shouldAutoRestart && !isManuallyStoppedRef) {
+                    log('🔄 检测到语音识别意外结束，准备自动重启...');
+                    setTimeout(() => {
+                        if (shouldAutoRestart && !isManuallyStoppedRef && recognition) {
+                            try {
+                                log('🔄 自动重启语音识别');
+                                recognition.start();
+                                restartCount++;
+                                updateStatus();
+                            } catch (err) {
+                                log(`❌ 自动重启语音识别失败: ${err.message}`);
+                                // 重试
+                                setTimeout(() => {
+                                    if (shouldAutoRestart && !isManuallyStoppedRef && recognition) {
+                                        try {
+                                            log('🔄 重试自动重启语音识别');
+                                            recognition.start();
+                                            restartCount++;
+                                            updateStatus();
+                                        } catch (retryErr) {
+                                            log(`❌ 重试自动重启也失败: ${retryErr.message}`);
+                                        }
+                                    }
+                                }, 2000);
+                            }
+                        }
+                    }, 1000);
+                } else {
+                    log('🛑 语音识别正常结束，不自动重启');
+                }
+            };
+
+            return true;
+        }
+
+        function startRecognition() {
+            if (!recognition && !initSpeechRecognition()) {
+                return;
+            }
+
+            if (isListening) {
+                log('⚠️ 语音识别已在运行');
+                return;
+            }
+
+            try {
+                log('🎤 启动语音识别（启用自动重启功能）');
+                isManuallyStoppedRef = false;
+                shouldAutoRestart = true;
+                recognition.start();
+                updateStatus();
+            } catch (err) {
+                log(`❌ 启动语音识别失败: ${err.message}`);
+            }
+        }
+
+        function stopRecognition() {
+            if (!isListening) {
+                log('⚠️ 语音识别未在运行');
+                return;
+            }
+
+            log('🛑 用户手动停止语音识别');
+            isManuallyStoppedRef = true;
+            shouldAutoRestart = false;
+            
+            try {
+                recognition.stop();
+                updateStatus();
+            } catch (err) {
+                log(`❌ 停止语音识别失败: ${err.message}`);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logContent').innerHTML = '';
+            document.getElementById('transcriptArea').innerHTML = '<em>语音转录内容将显示在这里...</em>';
+            document.getElementById('interimTranscript').textContent = '';
+            restartCount = 0;
+            updateStatus();
+            log('🧹 日志和转录内容已清除');
+        }
+
+        function simulateTabSwitch() {
+            log('🧪 开始模拟标签页切换测试...');
+            log('📱 请手动切换到其他标签页，等待15秒后回来查看结果');
+            
+            // 监听页面可见性变化
+            const handleVisibilityChange = () => {
+                if (document.hidden) {
+                    log('📱 页面失去焦点，语音识别应该继续运行');
+                } else {
+                    log('📱 页面重新获得焦点，检查语音识别状态');
+                    if (shouldAutoRestart && !isListening && !isManuallyStoppedRef && recognition) {
+                        log('🔄 页面重新获得焦点，尝试重启语音识别');
+                        setTimeout(() => {
+                            try {
+                                recognition.start();
+                                restartCount++;
+                                updateStatus();
+                            } catch (err) {
+                                log(`❌ 页面焦点恢复后重启失败: ${err.message}`);
+                            }
+                        }, 500);
+                    }
+                }
+            };
+
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // 10秒后移除监听器
+            setTimeout(() => {
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                log('✅ 标签页切换测试监听结束');
+            }, 30000);
+        }
+
+        function testLongSilence() {
+            log('🧪 开始长时间静默测试...');
+            log('🤐 请保持静默30秒，观察语音识别是否自动重启');
+            
+            let silenceStartTime = Date.now();
+            const checkInterval = setInterval(() => {
+                const elapsed = (Date.now() - silenceStartTime) / 1000;
+                if (elapsed >= 30) {
+                    clearInterval(checkInterval);
+                    log('✅ 长时间静默测试完成（30秒）');
+                } else {
+                    log(`⏱️ 静默测试进行中... ${Math.floor(elapsed)}秒`);
+                }
+            }, 5000);
+        }
+
+        // 初始化
+        updateStatus();
+        log('🎯 语音识别自动重启测试页面已加载');
+        log('📝 修改内容：防止页面失去焦点和长时间无声音时自动结束');
+        
+        // 初始化语音识别
+        if (initSpeechRecognition()) {
+            log('✅ 语音识别初始化成功');
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser-tools MCP 配置验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid;
+        }
+        .status-success {
+            border-left-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+        .status-warning {
+            border-left-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+        .status-error {
+            border-left-color: #dc3545;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+        .step-list {
+            counter-reset: step-counter;
+        }
+        .step-item {
+            counter-increment: step-counter;
+            position: relative;
+            padding: 20px 20px 20px 60px;
+            margin: 15px 0;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+        .step-item::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .step-completed::before {
+            background: #28a745;
+            content: "✓";
+        }
+        .step-pending::before {
+            background: #ffc107;
+            color: #212529;
+        }
+        .code-block {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            border: 1px solid #e1e8ed;
+            margin: 10px 0;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .feature-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+        }
+        .icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .alert {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #ffeeba;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ Browser-tools MCP 配置验证</h1>
+            <p>检查并验证Browser-tools MCP工具的安装和配置状态</p>
+        </div>
+
+        <!-- 服务状态检查 -->
+        <div class="status-card status-success">
+            <h2>✅ 服务器状态 - 已启动</h2>
+            <p><strong>Browser-tools服务已成功启动！</strong></p>
+            <ul>
+                <li>📡 browser-tools-server 运行中 (PID: 23104)</li>
+                <li>🔧 中间件服务器监听端口: http://localhost:3025</li>
+                <li>⚡ 服务状态: 正常运行</li>
+            </ul>
+        </div>
+
+        <!-- 配置步骤 -->
+        <div class="step-list">
+            <h2>🔧 完整配置步骤</h2>
+            
+            <div class="step-item step-completed">
+                <h3>启动Browser-tools服务</h3>
+                <p>✅ <strong>已完成</strong> - Browser-tools-server已启动并运行在端口3025</p>
+                <div class="code-block">
+                    Browser Tools Server Started<br>
+                    Aggregator listening on http://0.0.0.0:3025
+                </div>
+            </div>
+
+            <div class="step-item step-pending">
+                <h3>安装Chrome扩展</h3>
+                <p>📋 <strong>待完成</strong> - 需要安装BrowserTools Chrome扩展</p>
+                <div class="alert alert-warning">
+                    <strong>重要:</strong> 必须安装Chrome扩展才能使浏览器工具正常工作
+                </div>
+                <h4>安装步骤:</h4>
+                <ol>
+                    <li>下载扩展: <a href="https://github.com/AgentDeskAI/browser-tools-mcp/releases" target="_blank">BrowserToolsMCP Chrome Extension v1.2.0</a></li>
+                    <li>解压下载的扩展文件</li>
+                    <li>在Chrome中打开 <code>chrome://extensions/</code></li>
+                    <li>启用右上角的"开发者模式"</li>
+                    <li>点击"加载已解压的扩展程序"</li>
+                    <li>选择解压后的扩展文件夹</li>
+                </ol>
+            </div>
+
+            <div class="step-item step-pending">
+                <h3>重启Cursor</h3>
+                <p>📋 <strong>待完成</strong> - 重启Cursor以加载MCP配置</p>
+                <div class="alert alert-info">
+                    <strong>注意:</strong> 配置更改后需要完全重启Cursor才能生效
+                </div>
+                <h4>重启步骤:</h4>
+                <ol>
+                    <li>完全退出Cursor (⌘+Q on Mac / Ctrl+Q on Windows)</li>
+                    <li>确认Cursor进程已完全终止</li>
+                    <li>重新启动Cursor</li>
+                    <li>检查 Settings > MCP 查看browser-tools是否显示</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 可用工具功能 -->
+        <div class="feature-grid">
+            <h2 style="grid-column: 1 / -1;">🎯 可用的Browser-tools功能</h2>
+            
+            <div class="feature-card">
+                <h3><span class="icon">📸</span>截图功能</h3>
+                <p>捕获当前浏览器标签页的截图</p>
+                <code>takeScreenshot</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">📊</span>日志管理</h3>
+                <p>获取控制台日志、网络日志和错误信息</p>
+                <code>getConsoleLogs, getNetworkLogs</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">🔍</span>元素选择</h3>
+                <p>获取当前选中的DOM元素信息</p>
+                <code>getSelectedElement</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">⚡</span>性能审计</h3>
+                <p>运行页面性能分析和优化建议</p>
+                <code>runPerformanceAudit</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">♿</span>可访问性审计</h3>
+                <p>检查页面的可访问性问题</p>
+                <code>runAccessibilityAudit</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">🔍</span>SEO审计</h3>
+                <p>分析页面的SEO优化状况</p>
+                <code>runSEOAudit</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">🛠️</span>调试模式</h3>
+                <p>启用高级调试功能</p>
+                <code>runDebuggerMode</code>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="icon">⚙️</span>Next.js审计</h3>
+                <p>专门针对Next.js应用的优化检查</p>
+                <code>runNextJSAudit</code>
+            </div>
+        </div>
+
+        <!-- 测试功能 -->
+        <div class="status-card">
+            <h2>🧪 测试Browser-tools功能</h2>
+            <p>完成Chrome扩展安装和Cursor重启后，您可以使用以下命令测试功能:</p>
+            
+            <div class="code-block">
+                <strong>测试命令示例:</strong><br>
+                "帮我截图当前浏览器页面"<br>
+                "获取浏览器控制台错误日志"<br>
+                "对当前页面运行性能审计"<br>
+                "运行前端页面的可访问性检查"<br>
+                "分析这个页面的SEO优化情况"
+            </div>
+
+            <button class="test-button" onclick="checkExtensionStatus()">检查Chrome扩展状态</button>
+            <button class="test-button" onclick="testConnection()">测试连接状态</button>
+            <button class="test-button" onclick="showInstructions()">显示详细说明</button>
+        </div>
+
+        <!-- 故障排除 -->
+        <div class="status-card">
+            <h2>🔧 故障排除</h2>
+            <div id="troubleshooting">
+                <h3>如果工具仍然不可用:</h3>
+                <ol>
+                    <li><strong>检查服务器状态:</strong>
+                        <div class="code-block">ps aux | grep browser-tools</div>
+                    </li>
+                    <li><strong>验证Chrome扩展:</strong>
+                        <ul>
+                            <li>打开Chrome DevTools (F12)</li>
+                            <li>查找"BrowserToolsMCP"面板</li>
+                            <li>确认扩展与服务器连接</li>
+                        </ul>
+                    </li>
+                    <li><strong>重新启动服务:</strong>
+                        <div class="code-block">
+                            pkill -f browser-tools<br>
+                            ./start_browser_tools.sh
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 当前状态总结 -->
+        <div class="alert alert-info">
+            <h3>📋 当前配置状态总结</h3>
+            <ul>
+                <li>✅ Browser-tools服务器已启动</li>
+                <li>✅ MCP配置文件已更新</li>
+                <li>⏳ 待完成: 安装Chrome扩展</li>
+                <li>⏳ 待完成: 重启Cursor</li>
+            </ul>
+            <p><strong>完成剩余步骤后，browser-tools MCP工具就可以完全正常使用了！</strong></p>
+        </div>
+    </div>
+
+    <script>
+        function checkExtensionStatus() {
+            // 检查Chrome扩展是否已安装
+            const hasExtension = window.chrome && window.chrome.runtime;
+            const statusDiv = document.getElementById('troubleshooting');
+            
+            if (hasExtension) {
+                statusDiv.innerHTML = `
+                    <div style="color: #28a745; padding: 15px; background: #d4edda; border-radius: 8px;">
+                        ✅ <strong>Chrome扩展检测:</strong> 浏览器支持扩展API
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div style="color: #856404; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                        ⚠️ <strong>Chrome扩展检测:</strong> 未检测到扩展API或需要安装BrowserToolsMCP扩展
+                    </div>
+                `;
+            }
+        }
+
+        function testConnection() {
+            // 测试与browser-tools服务器的连接
+            fetch('http://localhost:3025')
+                .then(response => {
+                    const statusDiv = document.getElementById('troubleshooting');
+                    if (response.ok) {
+                        statusDiv.innerHTML = `
+                            <div style="color: #28a745; padding: 15px; background: #d4edda; border-radius: 8px;">
+                                ✅ <strong>连接测试:</strong> Browser-tools服务器响应正常 (端口3025)
+                            </div>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div style="color: #721c24; padding: 15px; background: #f8d7da; border-radius: 8px;">
+                                ❌ <strong>连接测试:</strong> 服务器响应异常 (状态码: ${response.status})
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    const statusDiv = document.getElementById('troubleshooting');
+                    statusDiv.innerHTML = `
+                        <div style="color: #721c24; padding: 15px; background: #f8d7da; border-radius: 8px;">
+                            ❌ <strong>连接测试:</strong> 无法连接到服务器 - ${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        function showInstructions() {
+            const instructions = `
+                📋 Browser-tools MCP 设置步骤详解:
+
+                1️⃣ 服务器启动 (已完成 ✅)
+                   - Browser-tools-server 正在运行
+                   - 监听端口: http://localhost:3025
+
+                2️⃣ Chrome扩展安装 (待完成 📋)
+                   - 下载: https://github.com/AgentDeskAI/browser-tools-mcp/releases
+                   - 解压并在Chrome中加载开发者模式扩展
+
+                3️⃣ Cursor重启 (待完成 📋)
+                   - 完全退出Cursor
+                   - 重新启动以加载MCP配置
+
+                4️⃣ 功能测试
+                   - 在Cursor中尝试: "帮我截图当前页面"
+                   - 验证browser-tools工具是否可用
+            `;
+            
+            alert(instructions);
+        }
+
+        // 页面加载时自动检查状态
+        window.onload = function() {
+            console.log('🛠️ Browser-tools MCP配置验证页面已加载');
+            console.log('📡 服务器地址: http://localhost:3025');
+            
+            // 自动测试连接
+            setTimeout(testConnection, 1000);
+        };
+    </script>
+</body>
+</html> 

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .detected { border-left-color: #28a745; background: #d4edda; }
+        .not-detected { border-left-color: #dc3545; background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Question Detection Logic Test</h1>
+        
+        <div class="section info">
+            <h3>🎯 Test Purpose</h3>
+            <p>This page tests the updated question detection logic to ensure it correctly identifies questions from speech recognition output.</p>
+        </div>
+
+        <div class="section">
+            <h3>📋 Test Cases</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearLogs()">Clear Results</button>
+        </div>
+
+        <div class="section">
+            <h3>📊 Test Results</h3>
+            <div id="results" class="log">Ready to run tests...</div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 Real Examples from Speech Recognition</h3>
+            <div id="realExamples"></div>
+        </div>
+    </div>
+
+    <script>
+        // Updated question detection logic (matches the fixed version)
+        function shouldGenerateAnswer(text) {
+            // 基本条件检查
+            if (text.length < 10) return false;
+            
+            const textLower = text.toLowerCase().trim();
+            
+            // 检查是否包含问号
+            if (textLower.includes('?')) return true;
+            
+            // 检查是否包含疑问词
+            const questionWords = ['how', 'what', 'why', 'when', 'where', 'who', 'tell', 'describe', 'explain', 'can you', 'would you', 'do you'];
+            const hasQuestionWord = questionWords.some(word => textLower.includes(word));
+            
+            // 如果包含疑问词，就认为是问题（不强制要求标点符号）
+            if (hasQuestionWord) {
+                console.log(`🔍 检测到疑问词: ${questionWords.find(word => textLower.includes(word))}`);
+                return true;
+            }
+            
+            // 检查是否以句号或问号结尾（完整句子）
+            const isCompleteSentence = textLower.endsWith('.') || textLower.endsWith('?');
+            
+            return isCompleteSentence;
+        }
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            results.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('results').textContent = 'Logs cleared...\n';
+            document.getElementById('realExamples').innerHTML = '';
+        }
+
+        function testCase(text, expected, description) {
+            const result = shouldGenerateAnswer(text);
+            const passed = result === expected;
+            
+            log(`Test: ${description}`, passed ? 'success' : 'error');
+            log(`  Input: "${text}"`);
+            log(`  Expected: ${expected}, Got: ${result}`);
+            log(`  Result: ${passed ? 'PASS' : 'FAIL'}`);
+            log('');
+            
+            return passed;
+        }
+
+        function runAllTests() {
+            log('=== QUESTION DETECTION TESTS ===');
+            
+            const tests = [
+                // Real examples from speech recognition that should be detected
+                ["when is it performed explain priority versus", true, "Real example 1 - contains 'when' and 'explain'"],
+                ["what's the difference between functional and non-functional testing", true, "Real example 2 - contains 'what'"],
+                ["what is Black Box white box and gray box testing explain exploratory testing", true, "Real example 3 - contains 'what' and 'explain'"],
+                ["too test design techniques what are equivalence partitioning and Boundary value analysis", true, "Real example 4 - contains 'what'"],
+                ["severity with examples what is smoke testing sanity testing describe the bug life cycle", true, "Real example 5 - contains 'what' and 'describe'"],
+                
+                // Traditional question formats
+                ["What are your greatest strengths?", true, "Question with question mark"],
+                ["How do you handle stress?", true, "How question with question mark"],
+                ["Tell me about yourself.", true, "Tell question with period"],
+                ["Describe your experience with testing.", true, "Describe question with period"],
+                ["Explain your approach to problem solving.", true, "Explain question with period"],
+                
+                // Edge cases that should be detected
+                ["what are your hobbies", true, "Question without punctuation"],
+                ["how do you work under pressure", true, "How question without punctuation"],
+                ["tell me your background", true, "Tell question without punctuation"],
+                
+                // Non-questions that should NOT be detected
+                ["I am a software engineer", false, "Statement without question words"],
+                ["The weather is nice today.", false, "Statement with period"],
+                ["Testing is important", false, "Short statement"],
+                ["Hi there", false, "Greeting too short"],
+                ["Yes", false, "Single word too short"],
+                
+                // Borderline cases
+                ["I think what you said is correct", false, "Contains 'what' but not a question"],
+                ["The question is what should we do", false, "Contains 'what' but statement form"],
+            ];
+            
+            let passed = 0;
+            let total = tests.length;
+            
+            tests.forEach(([text, expected, description]) => {
+                if (testCase(text, expected, description)) {
+                    passed++;
+                }
+            });
+            
+            log(`=== TEST SUMMARY ===`, 'info');
+            log(`Passed: ${passed}/${total} (${Math.round(passed/total*100)}%)`, passed === total ? 'success' : 'error');
+            
+            // Display real examples
+            displayRealExamples();
+        }
+
+        function displayRealExamples() {
+            const realExamples = [
+                "when is it performed explain priority versus",
+                "what's the difference between functional and non-functional testing", 
+                "what is Black Box white box and gray box testing explain exploratory testing",
+                "too test design techniques what are equivalence partitioning and Boundary value analysis",
+                "severity with examples what is smoke testing sanity testing describe the bug life cycle"
+            ];
+            
+            const container = document.getElementById('realExamples');
+            container.innerHTML = '<h4>Real Speech Recognition Examples:</h4>';
+            
+            realExamples.forEach((text, index) => {
+                const isDetected = shouldGenerateAnswer(text);
+                const div = document.createElement('div');
+                div.className = `test-case ${isDetected ? 'detected' : 'not-detected'}`;
+                div.innerHTML = `
+                    <strong>Example ${index + 1}:</strong> "${text}"<br>
+                    <strong>Detection:</strong> ${isDetected ? '✅ DETECTED' : '❌ NOT DETECTED'}<br>
+                    <strong>Status:</strong> ${isDetected ? 'Will trigger AI generation' : 'Will NOT trigger AI generation'}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded - running question detection tests...');
+            runAllTests();
+        });
+    </script>
+</body>
+</html> 

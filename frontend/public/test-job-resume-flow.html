@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试职位-简历关联功能</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>职位-简历关联功能测试</h1>
+    
+    <div class="container">
+        <h2>1. 登录/获取Token</h2>
+        <button class="btn" onclick="createTestUser()">创建测试用户</button>
+        <button class="btn" onclick="loginTestUser()">登录测试用户</button>
+        <div id="authResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. 上传简历</h2>
+        <label for="resumeText">简历内容:</label>
+        <textarea id="resumeText" rows="6" placeholder="输入简历内容...">
+John Doe
+Software Engineer
+Email: john@example.com
+Phone: +1234567890
+
+Skills: JavaScript, React, Node.js, Python, SQL
+Experience: 3 years of full-stack development
+Education: Bachelor's in Computer Science
+
+Work Experience:
+- Senior Developer at Tech Corp (2021-2024)
+- Frontend Developer at StartupXYZ (2019-2021)
+        </textarea>
+        <button class="btn" onclick="uploadResume()">上传简历</button>
+        <div id="resumeResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. 创建关联简历的职位</h2>
+        <label for="jobTitle">职位标题:</label>
+        <input type="text" id="jobTitle" value="前端开发工程师" placeholder="输入职位标题">
+        
+        <label for="jobCompany">公司名称:</label>
+        <input type="text" id="jobCompany" value="科技公司" placeholder="输入公司名称">
+        
+        <label for="jobDescription">职位描述:</label>
+        <textarea id="jobDescription" rows="4" placeholder="输入职位描述">
+负责前端开发工作，使用React、Vue等技术栈开发用户界面，与后端团队协作完成项目开发。
+要求3年以上前端开发经验，熟悉JavaScript、HTML、CSS等技术。
+        </textarea>
+        
+        <label for="resumeId">关联简历ID:</label>
+        <input type="number" id="resumeId" placeholder="输入简历ID（从上一步获取）">
+        
+        <button class="btn" onclick="createJobWithResume()">创建职位（关联简历）</button>
+        <div id="jobResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. 测试获取职位详情（包含简历信息）</h2>
+        <label for="jobId">职位ID:</label>
+        <input type="number" id="jobId" placeholder="输入职位ID">
+        <button class="btn" onclick="getJobWithResume()">获取职位详情</button>
+        <div id="jobDetailResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>5. 测试模拟面试流程</h2>
+        <button class="btn success" onclick="startMockInterview()">开始模拟面试</button>
+        <div id="interviewResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let authToken = null;
+        let currentResumeId = null;
+        let currentJobId = null;
+
+        function showResult(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.innerHTML = message;
+        }
+
+        async function createTestUser() {
+            try {
+                const response = await fetch(`${API_BASE}/dev/create-test-user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                        username: 'testuser'
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('authResult', `✅ 测试用户创建成功！<br>Email: test@example.com<br>Password: password123`);
+                } else {
+                    showResult('authResult', `❌ 创建用户失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('authResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function loginTestUser() {
+            try {
+                const response = await fetch(`${API_BASE}/dev/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    authToken = data.data.access_token;
+                    showResult('authResult', `✅ 登录成功！<br>Token: ${authToken.substring(0, 50)}...`);
+                } else {
+                    showResult('authResult', `❌ 登录失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('authResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function uploadResume() {
+            if (!authToken) {
+                showResult('resumeResult', '❌ 请先登录', true);
+                return;
+            }
+
+            try {
+                const resumeText = document.getElementById('resumeText').value;
+                const formData = new FormData();
+                const blob = new Blob([resumeText], { type: 'text/plain' });
+                formData.append('file', blob, 'test_resume.txt');
+
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    currentResumeId = data.data.resume.id;
+                    document.getElementById('resumeId').value = currentResumeId;
+                    showResult('resumeResult', `✅ 简历上传成功！<br>简历ID: ${currentResumeId}<br>文件名: ${data.data.resume.filename}`);
+                    
+                    // 自动分析简历
+                    setTimeout(() => analyzeResume(currentResumeId), 1000);
+                } else {
+                    showResult('resumeResult', `❌ 上传失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('resumeResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function analyzeResume(resumeId) {
+            try {
+                const response = await fetch(`${API_BASE}/resumes/${resumeId}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('resumeResult', `✅ 简历分析完成！<br>简历ID: ${resumeId}<br>技能: ${data.data.analysis.skills.join(', ')}`);
+                }
+            } catch (error) {
+                console.error('分析简历失败:', error);
+            }
+        }
+
+        async function createJobWithResume() {
+            if (!authToken) {
+                showResult('jobResult', '❌ 请先登录', true);
+                return;
+            }
+
+            try {
+                const jobData = {
+                    title: document.getElementById('jobTitle').value,
+                    company: document.getElementById('jobCompany').value,
+                    description: document.getElementById('jobDescription').value,
+                    resume_id: parseInt(document.getElementById('resumeId').value) || currentResumeId,
+                    job_type: 'full-time',
+                    location: '北京',
+                    skills_required: ['JavaScript', 'React', 'HTML', 'CSS']
+                };
+
+                const response = await fetch(`${API_BASE}/jobs`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jobData)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    currentJobId = data.data.job.id;
+                    document.getElementById('jobId').value = currentJobId;
+                    showResult('jobResult', `✅ 职位创建成功！<br>职位ID: ${currentJobId}<br>关联简历ID: ${data.data.job.resume_id}<br>职位: ${data.data.job.title} @ ${data.data.job.company}`);
+                } else {
+                    showResult('jobResult', `❌ 创建失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('jobResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function getJobWithResume() {
+            if (!authToken) {
+                showResult('jobDetailResult', '❌ 请先登录', true);
+                return;
+            }
+
+            try {
+                const jobId = document.getElementById('jobId').value || currentJobId;
+                const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    const job = data.data.job;
+                    let resultHtml = `✅ 获取职位详情成功！<br>`;
+                    resultHtml += `职位: ${job.title} @ ${job.company}<br>`;
+                    resultHtml += `职位ID: ${job.id}<br>`;
+                    resultHtml += `关联简历ID: ${job.resume_id}<br>`;
+                    
+                    if (job.resume) {
+                        resultHtml += `<br><strong>关联简历信息:</strong><br>`;
+                        resultHtml += `文件名: ${job.resume.filename}<br>`;
+                        resultHtml += `状态: ${job.resume.status}<br>`;
+                        if (job.resume.skills) {
+                            resultHtml += `技能: ${job.resume.skills.join(', ')}<br>`;
+                        }
+                    } else {
+                        resultHtml += `<br>⚠️ 未找到关联的简历信息`;
+                    }
+                    
+                    showResult('jobDetailResult', resultHtml);
+                } else {
+                    showResult('jobDetailResult', `❌ 获取失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('jobDetailResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function startMockInterview() {
+            if (!authToken || !currentJobId || !currentResumeId) {
+                showResult('interviewResult', '❌ 请先完成上述步骤（登录、上传简历、创建职位）', true);
+                return;
+            }
+
+            try {
+                // 生成面试问题
+                const questionData = {
+                    resume_id: currentResumeId,
+                    interview_type: 'comprehensive',
+                    total_questions: 5,
+                    title: `基于职位${currentJobId}的模拟面试`
+                };
+
+                const response = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(questionData)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    let resultHtml = `✅ 模拟面试准备完成！<br>`;
+                    resultHtml += `会话ID: ${data.data.session.session_id}<br>`;
+                    resultHtml += `问题数量: ${data.data.questions.length}<br>`;
+                    resultHtml += `<br><strong>生成的问题:</strong><br>`;
+                    
+                    data.data.questions.forEach((q, index) => {
+                        resultHtml += `${index + 1}. [${q.difficulty}] ${q.question_text}<br>`;
+                    });
+                    
+                    resultHtml += `<br>🎯 现在可以在主页面点击"Mock Interview"按钮，系统将自动使用职位${currentJobId}和简历${currentResumeId}进行面试！`;
+                    
+                    showResult('interviewResult', resultHtml);
+                } else {
+                    showResult('interviewResult', `❌ 生成问题失败: ${data.message}`, true);
+                }
+            } catch (error) {
+                showResult('interviewResult', `❌ 网络错误: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html> 

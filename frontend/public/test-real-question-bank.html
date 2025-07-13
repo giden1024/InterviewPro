@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Bank 真实数据测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .question-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .question-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        .answer-text {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #4a5568;
+            line-height: 1.6;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tag.technical { background: #e6f3ff; color: #0066cc; }
+        .tag.behavioral { background: #e6f7e6; color: #009900; }
+        .tag.easy { background: #e6f7e6; color: #009900; }
+        .tag.medium { background: #fff3cd; color: #cc6600; }
+        .tag.hard { background: #f8d7da; color: #cc0000; }
+        .tag.category { background: #e9ecef; color: #495057; }
+        .tag.skill { background: #e1f5fe; color: #0277bd; }
+        .tag.score { background: #e8f5e8; color: #2e7d32; }
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #718096;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+        .session-info {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+        .empty-state h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #3182ce;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4299e1;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Question Bank 真实数据测试</h1>
+        <p>测试从数据库获取用户回答过的真实问题和答案</p>
+        <button class="btn" onclick="loadQuestions()">🔄 重新加载</button>
+        <button class="btn" onclick="clearToken()">🚪 清除Token</button>
+    </div>
+
+    <div class="stats" id="stats" style="display: none;">
+        <div class="stat-card">
+            <div class="stat-number" id="totalQuestions">0</div>
+            <div class="stat-label">总问题数</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="avgScore">0</div>
+            <div class="stat-label">平均得分</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="technicalCount">0</div>
+            <div class="stat-label">技术问题</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="behavioralCount">0</div>
+            <div class="stat-label">行为问题</div>
+        </div>
+    </div>
+
+    <div id="content">
+        <div class="loading">
+            <h3>📡 加载中...</h3>
+            <p>正在从后端API获取真实数据</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        
+        // 测试用户的JWT Token
+        const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MTE5MjYyOSwianRpIjoiOTc1YzdmZDktZGIwYi00YTFhLWJjMDctMzUzMTViMTMyNWM2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NTExOTI2MjksImNzcmYiOiI2NTA1YzllMy0xZjkwLTRmZTMtYjU5ZC04NTM2ZTE3M2I0OTciLCJleHAiOjE3NTEyNzkwMjl9.lOEChnpyzopW7tNVAHIyLitdmYq9b7ordF5aXa8PZVc';
+        
+        // 设置token到localStorage
+        localStorage.setItem('auth_token', TEST_TOKEN);
+        
+        async function loadQuestions() {
+            const content = document.getElementById('content');
+            const stats = document.getElementById('stats');
+            
+            content.innerHTML = `
+                <div class="loading">
+                    <h3>📡 加载中...</h3>
+                    <p>正在从后端API获取真实数据</p>
+                </div>
+            `;
+            stats.style.display = 'none';
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    throw new Error('No auth token found');
+                }
+                
+                const response = await fetch(`${API_BASE}/questions/with-answers?page=1&per_page=10&has_answers=true`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP ${response.status}: ${errorData.msg || errorData.message || 'Unknown error'}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data.success && data.data.questions) {
+                    displayQuestions(data.data.questions, data.data.pagination);
+                    displayStats(data.data.questions);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+                
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                content.innerHTML = `
+                    <div class="error">
+                        <h3>❌ 加载失败</h3>
+                        <p><strong>错误:</strong> ${error.message}</p>
+                        <button class="btn" onclick="loadQuestions()">重试</button>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayStats(questions) {
+            if (!questions || questions.length === 0) return;
+            
+            const stats = document.getElementById('stats');
+            const totalQuestions = questions.length;
+            const scores = questions.map(q => q.latest_answer?.score).filter(s => s != null);
+            const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+            const technicalCount = questions.filter(q => q.question_type === 'technical').length;
+            const behavioralCount = questions.filter(q => q.question_type === 'behavioral').length;
+            
+            document.getElementById('totalQuestions').textContent = totalQuestions;
+            document.getElementById('avgScore').textContent = avgScore;
+            document.getElementById('technicalCount').textContent = technicalCount;
+            document.getElementById('behavioralCount').textContent = behavioralCount;
+            
+            stats.style.display = 'grid';
+        }
+        
+        function displayQuestions(questions, pagination) {
+            const content = document.getElementById('content');
+            
+            if (!questions || questions.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>📝 暂无问题数据</h3>
+                        <p>数据库中没有找到用户回答过的问题</p>
+                        <p>请先完成一些面试会话来积累数据</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="header">
+                    <h2>📚 Question Bank (${pagination.total} 个问题)</h2>
+                    <p>显示第 ${pagination.page} 页，共 ${pagination.pages} 页</p>
+                </div>
+            `;
+            
+            questions.forEach((question, index) => {
+                const answer = question.latest_answer;
+                const sessionInfo = question.session_title || '未知会话';
+                const interviewType = question.interview_type || 'unknown';
+                
+                html += `
+                    <div class="question-card">
+                        <div class="question-title">
+                            ${index + 1}. ${question.question_text}
+                        </div>
+                        
+                        ${answer ? `
+                            <div class="answer-text">
+                                <strong>💬 我的回答:</strong><br>
+                                ${answer.answer_text}
+                            </div>
+                        ` : `
+                            <div class="answer-text" style="background: #fef5e7; color: #975a16;">
+                                <strong>⚠️ 暂无回答</strong>
+                            </div>
+                        `}
+                        
+                        <div class="tags">
+                            <span class="tag ${question.question_type}">${question.question_type}</span>
+                            <span class="tag ${question.difficulty}">${question.difficulty}</span>
+                            ${question.category ? `<span class="tag category">${question.category}</span>` : ''}
+                            ${question.tags ? question.tags.map(tag => `<span class="tag skill">${tag}</span>`).join('') : ''}
+                            ${answer?.score ? `<span class="tag score">得分: ${Math.round(answer.score)}</span>` : ''}
+                            <span class="tag category">${interviewType}</span>
+                        </div>
+                        
+                        <div class="meta-info">
+                            <span class="session-info">📋 ${sessionInfo}</span>
+                            <span>${answer ? `回答于: ${new Date(answer.answered_at).toLocaleString('zh-CN')}` : `创建于: ${new Date(question.created_at).toLocaleString('zh-CN')}`}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            content.innerHTML = html;
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('auth_token');
+            alert('Token已清除，请刷新页面');
+        }
+        
+        // 页面加载时自动加载数据
+        document.addEventListener('DOMContentLoaded', loadQuestions);
+    </script>
+</body>
+</html> 

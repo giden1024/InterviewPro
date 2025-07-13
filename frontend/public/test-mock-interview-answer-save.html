@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Answer Save Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Mock Interview Answer Save Test</h1>
+        <p>测试Mock Interview页面的答案保存功能</p>
+        
+        <div class="test-section">
+            <h3>1. 设置认证Token</h3>
+            <button onclick="setAuthToken()">设置测试用户Token</button>
+            <div id="auth-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 创建Mock面试会话</h3>
+            <button onclick="createMockInterview()">创建Mock面试</button>
+            <div id="create-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 启动面试会话</h3>
+            <button onclick="startInterview()" id="start-btn" disabled>启动面试</button>
+            <div id="start-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 提交测试答案</h3>
+            <button onclick="submitTestAnswer()" id="submit-btn" disabled>提交答案</button>
+            <div id="submit-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 验证Question Bank</h3>
+            <button onclick="checkQuestionBank()" id="check-btn" disabled>检查Question Bank</button>
+            <div id="check-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 结束面试</h3>
+            <button onclick="endInterview()" id="end-btn" disabled>结束面试</button>
+            <div id="end-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let questionId = null;
+        let currentQuestion = null;
+
+        // 设置认证Token
+        function setAuthToken() {
+            const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MDU2NTc5MywianRpIjoiY2ViMjQ0MWUtMTUzYi00MjI4LWI0NzktNmYwYTBhN2Q0NzZiIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NTA1NjU3OTMsImNzcmYiOiJlNGNjNWJhYS1lZDM1LTQ0MTItOTM0Yy1kNjdjMWRlMWY3NjEifQ.BWFeQ6PsbznBFnUYrFYC-2A6X2g5Vz23HFkLHcfSLbg';
+            localStorage.setItem('access_token', token);
+            
+            document.getElementById('auth-result').innerHTML = '✅ Token已设置';
+            document.getElementById('auth-result').className = 'result success';
+        }
+
+        // 创建Mock面试会话
+        async function createMockInterview() {
+            try {
+                const token = localStorage.getItem('access_token');
+                
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 1, // 使用测试简历ID
+                        interview_type: 'mock',
+                        total_questions: 3,
+                        custom_title: 'Mock Interview Test',
+                        difficulty_distribution: {
+                            'easy': 1,
+                            'medium': 1,
+                            'hard': 1
+                        },
+                        type_distribution: {
+                            'behavioral': 1,
+                            'technical': 1,
+                            'situational': 1
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessionId = data.data.session_id;
+                    document.getElementById('create-result').innerHTML = `✅ Mock面试会话创建成功！\nSession ID: ${sessionId}`;
+                    document.getElementById('create-result').className = 'result success';
+                    document.getElementById('start-btn').disabled = false;
+                } else {
+                    throw new Error(data.message || '创建失败');
+                }
+            } catch (error) {
+                document.getElementById('create-result').innerHTML = `❌ 创建失败: ${error.message}`;
+                document.getElementById('create-result').className = 'result error';
+            }
+        }
+
+        // 启动面试会话
+        async function startInterview() {
+            try {
+                const token = localStorage.getItem('access_token');
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${sessionId}/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentQuestion = data.data.next_question;
+                    questionId = currentQuestion.id;
+                    
+                    document.getElementById('start-result').innerHTML = `✅ 面试已启动！\n第一个问题: ${currentQuestion.question_text}`;
+                    document.getElementById('start-result').className = 'result success';
+                    document.getElementById('submit-btn').disabled = false;
+                } else {
+                    throw new Error(data.message || '启动失败');
+                }
+            } catch (error) {
+                document.getElementById('start-result').innerHTML = `❌ 启动失败: ${error.message}`;
+                document.getElementById('start-result').className = 'result error';
+            }
+        }
+
+        // 提交测试答案
+        async function submitTestAnswer() {
+            try {
+                const token = localStorage.getItem('access_token');
+                const testAnswer = `这是我对问题"${currentQuestion.question_text}"的测试回答。我认为这个问题很有挑战性，需要从多个角度来分析...`;
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${sessionId}/answer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        answer_text: testAnswer,
+                        response_time: 60
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('submit-result').innerHTML = `✅ 答案提交成功！\n答案ID: ${data.data.answer_id}\n会话状态: ${data.data.session_completed ? '已完成' : '进行中'}`;
+                    document.getElementById('submit-result').className = 'result success';
+                    document.getElementById('check-btn').disabled = false;
+                    document.getElementById('end-btn').disabled = false;
+                } else {
+                    throw new Error(data.message || '提交失败');
+                }
+            } catch (error) {
+                document.getElementById('submit-result').innerHTML = `❌ 提交失败: ${error.message}`;
+                document.getElementById('submit-result').className = 'result error';
+            }
+        }
+
+        // 检查Question Bank
+        async function checkQuestionBank() {
+            try {
+                const token = localStorage.getItem('access_token');
+                
+                const response = await fetch('http://localhost:5001/api/v1/questions/with-answers?page=1&per_page=10&has_answers=true', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const questions = data.data.questions;
+                    const mockQuestions = questions.filter(q => q.interview_type === 'mock');
+                    
+                    document.getElementById('check-result').innerHTML = `✅ Question Bank查询成功！\n总问题数: ${questions.length}\nMock面试问题数: ${mockQuestions.length}\n\n最新Mock问题:\n${mockQuestions.slice(0, 3).map(q => `- ${q.question_text.substring(0, 50)}... (${q.interview_type})`).join('\n')}`;
+                    document.getElementById('check-result').className = 'result success';
+                } else {
+                    throw new Error(data.message || '查询失败');
+                }
+            } catch (error) {
+                document.getElementById('check-result').innerHTML = `❌ 查询失败: ${error.message}`;
+                document.getElementById('check-result').className = 'result error';
+            }
+        }
+
+        // 结束面试
+        async function endInterview() {
+            try {
+                const token = localStorage.getItem('access_token');
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${sessionId}/end`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('end-result').innerHTML = `✅ 面试已结束！\n会话状态: ${data.data.session.status}`;
+                    document.getElementById('end-result').className = 'result success';
+                } else {
+                    throw new Error(data.message || '结束失败');
+                }
+            } catch (error) {
+                document.getElementById('end-result').innerHTML = `❌ 结束失败: ${error.message}`;
+                document.getElementById('end-result').className = 'result error';
+            }
+        }
+
+        // 页面加载时自动设置token
+        window.onload = function() {
+            setAuthToken();
+        };
+    </script>
+</body>
+</html> 

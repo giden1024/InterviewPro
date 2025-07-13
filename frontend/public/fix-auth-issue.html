@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Authentication Issue - OfferOtter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .error-icon {
+            font-size: 4rem;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        .solution {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .primary {
+            background-color: #28a745;
+            font-size: 18px;
+            padding: 15px 30px;
+        }
+        .primary:hover {
+            background-color: #1e7e34;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border: 1px solid #bee5eb;
+        }
+        .steps {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .steps ol {
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">🔐</div>
+        <h1>Authentication Issue Detected</h1>
+        <p>You're seeing a <strong>401 Unauthorized</strong> error because your login session has expired or is invalid.</p>
+        
+        <div class="solution">
+            <h3>✅ Quick Fix</h3>
+            <p>Click the button below to clear your expired authentication data and redirect to the login page.</p>
+            <button class="primary" onclick="fixAuthIssue()">🔧 Fix Authentication & Login</button>
+        </div>
+        
+        <div class="info">
+            <h4>📋 What we'll do:</h4>
+            <div class="steps">
+                <ol>
+                    <li>Clear expired authentication token</li>
+                    <li>Clear stored user data</li>
+                    <li>Redirect you to the login page</li>
+                    <li>You can then login again with your credentials</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <button onclick="checkAuthStatus()">🔍 Check Current Status</button>
+            <button onclick="goToLogin()">📝 Go to Login Directly</button>
+        </div>
+        
+        <div id="statusInfo" style="margin-top: 20px;"></div>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666;">
+            <p>Having trouble? Contact support at <strong>support@offerott.com</strong></p>
+        </div>
+    </div>
+
+    <script>
+        function fixAuthIssue() {
+            try {
+                // Clear all authentication related data
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('refresh_token'); // if exists
+                sessionStorage.clear();
+                
+                // Clear any cookies (if used)
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                alert('✅ Authentication data cleared successfully!\n\nYou will now be redirected to the login page.');
+                
+                // Redirect to login page
+                window.location.href = '/login';
+                
+            } catch (error) {
+                alert('❌ Error clearing authentication data: ' + error.message);
+                console.error('Fix auth error:', error);
+            }
+        }
+        
+        function checkAuthStatus() {
+            const token = localStorage.getItem('access_token');
+            const user = localStorage.getItem('user');
+            const statusDiv = document.getElementById('statusInfo');
+            
+            let status = '<div class="info"><h4>📊 Current Status:</h4>';
+            
+            if (!token) {
+                status += '<p>✅ No token found (Good - already cleared)</p>';
+            } else {
+                status += '<p>❌ Token still exists: ' + token.substring(0, 20) + '...</p>';
+                
+                // Try to decode JWT
+                try {
+                    const parts = token.split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(atob(parts[1]));
+                        const now = Math.floor(Date.now() / 1000);
+                        const isExpired = payload.exp && now > payload.exp;
+                        status += '<p>Token status: ' + (isExpired ? '❌ EXPIRED' : '⚠️ Valid but causing issues') + '</p>';
+                    }
+                } catch (e) {
+                    status += '<p>❌ Token format is invalid</p>';
+                }
+            }
+            
+            if (!user) {
+                status += '<p>✅ No user data found (Good - already cleared)</p>';
+            } else {
+                status += '<p>❌ User data still exists</p>';
+            }
+            
+            status += '</div>';
+            statusDiv.innerHTML = status;
+        }
+        
+        function goToLogin() {
+            window.location.href = '/login';
+        }
+        
+        // Auto-check status on load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+        });
+    </script>
+</body>
+</html> 

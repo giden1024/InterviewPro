@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { OfferotterHomeProps, CoreFeature, Statistic, Testimonial, FAQItem } from './types';
-
-// SVG 图标组件
-const LogoIcon: React.FC<{ className?: string }> = ({ className = "w-8 h-8" }) => (
-  <svg className={className} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-    <path d="M1.90678 32.0955Q-2.49299 40.0703 3.25942 46.1745C5.38012 48.4249 8.39583 49.5156 11.4351 50.0851Q32.142 53.9657 42.0702 49.8891Q50.1668 46.5646 50.8877 39.2518C51.2649 35.426 49.3508 31.8566 47.1989 28.6709L45.2818 25.833C44.9067 25.2776 44.9594 24.5559 45.3193 23.9904Q47.287 20.8984 46.778 15.1107C45.9688 1.21411 25.1515 -3.93281 14.2647 3.19932Q3.7454 10.0908 7.16766 23.641C7.31281 24.2158 7.10745 24.8404 6.68837 25.2596Q4.65477 27.2939 1.90678 32.0955Z" fill="currentColor"/>
-  </svg>
-);
+import logoImg from '../../assets/logo02.png';
 
 const CheckIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
   <svg className={className} viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -26,11 +20,11 @@ const DecorativeIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6
   </svg>
 );
 
-// 图标组件映射
+// Icon component mapping
 const IconComponent: React.FC<{ icon: string; className?: string }> = ({ icon, className }) => {
   switch (icon) {
     case 'logo':
-      return <LogoIcon className={className} />;
+      return <img src={logoImg} alt="OfferOtter Logo" className={className} />;
     case 'check':
       return <CheckIcon className={className} />;
     case 'button':

@@ -1,5 +1,11 @@
 // API基础配置
-const API_BASE_URL = 'http://localhost:5001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://offerott.com/api/v1'
+    : 'http://localhost:5001/api/v1');
+
+// 导入认证工具
+import { authUtils } from '../utils/authUtils';
 
 // API响应类型
 export interface ApiResponse<T = any> {
@@ -52,6 +58,8 @@ class ApiClient {
     if (!response.ok) {
       if (response.status === 401) {
         this.clearToken();
+        // 使用authUtils处理401错误
+        authUtils.handle401Error();
         throw new Error('Unauthorized');
       }
       
@@ -78,6 +86,53 @@ class ApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<T>(response);
+  }
+
+  // PUT请求
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    return this.handleResponse<T>(response);
+  }
+
+  // DELETE请求
+  async delete<T>(endpoint: string): Promise<T> {
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<T>(response);
+  }
+
+  // 文件上传请求
+  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, string>): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    // 不设置 Content-Type，让浏览器自动设置 multipart/form-data 边界
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
     });
 
     return this.handleResponse<T>(response);

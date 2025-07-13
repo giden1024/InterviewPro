@@ -4,7 +4,7 @@ import App from './App.tsx'
 import './index.css'
 import './utils/testApi'
 
-// 确保DOM已加载并添加错误处理
+// Ensure DOM is loaded and add error handling
 console.log('🚀 Starting React application...');
 const rootElement = document.getElementById('root');
 

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Answer Update Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .question-box { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .answer-box { background: #fff3cd; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #ffc107; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .loading { color: #6c757d; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI参考答案更新测试</h1>
+        
+        <div class="test-section info">
+            <h3>测试说明</h3>
+            <p>此页面用于测试MockInterviewPage中AI参考答案的更新功能。</p>
+            <p>点击"下一个问题"按钮时，AI参考答案应该自动更新。</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 测试控制</h3>
+            <button onclick="testQuestionSwitching()">开始测试问题切换</button>
+            <button onclick="clearResults()">清除结果</button>
+            <button onclick="checkBackendStatus()">检查后端状态</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 测试结果</h3>
+            <div id="testResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 模拟问题列表</h3>
+            <div id="questionsList"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🤖 当前AI参考答案</h3>
+            <div id="currentAnswer"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestionIndex = 0;
+        let testQuestions = [];
+        let testResults = [];
+
+        // 模拟问题数据
+        const mockQuestions = [
+            {
+                id: 382,
+                question_text: "Please introduce your career goals and how this position aligns with them.",
+                question_type: "experience",
+                difficulty: "Medium"
+            },
+            {
+                id: 390,
+                question_text: "Please introduce your career goals and how this position aligns with them.",
+                question_type: "behavioral", 
+                difficulty: "Medium"
+            },
+            {
+                id: 391,
+                question_text: "What do you consider your main strengths?",
+                question_type: "behavioral",
+                difficulty: "Easy"
+            },
+            {
+                id: 392,
+                question_text: "Please describe a situation where you disagreed with your manager.",
+                question_type: "behavioral",
+                difficulty: "Hard"
+            }
+        ];
+
+        function addResult(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push(`[${timestamp}] ${message}`);
+            updateResultsDisplay();
+        }
+
+        function updateResultsDisplay() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = testResults.map(result => 
+                `<div class="${result.includes('✅') ? 'success' : result.includes('❌') ? 'error' : 'info'}">${result}</div>`
+            ).join('');
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function updateQuestionsDisplay() {
+            const questionsDiv = document.getElementById('questionsList');
+            questionsDiv.innerHTML = mockQuestions.map((q, index) => 
+                `<div class="question-box ${index === currentQuestionIndex ? 'success' : ''}" onclick="switchToQuestion(${index})">
+                    <strong>问题 ${index + 1}</strong> (ID: ${q.id}) ${index === currentQuestionIndex ? '← 当前' : ''}
+                    <br/><em>${q.question_text}</em>
+                    <br/><small>类型: ${q.question_type} | 难度: ${q.difficulty}</small>
+                </div>`
+            ).join('');
+        }
+
+        async function checkBackendStatus() {
+            try {
+                addResult('🔍 检查后端状态...');
+                const response = await fetch('http://localhost:5001/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('✅ 后端服务正常运行', 'success');
+                } else {
+                    addResult('❌ 后端服务响应异常', 'error');
+                }
+            } catch (error) {
+                addResult(`❌ 后端服务连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function generateAIReference(questionId) {
+            try {
+                addResult(`🤖 为问题 ${questionId} 生成AI参考答案...`);
+                
+                const response = await fetch(`http://localhost:5001/api/v1/questions/${questionId}/generate-reference`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'test-token'}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ 问题 ${questionId} AI参考答案生成成功`, 'success');
+                    displayAnswer(data.ai_reference_answer);
+                    return data.ai_reference_answer;
+                } else {
+                    const errorData = await response.json();
+                    addResult(`❌ 问题 ${questionId} AI参考答案生成失败: ${errorData.error || response.statusText}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                addResult(`❌ 问题 ${questionId} AI参考答案生成错误: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        function displayAnswer(answer) {
+            const answerDiv = document.getElementById('currentAnswer');
+            if (!answer) {
+                answerDiv.innerHTML = '<div class="loading">暂无AI参考答案</div>';
+                return;
+            }
+
+            answerDiv.innerHTML = `
+                <div class="answer-box">
+                    ${answer.sample_answer ? `
+                        <div style="margin-bottom: 15px;">
+                            <strong>📝 示例答案:</strong>
+                            <p>${answer.sample_answer}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${answer.reference_answer ? `
+                        <div style="margin-bottom: 15px;">
+                            <strong>💡 参考指导:</strong>
+                            <p>${answer.reference_answer}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${answer.key_points && answer.key_points.length > 0 ? `
+                        <div style="margin-bottom: 15px;">
+                            <strong>🎯 关键要点:</strong>
+                            <ul>${answer.key_points.map(point => `<li>${point}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    
+                    ${answer.structure_tips ? `
+                        <div style="margin-bottom: 15px;">
+                            <strong>🏗️ 结构建议:</strong>
+                            <p>${answer.structure_tips}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                        生成方式: ${answer.generated_by === 'ai' ? 'AI' : '模板'}
+                        ${answer.model ? ` (${answer.model})` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function switchToQuestion(index) {
+            if (index >= 0 && index < mockQuestions.length) {
+                const oldIndex = currentQuestionIndex;
+                currentQuestionIndex = index;
+                
+                addResult(`🔄 从问题 ${oldIndex + 1} 切换到问题 ${index + 1}`);
+                updateQuestionsDisplay();
+                
+                // 清除当前答案显示
+                document.getElementById('currentAnswer').innerHTML = '<div class="loading">正在生成AI参考答案...</div>';
+                
+                // 生成新的AI参考答案
+                await generateAIReference(mockQuestions[index].id);
+            }
+        }
+
+        async function testQuestionSwitching() {
+            addResult('🚀 开始测试问题切换功能');
+            
+            // 检查后端状态
+            await checkBackendStatus();
+            
+            // 初始化第一个问题
+            addResult('📝 初始化第一个问题');
+            await switchToQuestion(0);
+            
+            // 等待2秒后切换到下一个问题
+            setTimeout(async () => {
+                addResult('⏭️ 切换到第二个问题');
+                await switchToQuestion(1);
+                
+                setTimeout(async () => {
+                    addResult('⏭️ 切换到第三个问题');
+                    await switchToQuestion(2);
+                    
+                    setTimeout(async () => {
+                        addResult('⏭️ 切换到第四个问题');
+                        await switchToQuestion(3);
+                        addResult('✅ 问题切换测试完成', 'success');
+                    }, 3000);
+                }, 3000);
+            }, 3000);
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResultsDisplay();
+            document.getElementById('currentAnswer').innerHTML = '';
+        }
+
+        // 初始化页面
+        window.onload = function() {
+            updateQuestionsDisplay();
+            addResult('📄 页面加载完成，准备测试');
+        };
+    </script>
+</body>
+</html> 

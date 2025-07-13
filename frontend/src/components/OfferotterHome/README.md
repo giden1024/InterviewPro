@@ -276,6 +276,6 @@ MIT License
 ## 支持
 
 如有问题，请通过以下方式联系：
-- 📧 Email: support@offerotter.com
+- 📧 Email: support@offerott.com
 - 🐛 GitHub Issues: [项目地址](https://github.com/your-repo)
 - 📖 文档: [在线文档](https://docs.offerotter.com) 

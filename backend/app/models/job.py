@@ -20,6 +20,7 @@ class Job(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    resume_id = db.Column(db.Integer, db.ForeignKey('resumes.id'), nullable=True)  # 关联的简历
     
     # 基本信息
     title = db.Column(db.String(200), nullable=False)
@@ -56,12 +57,14 @@ class Job(db.Model):
     
     # 关系
     user = db.relationship('User', backref=db.backref('jobs', lazy=True))
+    resume = db.relationship('Resume', backref=db.backref('jobs', lazy=True))
     
     def to_dict(self):
         """转换为字典"""
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'resume_id': self.resume_id,
             'title': self.title,
             'company': self.company,
             'description': self.description,

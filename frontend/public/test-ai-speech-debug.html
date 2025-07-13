@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Speech Recognition Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #transcript { min-height: 100px; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        #aiResponse { min-height: 100px; border: 1px solid #ccc; padding: 10px; margin: 10px 0; background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <h1>🔧 AI Speech Recognition Debug Tool</h1>
+    
+    <div class="section">
+        <h2>1. 浏览器支持检查</h2>
+        <div id="browserSupport"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. 语音识别测试</h2>
+        <button id="startSpeech">🎤 开始语音识别</button>
+        <button id="stopSpeech">🛑 停止语音识别</button>
+        <div id="speechStatus" class="status info">等待开始...</div>
+        <div>
+            <strong>实时转录:</strong>
+            <div id="transcript"></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. AI回答生成测试</h2>
+        <input type="text" id="testQuestion" placeholder="输入测试问题..." style="width: 300px; padding: 5px;">
+        <button id="testAI">🤖 测试AI回答</button>
+        <div id="aiStatus" class="status info">等待测试...</div>
+        <div>
+            <strong>AI回答:</strong>
+            <div id="aiResponse"></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>4. 后端连接测试</h2>
+        <button id="testBackend">🔗 测试后端连接</button>
+        <div id="backendStatus" class="status info">等待测试...</div>
+    </div>
+    
+    <div class="section">
+        <h2>5. 调试日志</h2>
+        <button id="clearLogs">🧹 清除日志</button>
+        <div id="debugLogs" style="background: #000; color: #0f0; padding: 10px; font-family: monospace; max-height: 200px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        // 调试日志函数
+        function debugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('debugLogs');
+            const color = type === 'error' ? '#f00' : type === 'success' ? '#0f0' : '#0ff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        // 1. 检查浏览器支持
+        function checkBrowserSupport() {
+            const supportDiv = document.getElementById('browserSupport');
+            let html = '';
+            
+            // Web Speech API
+            const speechSupport = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+            html += `<div class="${speechSupport ? 'success' : 'error'}">Web Speech API: ${speechSupport ? '✅ 支持' : '❌ 不支持'}</div>`;
+            
+            // MediaRecorder API
+            const mediaSupport = !!window.MediaRecorder;
+            html += `<div class="${mediaSupport ? 'success' : 'error'}">MediaRecorder API: ${mediaSupport ? '✅ 支持' : '❌ 不支持'}</div>`;
+            
+            // HTTPS检查
+            const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
+            html += `<div class="${isHttps ? 'success' : 'error'}">HTTPS/Localhost: ${isHttps ? '✅ 安全环境' : '❌ 需要HTTPS'}</div>`;
+            
+            supportDiv.innerHTML = html;
+            debugLog(`浏览器支持检查完成: Speech=${speechSupport}, Media=${mediaSupport}, HTTPS=${isHttps}`);
+        }
+
+        // 2. 语音识别测试
+        let recognition = null;
+        let isListening = false;
+
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                debugLog('语音识别API不可用', 'error');
+                return null;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                debugLog('🎤 语音识别已开始', 'success');
+                document.getElementById('speechStatus').innerHTML = '<div class="success">🎤 正在监听...</div>';
+                isListening = true;
+            };
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    debugLog(`📝 最终转录: ${finalTranscript}`, 'success');
+                    document.getElementById('transcript').innerHTML += `<div><strong>Final:</strong> ${finalTranscript}</div>`;
+                    
+                    // 自动测试问题检测
+                    if (shouldGenerateAnswer(finalTranscript)) {
+                        debugLog(`🎯 检测到问题，准备生成AI回答: ${finalTranscript}`, 'success');
+                        testAIGeneration(finalTranscript);
+                    }
+                }
+
+                if (interimTranscript) {
+                    document.getElementById('transcript').innerHTML += `<div style="color: #666;"><em>Interim:</em> ${interimTranscript}</div>`;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                debugLog(`❌ 语音识别错误: ${event.error}`, 'error');
+                document.getElementById('speechStatus').innerHTML = `<div class="error">❌ 错误: ${event.error}</div>`;
+            };
+
+            recognition.onend = () => {
+                debugLog('🛑 语音识别已结束', 'info');
+                document.getElementById('speechStatus').innerHTML = '<div class="info">⏹️ 已停止</div>';
+                isListening = false;
+            };
+
+            return recognition;
+        }
+
+        // 问题检测函数（复制自原代码）
+        function shouldGenerateAnswer(text) {
+            if (text.length < 15) return false;
+            
+            const textLower = text.toLowerCase().trim();
+            
+            if (textLower.includes('?')) return true;
+            
+            const questionWords = ['how', 'what', 'why', 'when', 'where', 'who', 'tell', 'describe', 'explain', 'can you', 'would you', 'do you'];
+            const hasQuestionWord = questionWords.some(word => textLower.includes(word));
+            
+            const isCompleteSentence = textLower.endsWith('.') || textLower.endsWith('?');
+            
+            return hasQuestionWord && isCompleteSentence;
+        }
+
+        // 3. AI回答生成测试
+        async function testAIGeneration(question) {
+            const statusDiv = document.getElementById('aiStatus');
+            const responseDiv = document.getElementById('aiResponse');
+            
+            try {
+                statusDiv.innerHTML = '<div class="info">🤖 正在生成AI回答...</div>';
+                debugLog(`🤖 开始生成AI回答: ${question}`, 'info');
+                
+                const token = localStorage.getItem('token') || 'test-token';
+                const response = await fetch('/api/v1/interviews/generate-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                debugLog(`API响应状态: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                debugLog(`✅ AI回答生成成功: ${result.data?.answer?.substring(0, 50)}...`, 'success');
+                
+                statusDiv.innerHTML = '<div class="success">✅ AI回答生成成功</div>';
+                responseDiv.innerHTML = `
+                    <div><strong>问题:</strong> ${result.data.question}</div>
+                    <div><strong>回答:</strong> ${result.data.answer}</div>
+                    <div><strong>生成时间:</strong> ${result.data.generated_at}</div>
+                `;
+                
+            } catch (error) {
+                debugLog(`❌ AI回答生成失败: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ 失败: ${error.message}</div>`;
+                responseDiv.innerHTML = `<div style="color: red;">错误详情: ${error.message}</div>`;
+            }
+        }
+
+        // 4. 后端连接测试
+        async function testBackendConnection() {
+            const statusDiv = document.getElementById('backendStatus');
+            
+            try {
+                statusDiv.innerHTML = '<div class="info">🔗 测试后端连接...</div>';
+                debugLog('🔗 开始测试后端连接', 'info');
+                
+                // 测试基本连接
+                const healthResponse = await fetch('/api/v1/interviews', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'test-token'}`
+                    }
+                });
+                
+                debugLog(`后端连接状态: ${healthResponse.status}`, healthResponse.ok ? 'success' : 'error');
+                
+                if (healthResponse.ok) {
+                    statusDiv.innerHTML = '<div class="success">✅ 后端连接正常</div>';
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ 后端连接失败: ${healthResponse.status}</div>`;
+                }
+                
+            } catch (error) {
+                debugLog(`❌ 后端连接失败: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ 连接失败: ${error.message}</div>`;
+            }
+        }
+
+        // 事件监听器
+        document.addEventListener('DOMContentLoaded', () => {
+            checkBrowserSupport();
+            initSpeechRecognition();
+            
+            document.getElementById('startSpeech').onclick = () => {
+                if (recognition && !isListening) {
+                    recognition.start();
+                    debugLog('用户点击开始语音识别', 'info');
+                }
+            };
+            
+            document.getElementById('stopSpeech').onclick = () => {
+                if (recognition && isListening) {
+                    recognition.stop();
+                    debugLog('用户点击停止语音识别', 'info');
+                }
+            };
+            
+            document.getElementById('testAI').onclick = () => {
+                const question = document.getElementById('testQuestion').value;
+                if (question.trim()) {
+                    testAIGeneration(question);
+                } else {
+                    debugLog('请输入测试问题', 'error');
+                }
+            };
+            
+            document.getElementById('testBackend').onclick = testBackendConnection;
+            
+            document.getElementById('clearLogs').onclick = () => {
+                document.getElementById('debugLogs').innerHTML = '';
+            };
+            
+            debugLog('🚀 调试工具初始化完成', 'success');
+        });
+    </script>
+</body>
+</html> 

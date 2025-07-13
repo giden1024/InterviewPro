@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Markdown Rendering Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-button {
+            background: #68C6F1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #5AB5E0;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            min-height: 100px;
+        }
+        .error-box {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .loading {
+            color: #007bff;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 AI Markdown Rendering Test</h1>
+    <p>测试AI答案的markdown格式渲染功能</p>
+
+    <div class="test-section">
+        <h2>📝 Test 1: Basic Markdown Elements</h2>
+        <p>测试基本的markdown元素渲染</p>
+        <button class="test-button" onclick="testBasicMarkdown()">Test Basic Markdown</button>
+        <div id="basic-result" class="result-box"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Test 2: Real AI Answer API</h2>
+        <p>测试真实的AI API返回的markdown内容</p>
+        <button class="test-button" onclick="testRealAIAnswer()">Test Real AI Answer</button>
+        <div id="ai-result" class="result-box"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Test 3: Complex Markdown</h2>
+        <p>测试复杂的markdown格式（列表、表格、代码块）</p>
+        <button class="test-button" onclick="testComplexMarkdown()">Test Complex Markdown</button>
+        <div id="complex-result" class="result-box"></div>
+    </div>
+
+    <script>
+        // 模拟基本markdown内容
+        function testBasicMarkdown() {
+            const basicMarkdown = `
+# Interview Answer Framework
+
+## Key Points to Remember
+
+Here's a **structured approach** to answering interview questions:
+
+1. **Situation**: Describe the context
+2. **Task**: Explain what you needed to accomplish  
+3. **Action**: Detail the steps you took
+4. **Result**: Share the outcome
+
+*Remember to be specific and quantify your results when possible.*
+
+> "The best answers tell a story that demonstrates your skills and impact."
+
+---
+
+### Quick Tips:
+- Keep answers concise but detailed
+- Use \`STAR method\` for behavioral questions
+- Practice your delivery beforehand
+            `;
+
+            displayMarkdown('basic-result', basicMarkdown);
+        }
+
+        // 测试真实AI API
+        async function testRealAIAnswer() {
+            const resultDiv = document.getElementById('ai-result');
+            resultDiv.innerHTML = '<div class="loading">🔄 Calling AI API...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews/generate-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MTE4Njc3MiwianRpIjoiOGEwOGRjOTItMWJkYi00NmNiLThlNjktMjcyY2ViZDJkMTk2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NTExODY3NzIsImNzcmYiOiI2YTgzNDVjYy01ZmNiLTQ4OTAtOTUyMC0yZWJkOWNkMGYyMDQiLCJleHAiOjE3NTEyNzMxNzJ9.ugZNmE-JeF-Ckg9VW68MEhweSVLTNRlsStfwD2ioy6k'
+                    },
+                    body: JSON.stringify({
+                        question: "What are your greatest strengths and how do they apply to this role?"
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('AI API Response:', data);
+                
+                if (data.success && data.data.answer) {
+                    displayMarkdown('ai-result', data.data.answer);
+                    
+                    // 显示原始数据用于调试
+                    const statusDiv = document.createElement('div');
+                    statusDiv.className = 'status';
+                    statusDiv.innerHTML = `
+                        <strong>Raw Response:</strong><br>
+                        <pre style="font-size: 10px; background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    document.getElementById('ai-result').appendChild(statusDiv);
+                } else {
+                    throw new Error(`API Error: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('AI API Test Failed:', error);
+                resultDiv.innerHTML = `<div class="error-box">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // 测试复杂markdown
+        function testComplexMarkdown() {
+            const complexMarkdown = `
+# Technical Interview Preparation
+
+## Algorithm Complexity Analysis
+
+When discussing algorithms, always mention:
+
+### Time Complexity
+| Algorithm | Best Case | Average Case | Worst Case |
+|-----------|-----------|--------------|------------|
+| Quick Sort | O(n log n) | O(n log n) | O(n²) |
+| Merge Sort | O(n log n) | O(n log n) | O(n log n) |
+| Binary Search | O(1) | O(log n) | O(log n) |
+
+### Code Example
+
+\`\`\`python
+def binary_search(arr, target):
+    left, right = 0, len(arr) - 1
+    
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    
+    return -1
+\`\`\`
+
+### Key Interview Tips:
+
+1. **Start with brute force** - Show you understand the problem
+2. **Optimize step by step** - Demonstrate problem-solving process
+3. **Test your solution** - Walk through examples
+4. **Discuss trade-offs** - Show system thinking
+
+> **Pro Tip**: Always ask clarifying questions before coding!
+
+---
+
+#### Common Mistakes to Avoid:
+- [ ] Not handling edge cases
+- [ ] Forgetting to check bounds
+- [ ] Not considering null/empty inputs
+- [ ] Rushing to code without planning
+
+**Remember**: The interview is about *communication* as much as *coding*.
+            `;
+
+            displayMarkdown('complex-result', complexMarkdown);
+        }
+
+        // 显示markdown内容的通用函数
+        function displayMarkdown(elementId, markdownContent) {
+            const element = document.getElementById(elementId);
+            
+            // 这里我们只是显示原始markdown文本，因为这是静态HTML页面
+            // 在React组件中，ReactMarkdown会处理渲染
+            element.innerHTML = `
+                <div style="background: white; padding: 15px; border-radius: 4px; border: 1px solid #e0e0e0;">
+                    <div style="margin-bottom: 10px; font-weight: bold; color: #28a745;">✅ Markdown Content (Raw):</div>
+                    <pre style="white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e9ecef;">${markdownContent}</pre>
+                </div>
+                <div class="status">
+                    📝 <strong>Note:</strong> This shows the raw markdown content. In the React app, ReactMarkdown will render this as formatted HTML.
+                </div>
+            `;
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            console.log('🧪 AI Markdown Rendering Test Page Loaded');
+            console.log('📋 Available Tests:');
+            console.log('  1. Basic Markdown - Tests headers, lists, emphasis');
+            console.log('  2. Real AI Answer - Calls actual AI API');
+            console.log('  3. Complex Markdown - Tests tables, code blocks, checkboxes');
+        };
+    </script>
+</body>
+</html> 

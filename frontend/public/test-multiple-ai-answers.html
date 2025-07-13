@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多条AI答案功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .question-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #68C6F1;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .answer-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .answer-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .answer-question {
+            background-color: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #1976d2;
+        }
+        .answer-content {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #4caf50;
+            line-height: 1.6;
+        }
+        .loading {
+            color: #ff9800;
+            font-style: italic;
+        }
+        .error {
+            color: #f44336;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-generating {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+        .status-completed {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+        .log {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 多条AI答案功能测试</h1>
+        <p>测试语音识别生成多条问题时，AI答案是否会保留在中间区域</p>
+
+        <div class="controls">
+            <h3>手动测试控制</h3>
+            <input type="text" class="question-input" id="questionInput" placeholder="输入问题进行测试..." value="What are your greatest strengths?">
+            <br>
+            <button class="btn btn-primary" onclick="generateAnswer()">生成AI答案</button>
+            <button class="btn btn-secondary" onclick="generateMultipleAnswers()">生成多条答案(测试)</button>
+            <button class="btn btn-danger" onclick="clearAllAnswers()">清除所有答案</button>
+        </div>
+
+        <div class="controls">
+            <h3>预设问题快速测试</h3>
+            <button class="btn btn-primary" onclick="askQuestion('What are your greatest strengths?')">问题1: 优势</button>
+            <button class="btn btn-primary" onclick="askQuestion('Tell me about yourself')">问题2: 自我介绍</button>
+            <button class="btn btn-primary" onclick="askQuestion('Why do you want this job?')">问题3: 求职动机</button>
+            <button class="btn btn-primary" onclick="askQuestion('Where do you see yourself in 5 years?')">问题4: 职业规划</button>
+        </div>
+
+        <div id="answersContainer">
+            <h3>AI答案列表 <span id="answerCount">(0条)</span></h3>
+            <div id="answersList"></div>
+        </div>
+
+        <div id="logContainer" class="log">
+            <strong>操作日志:</strong><br>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let answers = [];
+        let isGenerating = false;
+
+        function log(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `[${timestamp}] ${message}<br>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function updateAnswerCount() {
+            document.getElementById('answerCount').textContent = `(${answers.length}条)`;
+        }
+
+        function renderAnswers() {
+            const answersList = document.getElementById('answersList');
+            
+            if (answers.length === 0) {
+                answersList.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">暂无AI答案，请输入问题开始测试</p>';
+                return;
+            }
+
+            answersList.innerHTML = answers.map((answer, index) => `
+                <div class="answer-item">
+                    <div class="answer-header">
+                        <strong>AI答案 #${index + 1}</strong>
+                        <div>
+                            <span class="timestamp">${answer.timestamp}</span>
+                            <span class="status ${answer.isGenerating ? 'status-generating' : 'status-completed'}">
+                                ${answer.isGenerating ? '生成中...' : '已完成'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="answer-question">
+                        <strong>问题:</strong> ${answer.question}
+                    </div>
+                    <div class="answer-content">
+                        ${answer.isGenerating ? 
+                            '<div class="loading">🤖 AI正在分析您的问题...</div>' : 
+                            answer.answer || '<div class="error">生成失败</div>'
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function generateAnswer(question = null) {
+            const questionText = question || document.getElementById('questionInput').value.trim();
+            
+            if (!questionText) {
+                alert('请输入问题');
+                return;
+            }
+
+            if (isGenerating) {
+                log('⚠️ 正在生成中，请稍候...');
+                return;
+            }
+
+            const answerId = `answer-${Date.now()}`;
+            const newAnswer = {
+                id: answerId,
+                question: questionText,
+                answer: '',
+                timestamp: new Date().toLocaleTimeString(),
+                isGenerating: true
+            };
+
+            // 添加到答案列表
+            answers.push(newAnswer);
+            updateAnswerCount();
+            renderAnswers();
+            isGenerating = true;
+
+            log(`🤖 开始生成答案: ${questionText.substring(0, 50)}...`);
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews/generate-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: questionText
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 更新对应的答案
+                const answerIndex = answers.findIndex(a => a.id === answerId);
+                if (answerIndex !== -1) {
+                    answers[answerIndex].answer = data.answer;
+                    answers[answerIndex].isGenerating = false;
+                }
+
+                log(`✅ 答案生成成功`);
+                
+            } catch (error) {
+                log(`❌ 答案生成失败: ${error.message}`);
+                
+                // 更新为错误状态
+                const answerIndex = answers.findIndex(a => a.id === answerId);
+                if (answerIndex !== -1) {
+                    answers[answerIndex].answer = '生成失败，请重试';
+                    answers[answerIndex].isGenerating = false;
+                }
+            } finally {
+                isGenerating = false;
+                renderAnswers();
+            }
+        }
+
+        function askQuestion(question) {
+            document.getElementById('questionInput').value = question;
+            generateAnswer(question);
+        }
+
+        async function generateMultipleAnswers() {
+            const questions = [
+                "What are your greatest strengths?",
+                "Tell me about yourself",
+                "Why do you want this job?",
+                "Where do you see yourself in 5 years?"
+            ];
+
+            log('🚀 开始批量生成多条答案测试...');
+
+            for (let i = 0; i < questions.length; i++) {
+                setTimeout(() => {
+                    generateAnswer(questions[i]);
+                }, i * 2000); // 每2秒生成一个问题
+            }
+        }
+
+        function clearAllAnswers() {
+            answers = [];
+            updateAnswerCount();
+            renderAnswers();
+            log('🧹 已清除所有答案');
+        }
+
+        // 初始化
+        log('🎯 多条AI答案测试页面已加载');
+        log('📝 当前测试: 验证语音识别多条问题时AI答案是否保留');
+        renderAnswers();
+        updateAnswerCount();
+
+        // 模拟语音识别多条问题的情况
+        function simulateMultipleQuestions() {
+            log('🎤 模拟语音识别检测到多条问题...');
+            const questions = [
+                "What are your strengths?",
+                "How do you handle stress?",
+                "Why should we hire you?"
+            ];
+            
+            questions.forEach((question, index) => {
+                setTimeout(() => {
+                    log(`🔍 检测到问题 ${index + 1}: ${question}`);
+                    generateAnswer(question);
+                }, index * 3000);
+            });
+        }
+
+        // 添加快捷键
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && event.ctrlKey) {
+                generateAnswer();
+            }
+        });
+
+        log('💡 提示: 使用 Ctrl+Enter 快速生成答案');
+    </script>
+</body>
+</html> 

@@ -1,16 +1,269 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserInfo } from '../hooks/useUserInfo';
+import { useHomePage } from '../hooks/useHomePage';
+import { useInterviewRecord } from '../hooks/useInterviewRecord';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
+import { jobService, Job } from '../services/jobService';
+import { questionService, Question } from '../services/questionService';
+import { interviewService, InterviewSession } from '../services/interviewService';
+import { resumeService, Resume } from '../services/resumeService';
+import JobSelectionModal from '../components/JobSelectionModal';
+import logoImg from '../assets/logo02.png';
+
+interface DashboardStats {
+  totalJobs: number;
+  totalQuestions: number;
+  totalInterviews: number;
+  completedInterviews: number;
+}
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('questions');
-  const { user, isLoading, error, fetchUserInfo } = useUserInfo();
+  const { user, isLoading: userLoading, error: userError, fetchUserInfo } = useUserInfo();
+  const { 
+    questionsWithAnswers, 
+    isLoading: questionsLoading, 
+    error: questionsError,
+    handleQuestionEdit,
+    handleQuestionDelete,
+    loadQuestionsWithAnswers
+  } = useHomePage();
+  
+  // Interview record management
+  const {
+    records,
+    loading: recordsLoading,
+    error: recordsError,
+    refreshRecords,
+    deleteRecord
+  } = useInterviewRecord();
+  
+  // Authentication redirect handling
+  const { handleApiError } = useAuthRedirect();
+  
+  // Image error handling
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.style.display = 'none';
+    const parent = target.parentElement;
+    if (parent) {
+      parent.style.backgroundColor = '#77C3FF';
+      parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-white font-semibold">Image</div>';
+    }
+  };
+  
+  // State management
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [interviews, setInterviews] = useState<InterviewSession[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalJobs: 0,
+    totalQuestions: 0,
+    totalInterviews: 0,
+    completedInterviews: 0
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  
+  // Job selection modal state
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [interviewType, setInterviewType] = useState<'mock' | 'formal'>('mock');
 
+  // Fetch data when page loads
   useEffect(() => {
-    // 页面加载时获取用户信息
     fetchUserInfo();
+    loadDashboardData();
   }, []);
+
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // Load data in parallel
+      const [jobsRes, questionsRes, interviewsRes] = await Promise.all([
+        jobService.getJobs({ per_page: 10 }),
+        questionService.getQuestions({ per_page: 10 }),
+        interviewService.getInterviews({ per_page: 10 })
+      ]);
+
+      setJobs(jobsRes.jobs || []);
+      setQuestions(questionsRes.questions || []);
+      setInterviews(interviewsRes.sessions || []);
+
+      // Calculate statistics
+      setStats({
+        totalJobs: jobsRes.jobs?.length || 0,
+        totalQuestions: questionsRes.pagination?.total || 0,
+        totalInterviews: interviewsRes.sessions?.length || 0,
+        completedInterviews: interviewsRes.sessions?.filter((i: InterviewSession) => i.status === 'completed').length || 0
+      });
+
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+      
+      // 使用统一的错误处理
+      handleApiError(err);
+      
+      setError('Failed to load data, please refresh and try again');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new job
+  const handleAddNewJob = () => {
+    navigate('/jobs');
+  };
+
+  // Select job
+  const handleSelectJob = (job: Job) => {
+    navigate('/jobs', { state: { selectedJob: job } });
+  };
+
+  // Start mock interview - open job selection modal
+  const handleStartMockInterview = () => {
+    console.log('🎯 Mock Interview button clicked');
+    console.log('Current token:', localStorage.getItem('access_token'));
+    console.log('Setting Modal state to true');
+    setInterviewType('mock');
+    setIsJobModalOpen(true);
+    console.log('Modal state set, isJobModalOpen should be true');
+  };
+
+  // Handle job selection confirmation - navigate to different pages based on interview type
+  const handleJobSelectionConfirm = async (selectedJob: Job) => {
+    try {
+      setIsJobModalOpen(false);
+      
+      // Get associated resume
+      let resumeId = selectedJob.resume_id;
+      
+      // If the job has no associated resume, get the user's first processed resume
+      if (!resumeId) {
+        const resumesResponse = await resumeService.getResumes({ per_page: 50 });
+        const allResumes = (resumesResponse as any)?.data?.resumes || resumesResponse?.resumes || [];
+        const processedResumes = allResumes.filter((resume: Resume) => 
+          resume.status === 'completed' || resume.status === 'processed'
+        );
+        
+        if (processedResumes.length === 0) {
+                  alert('No processed resumes available, please upload and wait for resume processing to complete');
+        navigate('/resume');
+          return;
+        }
+        
+        resumeId = processedResumes[0].id;
+      }
+      
+      // Set different parameters based on interview type
+      const isMockInterview = interviewType === 'mock';
+      const totalQuestions = isMockInterview ? 8 : 15;
+      const titleSuffix = isMockInterview ? 'Mock Interview' : 'Formal Interview';
+      
+      // Create new interview session
+      const session = await interviewService.createInterview({
+        resume_id: resumeId!,
+        interview_type: 'comprehensive',
+        total_questions: totalQuestions,
+        custom_title: `${selectedJob.title} @ ${selectedJob.company} ${titleSuffix}`
+      });
+      
+      // Navigate to different pages based on interview type
+      if (isMockInterview) {
+        navigate('/mock-interview', { 
+          state: { 
+            sessionId: session.session_id,
+            selectedJob: selectedJob,
+            resumeId: resumeId
+          } 
+        });
+      } else {
+        navigate('/interview', { 
+          state: { 
+            sessionId: session.session_id,
+            selectedJob: selectedJob,
+            resumeId: resumeId
+          } 
+        });
+      }
+    } catch (err) {
+      console.error('Failed to create interview:', err);
+      alert('Failed to create interview, please try again later');
+    }
+  };
+
+  // Close job selection modal
+  const handleJobModalClose = () => {
+    setIsJobModalOpen(false);
+    setInterviewType('mock'); // Reset to default value
+  };
+
+  // Start formal interview - consistent logic with Mock Interview
+  const handleStartFormalInterview = () => {
+    console.log('🎯 Formal Interview button clicked');
+    console.log('Current token:', localStorage.getItem('access_token'));
+    console.log('Setting Modal state to true');
+    setInterviewType('formal');
+    setIsJobModalOpen(true);
+    console.log('Modal state set, isJobModalOpen should be true');
+  };
+
+  // Edit question
+  const handleEditQuestion = (questionId: string) => {
+    navigate(`/questions/${questionId}/edit`);
+  };
+
+  // Delete question
+  const handleDeleteQuestion = async (questionId: string | number) => {
+    if (!confirm('Are you sure you want to delete this question?')) return;
+
+    try {
+      await questionService.deleteQuestion(Number(questionId));
+      // Reload questions and answers data
+      loadQuestionsWithAnswers();
+    } catch (err) {
+      console.error('Failed to delete question:', err);
+      alert('Delete failed, please try again later');
+    }
+  };
+
+  // Redirect to login page if user is not logged in
+  useEffect(() => {
+    if (!userLoading && !user && !userError) {
+      navigate('/login');
+    }
+  }, [user, userLoading, userError, navigate]);
+
+  if (userLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#EEF9FF] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#68C6F1] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[#3D3D3D]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (userError) {
+    return (
+      <div className="min-h-screen bg-[#EEF9FF] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">❌ {userError}</div>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-6 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors"
+          >
+            Login Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#EEF9FF] flex">
@@ -19,19 +272,20 @@ const HomePage: React.FC = () => {
         {/* Logo */}
         <div className="p-6 border-b">
           <div className="flex items-center">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] rounded-full flex items-center justify-center mr-3">
-              <span className="text-white font-bold text-lg">O</span>
-            </div>
+            <img src={logoImg} alt="OfferOtter Logo" className="w-10 h-10 mr-3" />
             <span className="text-xl font-bold text-[#282828]">Offerotter</span>
           </div>
         </div>
 
         {/* Add New Jobs Card */}
         <div className="p-4">
-          <div className="border-2 border-dashed border-[#77C3FF] rounded-2xl p-6 text-center bg-[#EEF9FF]">
+          <div 
+            className="border-2 border-dashed border-[#77C3FF] rounded-2xl p-6 text-center bg-[#EEF9FF] cursor-pointer hover:bg-[#E0F7FF] transition-colors"
+            onClick={handleAddNewJob}
+          >
             <div className="w-12 h-12 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] rounded-xl mx-auto mb-3 flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 4v16m8-8H4"/>
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
             <h3 className="font-medium text-[#282828] text-sm">Add New Jobs</h3>
@@ -40,14 +294,24 @@ const HomePage: React.FC = () => {
 
         {/* Jobs List */}
         <div className="px-4 pb-4">
-          <h3 className="text-[#282828] font-medium mb-3">Jobs</h3>
-          <div className="space-y-2">
-            <div className="p-3 bg-white border border-[#68C6F1] rounded-xl cursor-pointer hover:shadow-md transition-all">
-              <span className="text-[#282828] text-sm">Product Manager</span>
-            </div>
-            <div className="p-3 bg-white border border-transparent rounded-xl cursor-pointer hover:border-[#68C6F1] transition-all">
-              <span className="text-[#282828] text-sm">Marketing Planner</span>
-            </div>
+          <h3 className="text-[#282828] font-medium mb-3">Jobs ({jobs.length})</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {jobs.length > 0 ? (
+              jobs.map((job) => (
+                <div 
+                  key={job.id}
+                  className="p-3 bg-white border border-transparent rounded-xl cursor-pointer hover:border-[#68C6F1] hover:shadow-sm transition-all"
+                  onClick={() => handleSelectJob(job)}
+                >
+                  <div className="text-[#282828] text-sm font-medium truncate">{job.title}</div>
+                  <div className="text-[#666] text-xs truncate">{job.company}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-[#666] text-sm text-center py-4">
+                No jobs yet, click above to add
+              </div>
+            )}
           </div>
         </div>
 
@@ -69,7 +333,7 @@ const HomePage: React.FC = () => {
             </div>
             <div className="flex-1">
               <div className="text-sm font-medium text-[#262626]">
-                {isLoading ? '加载中...' : (user?.username || user?.email || 'Guest')}
+                {user?.username || user?.email || 'Guest'}
               </div>
               <div className="text-xs text-[#333333]">
                 {user ? `ID:${user.id}` : 'Not logged in'}
@@ -83,33 +347,72 @@ const HomePage: React.FC = () => {
             onClick={() => navigate('/profile')}
             className="w-full py-2 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] text-white rounded-full text-sm font-medium hover:shadow-lg transition-all"
           >
-            View Profile
+            Upgrade
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 p-6">
-        {/* Header placeholders */}
+        {/* Top Interview Cards Section - Added based on design */}
         <div className="flex gap-6 mb-6">
-          <div className="flex-1 h-44 bg-white border-2 border-dashed border-[#77C3FF] rounded-2xl flex items-center justify-center">
-            <div className="text-center text-[#282828]">
-              <div className="w-16 h-16 bg-[#EEF9FF] rounded-xl mx-auto mb-2 flex items-center justify-center">
-                <svg className="w-8 h-8 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          {/* Mock Interview Card */}
+          <div 
+            className="flex-1 h-44 border-2 border-dashed border-[#77C3FF] rounded-2xl bg-white/50 relative cursor-pointer hover:bg-white/70 transition-all group"
+            onClick={handleStartMockInterview}
+          >
+            <div className="absolute inset-0 flex items-center justify-between p-6">
+              <div className="flex-1">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden mb-4">
+                              <img 
+              src="/images/mock-interview.png" 
+              alt="Mock Interview" 
+              className="w-full h-full object-cover"
+              onError={handleImageError}
+            />
+                </div>
+                <h3 className="text-sm font-medium text-[#282828] text-center">Mock Interview</h3>
+              </div>
+              
+              {/* Arrow Button */}
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-[#68C6F1] bg-white/30 flex items-center justify-center group-hover:bg-white/60 transition-all">
+                <svg className="w-5 h-5 text-[#68C6F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <svg className="w-5 h-5 text-[#68C6F1] -ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </div>
-              <span className="text-sm">Feature Placeholder</span>
             </div>
           </div>
-          <div className="flex-1 h-44 bg-white border-2 border-dashed border-[#77C3FF] rounded-2xl flex items-center justify-center">
-            <div className="text-center text-[#282828]">
-              <div className="w-16 h-16 bg-[#EEF9FF] rounded-xl mx-auto mb-2 flex items-center justify-center">
-                <svg className="w-8 h-8 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M9 11H7v8h2v-8zm4-4h-2v12h2V7zm4-4h-2v16h2V3z"/>
+
+          {/* Formal Interview Card */}
+          <div 
+            className="flex-1 h-44 border-2 border-dashed border-[#77C3FF] rounded-2xl bg-white/50 relative cursor-pointer hover:bg-white/70 transition-all group"
+            onClick={handleStartFormalInterview}
+          >
+            <div className="absolute inset-0 flex items-center justify-between p-6">
+              <div className="flex-1">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden mb-4">
+                              <img 
+              src="/images/formal-interview.png" 
+              alt="Formal Interview" 
+              className="w-full h-full object-cover"
+              onError={handleImageError}
+            />
+                </div>
+                <h3 className="text-sm font-medium text-[#282828] text-center">Formal Interview</h3>
+              </div>
+              
+              {/* Arrow Button */}
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-[#68C6F1] bg-white/30 flex items-center justify-center group-hover:bg-white/60 transition-all">
+                <svg className="w-5 h-5 text-[#68C6F1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <svg className="w-5 h-5 text-[#68C6F1] -ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </div>
-              <span className="text-sm">Analytics Placeholder</span>
             </div>
           </div>
         </div>
@@ -150,136 +453,328 @@ const HomePage: React.FC = () => {
           </div>
           
           <button
-            onClick={() => navigate('/interview')}
             className="px-6 py-3 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] text-white rounded-full font-medium hover:shadow-lg transition-all"
           >
             <div className="flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 4v16m8-8H4"/>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Add
             </div>
           </button>
         </div>
 
-        {/* Interview Questions Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[#282828] font-medium">Interview questions（2/10）</h2>
-          <button className="p-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-              </svg>
-              <svg className="w-5 h-5 text-[#F16868]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-              </svg>
-            </div>
-          </button>
-        </div>
-
-        {/* Description */}
-        <p className="text-[#282828] mb-6">
-          Conduct a mock interview to get more customized questions ! (we generate 2 questions based on your resume）
-        </p>
-
-        {/* Question Sections */}
-        <div className="space-y-6">
-          {/* Question 1 */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#282828] flex-1">
-                How would you design a campaign to recruit new live streamers in a market where live streaming is still stigmatized?​​
-              </h3>
-              <button className="ml-4 p-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                  </svg>
-                  <svg className="w-5 h-5 text-[#F16868]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
-                </div>
-              </button>
-            </div>
-            <p className="text-[#282828] text-sm leading-relaxed">
-              To tackle stigma, I'd focus on reframing live streaming as a tool for ​​community empowerment​​ rather than just entertainment. For example, in Indonesia, I'd partner with local religious leaders or educators to launch a campaign like 'Knowledge Live,' where respected figures (e.g., Quran teachers, traditional artisans) demonstrate how streaming helps them share skills or preserve culture. To incentivize participation, I'd create a 'First Stream Kit'—offering free lighting filters and halal-compliant............
-            </p>
+        {/* Error Display */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="text-red-600 text-sm">{error}</div>
           </div>
+        )}
 
-          {/* Question 2 */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#282828] flex-1">
-                How would you measure the success of a live streamer recruitment campaign?​​
-              </h3>
-              <button className="ml-4 p-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                  </svg>
-                  <svg className="w-5 h-5 text-[#F16868]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
-                </div>
-              </button>
-            </div>
-            <p className="text-[#282828] text-sm leading-relaxed">
-              Quality of adoption​​: % of new streamers who complete ≥3 streams (measuring retention, not just interest).Sentiment shift​​: Pre/post-campaign surveys on perceptions (e.g., 'Is streaming a respectable career?').Efficiency​​: Cost-per-engaged-streamer (CPES), factoring in training/resources provided.For example, if we recruit 1,000 streamers but only 200 stay active after a month, I'd investigate pain points (e.g., monetization clarity) and iterate. I'd also benchmark against local competitors' retention rates to contextualize results.
-            </p>
-          </div>
+        {/* Tab Content */}
+        {activeTab === 'questions' && (
+          <div>
+            {/* Question Bank Section */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[#282828] font-medium">
+                  Question Bank ({questionsWithAnswers.length})
+                </h2>
+                <button 
+                  onClick={() => navigate('/questions/generate')}
+                  className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-sm"
+                >
+                  Generate New Questions
+                </button>
+              </div>
+              
+              <p className="text-[#282828] mb-6">
+                This shows the questions and answers you've answered in interviews, which can be used for review and improvement.
+              </p>
 
-          {/* Interview Options */}
-          <div className="flex gap-6 mt-8">
-            <div className="flex-1">
-              <div className="bg-white rounded-2xl p-6 text-center hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/interview')}>
-                <div className="w-24 h-24 bg-[#EEF9FF] rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-[#68C6F1] rounded-xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
+              {/* Questions Display */}
+              <div className="space-y-6">
+                {questionsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#68C6F1] mx-auto"></div>
+                    <p className="text-[#666] mt-2">Loading questions...</p>
                   </div>
-                </div>
-                <h3 className="font-medium text-[#282828] mb-2">Mock Interview</h3>
-                <div className="flex items-center justify-center">
-                  <div className="w-12 h-12 bg-gray-100 rounded-full border-2 border-dashed border-[#68C6F1] flex items-center justify-center">
-                    <svg className="w-6 h-6 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="m8.5 8.5-1 1 5 5 1-1-5-5z"/>
-                      <path d="m13.5 8.5-5 5 1 1 5-5-1-1z"/>
-                    </svg>
+                ) : questionsError ? (
+                  <div className="text-center py-8">
+                    <p className="text-red-500 mb-4">{questionsError}</p>
+                    <button 
+                      onClick={loadQuestionsWithAnswers}
+                      className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors"
+                    >
+                      Retry
+                    </button>
                   </div>
-                </div>
+                ) : questionsWithAnswers.length > 0 ? (
+                  questionsWithAnswers.map((question) => (
+                    <div key={question.id} className="bg-white rounded-xl shadow-sm p-6">
+                      <h3 className="text-lg font-semibold text-[#282828] mb-4">
+                        {question.question_text}
+                      </h3>
+                      
+                      {question.latest_answer ? (
+                        <div className="text-sm text-[#666] leading-relaxed mb-4">
+                          {question.latest_answer.answer_text.length > 300 
+                            ? `${question.latest_answer.answer_text.substring(0, 300)}...`
+                            : question.latest_answer.answer_text
+                          }
+                        </div>
+                      ) : (
+                        <div className="text-sm text-[#999] italic mb-4">
+                          No answer yet
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={`px-2 py-1 rounded-full ${
+                            question.question_type === 'technical' ? 'bg-blue-100 text-blue-800' :
+                            question.question_type === 'behavioral' ? 'bg-green-100 text-green-800' :
+                            question.question_type === 'situational' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {question.question_type}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full ${
+                            question.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                            question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {question.difficulty}
+                          </span>
+                          {question.category && (
+                            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-800">
+                              {question.category}
+                            </span>
+                          )}
+                          {question.latest_answer?.score && (
+                            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                              Score: {Math.round(question.latest_answer.score)}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleQuestionEdit(question.id)}
+                            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-[#666] hover:border-[#68C6F1] transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                              </svg>
+                              Edit
+                            </div>
+                          </button>
+                          <button 
+                            onClick={() => handleQuestionDelete(question.id)}
+                            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-[#F16868] hover:border-red-300 transition-colors"
+                          >
+                            <div className="flex items-center">
+                              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                              </svg>
+                              Delete
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-[#EEF9FF] rounded-xl mx-auto mb-4 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+                      </svg>
+                    </div>
+                    <p className="text-[#666] mb-4">No questions and answers yet</p>
+                    <p className="text-[#999] text-sm mb-6">Start your first interview to build your question bank!</p>
+                    <div className="flex gap-4 justify-center">
+                      <button 
+                        onClick={handleStartMockInterview}
+                        className="px-6 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors"
+                      >
+                        Mock Interview
+                      </button>
+                      <button 
+                        onClick={handleStartFormalInterview}
+                        className="px-6 py-2 bg-[#34D399] text-white rounded-lg hover:bg-[#10B981] transition-colors"
+                      >
+                        Formal Interview
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="flex-1">
-              <div className="bg-white rounded-2xl p-6 text-center hover:shadow-lg transition-all cursor-pointer">
-                <div className="w-24 h-24 bg-[#EEF9FF] rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-[#87D2F6] rounded-xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="font-medium text-[#282828] mb-2">Formal Interview</h3>
-                <div className="flex items-center justify-center">
-                  <div className="w-12 h-12 bg-gray-100 rounded-full border-2 border-dashed border-[#68C6F1] flex items-center justify-center">
-                    <svg className="w-6 h-6 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="m8.5 8.5-1 1 5 5 1-1-5-5z"/>
-                      <path d="m13.5 8.5-5 5 1 1 5-5-1-1z"/>
-                    </svg>
-                  </div>
+        {activeTab === 'records' && (
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-[#282828] font-semibold text-xl">
+                Interview Record ({records.length})
+              </h2>
+              <button 
+                onClick={refreshRecords}
+                className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
+
+            {/* Loading State */}
+            {recordsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-[#68C6F1] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-[#666]">Loading interview records...</p>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Error State */}
+            {recordsError && !recordsLoading && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-red-50 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-red-600 mb-4">{recordsError}</p>
+                <button 
+                  onClick={refreshRecords}
+                  className="px-6 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Records Table */}
+            {!recordsLoading && !recordsError && (
+              <div className="bg-white rounded-xl overflow-hidden">
+                {records.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-[#F8FAFB] border-b border-[#E5E7EB]">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Interview ID</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Duration</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Interview Type</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-[#E5E7EB]">
+                        {records.map((record) => (
+                          <tr key={record.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-10 h-10 rounded-lg overflow-hidden mr-3 bg-[#EEF9FF] flex items-center justify-center">
+                                  <img 
+                                    src={record.type === 'Mock Interview' ? '/images/mock-interview.png' : '/images/formal-interview.png'}
+                                    alt={record.type}
+                                    className="w-8 h-8 object-contain"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        parent.innerHTML = `
+                                          <svg class="w-6 h-6 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                          </svg>
+                                        `;
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-[#282828]">{record.title}</div>
+                                  <div className="text-sm text-[#6B7280]">#{record.id}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-[#282828]">{record.date}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-[#282828]">{record.duration}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                record.type === 'Mock Interview'
+                                  ? 'bg-[#E8F5E8] text-[#2D7738]'
+                                  : 'bg-[#EEF9FF] text-[#1B5E8C]'
+                              }`}>
+                                {record.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <div className="flex items-center gap-2">
+                                <button className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-xs font-medium">
+                                  Review
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this interview record?')) {
+                                      await deleteRecord(record.id);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-[#F87171] text-white rounded-lg hover:bg-[#EF4444] transition-colors text-xs font-medium"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-[#EEF9FF] rounded-xl mx-auto mb-4 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-[#68C6F1]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 11H7v8h2v-8zm4-4h-2v12h2V7zm4-4h-2v16h2V3z"/>
+                      </svg>
+                    </div>
+                    <p className="text-[#666] mb-4">No interview records yet</p>
+                    <p className="text-[#999] text-sm mb-6">Start your first interview!</p>
+                    <div className="flex gap-4 justify-center">
+                      <button 
+                        onClick={handleStartMockInterview}
+                        className="px-6 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors"
+                      >
+                        Mock Interview
+                      </button>
+                      <button 
+                        onClick={handleStartFormalInterview}
+                        className="px-6 py-2 bg-[#34D399] text-white rounded-lg hover:bg-[#10B981] transition-colors"
+                      >
+                        Formal Interview
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 右下角用户信息 */}
+      {/* Floating User Info */}
       <div className="fixed bottom-6 right-6 z-50">
         <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
           <div className="flex items-center space-x-3">
-            {/* 用户头像 */}
+            {/* User Avatar */}
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] flex items-center justify-center">
               {user?.avatar_url ? (
                 <img 
@@ -294,48 +789,46 @@ const HomePage: React.FC = () => {
               )}
             </div>
 
-            {/* 用户信息 */}
+            {/* User Information */}
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-gray-900">
-                {isLoading ? '加载中...' : (user?.username || user?.email || 'Guest')}
+                {user?.username || user?.email || 'Guest'}
               </span>
               <span className="text-xs text-gray-500">
                 {user ? user.email : 'Not logged in'}
               </span>
             </div>
 
-            {/* 操作按钮 */}
-            <div className="flex flex-col space-y-1">
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-1">
               <button
                 onClick={() => navigate('/profile')}
-                className="p-2 text-gray-600 hover:text-[#68C6F1] hover:bg-gray-50 rounded-lg transition-colors"
-                title="查看个人资料"
+                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
               >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
+                Settings
               </button>
-              {error && (
-                <button
-                  onClick={fetchUserInfo}
-                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                  title="重新获取用户信息"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-                  </svg>
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  localStorage.removeItem('auth_token');
+                  navigate('/login');
+                }}
+                className="px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
-          
-          {error && (
-            <div className="mt-2 text-xs text-red-500 bg-red-50 p-2 rounded-lg">
-              {error}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Job Selection Modal */}
+      <JobSelectionModal
+        isOpen={isJobModalOpen}
+        onClose={handleJobModalClose}
+        onConfirm={handleJobSelectionConfirm}
+        availableJobs={jobs}
+        interviewType={interviewType}
+      />
     </div>
   );
 };

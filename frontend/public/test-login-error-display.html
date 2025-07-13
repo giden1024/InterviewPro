@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误提示功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-success { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .status-running { background: #ffc107; color: #212529; }
+        
+        pre {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        
+        .improvement-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .improvement-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 登录错误提示功能测试</h1>
+            <p>测试前端登录错误处理和用户友好提示功能</p>
+        </div>
+
+        <div class="improvement-summary">
+            <h2>✨ 错误提示改进总结</h2>
+            
+            <div class="improvement-item">
+                <h3>🚫 修复前的问题</h3>
+                <ul>
+                    <li><strong>使用简单的alert弹窗</strong> - 容易被用户忽略或被浏览器阻止</li>
+                    <li><strong>UI中缺少错误提示区域</strong> - 登录组件没有显示错误信息的位置</li>
+                    <li><strong>错误信息不友好</strong> - 直接显示技术错误信息，用户体验差</li>
+                    <li><strong>没有错误状态管理</strong> - 无法清除错误或提供交互</li>
+                </ul>
+            </div>
+            
+            <div class="improvement-item">
+                <h3>✅ 修复后的改进</h3>
+                <ul>
+                    <li><strong>友好的UI错误提示</strong> - 在登录表单上方显示红色提示框</li>
+                    <li><strong>智能错误信息翻译</strong> - 将技术错误转换为用户友好的提示</li>
+                    <li><strong>错误状态管理</strong> - 支持清除错误、自动清除等交互</li>
+                    <li><strong>视觉设计优化</strong> - 清晰的图标、颜色和布局</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 登录错误场景测试</h3>
+            <p>点击下方按钮测试不同的登录错误场景：</p>
+            
+            <button class="test-button" onclick="testUserNotExists()">测试：用户不存在</button>
+            <button class="test-button" onclick="testWrongPassword()">测试：密码错误</button>
+            <button class="test-button" onclick="testDisabledAccount()">测试：账户被禁用</button>
+            <button class="test-button" onclick="testNetworkError()">测试：网络错误</button>
+            <button class="test-button" onclick="testServerError()">测试：服务器错误</button>
+            <button class="test-button" onclick="testGenericError()">测试：通用错误</button>
+            
+            <div id="testResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎨 错误提示UI预览</h3>
+            <p>以下是新的错误提示UI的预览效果：</p>
+            
+            <div style="max-width: 400px; margin: 20px auto; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                <!-- 模拟错误提示UI -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: #f87171; margin-top: 2px;">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div style="flex: 1; color: #991b1b; font-size: 14px; line-height: 1.5;">
+                            该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户
+                        </div>
+                        <button style="color: #f87171; background: none; border: none; cursor: pointer; padding: 0;">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 25px; margin: 10px 0;">
+                    <div style="color: #6b7280; font-size: 14px;">📧 Email address*</div>
+                </div>
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 25px; margin: 10px 0;">
+                    <div style="color: #6b7280; font-size: 14px;">🔒 Password*</div>
+                </div>
+                <button style="width: 100%; background: linear-gradient(to right, #93c5fd, #60a5fa, #3b82f6); color: #1f2937; font-weight: 600; padding: 15px; border-radius: 25px; border: none; font-size: 18px; margin-top: 15px;">
+                    Continue
+                </button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 错误信息映射表</h3>
+            <p>系统会将后端错误信息转换为用户友好的提示：</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">后端错误信息</th>
+                        <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">用户友好提示</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #dc2626;">用户不存在，请检查邮箱地址</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; color: #059669;">该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户</td>
+                    </tr>
+                    <tr style="background: #f8fafc;">
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #dc2626;">密码错误，请重新输入</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; color: #059669;">密码错误，请重新输入正确密码</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #dc2626;">用户账号已被禁用</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; color: #059669;">您的账户已被禁用，请联系客服处理</td>
+                    </tr>
+                    <tr style="background: #f8fafc;">
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #dc2626;">网络连接异常</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; color: #059669;">网络连接异常，请检查网络连接后重试</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #dc2626;">服务器错误</td>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0; color: #059669;">服务器暂时不可用，请稍后重试</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 实际登录测试</h3>
+            <p>使用不存在的用户测试真实的错误提示效果：</p>
+            
+            <button class="test-button" onclick="testRealLogin()">测试真实登录</button>
+            
+            <div id="realLoginResults"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://offerott.com/api/v1';
+
+        function addResult(elementId, message, type, details = null) {
+            const container = document.getElementById(elementId);
+            const result = document.createElement('div');
+            result.className = `result ${type}`;
+            
+            let content = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            if (details) {
+                content += `<pre>${JSON.stringify(details, null, 2)}</pre>`;
+            }
+            
+            result.innerHTML = content;
+            container.appendChild(result);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function testUserNotExists() {
+            const errorMsg = "用户不存在，请检查邮箱地址";
+            const friendlyMsg = "该邮箱尚未注册，请检查邮箱地址或点击下方\"Sign up\"注册新账户";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        function testWrongPassword() {
+            const errorMsg = "密码错误，请重新输入";
+            const friendlyMsg = "密码错误，请重新输入正确密码";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        function testDisabledAccount() {
+            const errorMsg = "用户账号已被禁用";
+            const friendlyMsg = "您的账户已被禁用，请联系客服处理";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        function testNetworkError() {
+            const errorMsg = "Network connection failed";
+            const friendlyMsg = "网络连接异常，请检查网络连接后重试";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        function testServerError() {
+            const errorMsg = "Internal Server Error";
+            const friendlyMsg = "服务器暂时不可用，请稍后重试";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        function testGenericError() {
+            const errorMsg = "Something went wrong";
+            const friendlyMsg = "登录失败，请重试";
+            
+            addResult('testResults', `
+                <div style="margin: 10px 0;">
+                    <div style="font-weight: bold; color: #dc2626;">原始错误信息:</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${errorMsg}</div>
+                    <div style="font-weight: bold; color: #059669;">用户友好提示:</div>
+                    <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyMsg}</div>
+                </div>
+            `, 'success');
+        }
+
+        async function testRealLogin() {
+            addResult('realLoginResults', '开始测试不存在用户的登录...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'nonexistent@example.com',
+                        password: 'testpassword123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success === false && data.error) {
+                    const originalError = data.error.message;
+                    let friendlyError = '';
+                    
+                    if (originalError.includes('用户不存在') || originalError.includes('用户名不存在')) {
+                        friendlyError = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
+                    } else {
+                        friendlyError = originalError || '登录失败，请重试';
+                    }
+                    
+                    addResult('realLoginResults', `
+                        <div style="margin: 10px 0;">
+                            <div style="font-weight: bold;">✅ 错误提示测试成功！</div>
+                            <div style="margin: 10px 0;">
+                                <div style="font-weight: bold; color: #dc2626;">后端原始错误:</div>
+                                <div style="font-family: monospace; font-size: 12px; background: #fee; padding: 8px; border-radius: 4px; margin: 5px 0;">${originalError}</div>
+                                <div style="font-weight: bold; color: #059669;">前端友好提示:</div>
+                                <div style="background: #efe; padding: 8px; border-radius: 4px; margin: 5px 0;">${friendlyError}</div>
+                            </div>
+                            <div style="font-size: 12px; color: #666;">响应状态: ${response.status}</div>
+                        </div>
+                    `, 'success', data);
+                } else {
+                    addResult('realLoginResults', '意外的响应格式', 'error', data);
+                }
+                
+            } catch (error) {
+                addResult('realLoginResults', `请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后显示欢迎信息
+        window.onload = function() {
+            addResult('testResults', '✨ 错误提示功能测试页面加载完成', 'success');
+            addResult('realLoginResults', '🔧 准备进行真实API测试', 'info');
+        };
+    </script>
+</body>
+</html> 

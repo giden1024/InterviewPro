@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清理前端存储</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 清理前端存储</h1>
+        
+        <div class="warning">
+            ⚠️ 这将清除所有本地存储的数据，包括登录状态、设置等。
+        </div>
+        
+        <h3>清理操作</h3>
+        <button onclick="clearLocalStorage()">清理 LocalStorage</button>
+        <button onclick="clearSessionStorage()">清理 SessionStorage</button>
+        <button onclick="clearCookies()">清理 Cookies</button>
+        <button onclick="clearAll()">清理所有</button>
+        
+        <h3>当前存储状态</h3>
+        <button onclick="showStorageInfo()">查看存储信息</button>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (type === 'success') logEntry.style.color = '#28a745';
+            if (type === 'error') logEntry.style.color = '#dc3545';
+            if (type === 'warning') logEntry.style.color = '#ffc107';
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLocalStorage() {
+            const itemCount = localStorage.length;
+            localStorage.clear();
+            log(`✅ LocalStorage 已清理，删除了 ${itemCount} 个项目`, 'success');
+        }
+
+        function clearSessionStorage() {
+            const itemCount = sessionStorage.length;
+            sessionStorage.clear();
+            log(`✅ SessionStorage 已清理，删除了 ${itemCount} 个项目`, 'success');
+        }
+
+        function clearCookies() {
+            const cookies = document.cookie.split(";");
+            let count = 0;
+            
+            for (let cookie of cookies) {
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                if (name) {
+                    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+                    count++;
+                }
+            }
+            log(`✅ Cookies 已清理，删除了 ${count} 个 cookie`, 'success');
+        }
+
+        function clearAll() {
+            clearLocalStorage();
+            clearSessionStorage();
+            clearCookies();
+            log('🎉 所有前端存储已清理完成', 'success');
+        }
+
+        function showStorageInfo() {
+            log('📊 当前存储信息:', 'info');
+            
+            // LocalStorage
+            log(`LocalStorage: ${localStorage.length} 个项目`, 'info');
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                log(`  - ${key}: ${value.length > 50 ? value.substring(0, 50) + '...' : value}`, 'info');
+            }
+            
+            // SessionStorage
+            log(`SessionStorage: ${sessionStorage.length} 个项目`, 'info');
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                const value = sessionStorage.getItem(key);
+                log(`  - ${key}: ${value.length > 50 ? value.substring(0, 50) + '...' : value}`, 'info');
+            }
+            
+            // Cookies
+            const cookies = document.cookie.split(";");
+            log(`Cookies: ${cookies.length} 个`, 'info');
+            for (let cookie of cookies) {
+                if (cookie.trim()) {
+                    log(`  - ${cookie.trim()}`, 'info');
+                }
+            }
+        }
+
+        // 页面加载时显示当前状态
+        window.onload = function() {
+            log('页面已加载，可以开始清理操作', 'info');
+            showStorageInfo();
+        };
+    </script>
+</body>
+</html> 

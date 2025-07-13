@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test New Interview Design</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #68C6F1;
+            padding-bottom: 10px;
+        }
+        .button {
+            background: #68C6F1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: #5AB5E0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 New Interview Design Test</h1>
+        <div id="status" class="status info">Ready to test new interview design...</div>
+
+        <!-- Feature Overview -->
+        <div class="test-section">
+            <h2>🎨 New Design Features</h2>
+            <ul class="feature-list">
+                <li>Three-column layout (Interviewer | Interview Copilot | Question Bank)</li>
+                <li>Virtual interviewer avatar with conversation history</li>
+                <li>AI-powered interview copilot with regeneration capabilities</li>
+                <li>Comprehensive question bank with progress tracking</li>
+                <li>Modern UI with Offerotter branding</li>
+                <li>Enhanced header with microphone and settings controls</li>
+            </ul>
+        </div>
+
+        <!-- Navigation Test -->
+        <div class="test-section">
+            <h2>🧪 Navigation Test</h2>
+            <p>Test navigation to the new interview page:</p>
+            <a href="http://localhost:3000/interview" class="button" target="_blank">
+                Open New Interview Page
+            </a>
+            <a href="http://localhost:3000/home" class="button" target="_blank">
+                Go to Home Page
+            </a>
+        </div>
+
+        <!-- API Health Check -->
+        <div class="test-section">
+            <h2>🔧 API Health Check</h2>
+            <button class="button" onclick="checkBackendHealth()">Check Backend Health</button>
+            <button class="button" onclick="checkToken()">Verify Token</button>
+            <button class="button" onclick="testInterviewAPI()">Test Interview API</button>
+            <div id="api-log" class="log"></div>
+        </div>
+
+        <!-- Design Comparison -->
+        <div class="test-section">
+            <h2>📊 Design Comparison</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Feature</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Old Design</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">New Design</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Layout</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Single column</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Three-column layout</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Interviewer</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">No virtual interviewer</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Virtual interviewer with avatar</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">AI Assistant</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Basic tips section</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Interview Copilot with AI responses</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Question Display</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Large question card</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Dedicated Question Bank panel</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Progress</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Header progress bar</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">Integrated progress in Question Bank</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Test Results -->
+        <div class="test-section">
+            <h2>📋 Test Results</h2>
+            <div id="test-results" class="log">Test results will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let logElement = document.getElementById('api-log');
+        let resultsElement = document.getElementById('test-results');
+        let statusElement = document.getElementById('status');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        async function checkBackendHealth() {
+            log('Checking backend health...');
+            try {
+                const response = await fetch('http://localhost:5001/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Backend health: ${JSON.stringify(data)}`);
+                    updateStatus('Backend is healthy', 'success');
+                } else {
+                    log(`❌ Backend health check failed: ${response.status}`);
+                    updateStatus('Backend health check failed', 'error');
+                }
+            } catch (error) {
+                log(`❌ Backend connection failed: ${error.message}`);
+                updateStatus('Backend connection failed', 'error');
+            }
+        }
+
+        async function checkToken() {
+            log('Checking authentication token...');
+            const token = localStorage.getItem('token');
+            if (token) {
+                log(`✅ Token found: ${token.substring(0, 20)}...`);
+                
+                // Verify token with backend
+                try {
+                    const response = await fetch('http://localhost:5001/api/v1/auth/verify', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        log(`✅ Token is valid: ${JSON.stringify(data)}`);
+                        updateStatus('Token is valid', 'success');
+                    } else {
+                        log(`❌ Token verification failed: ${response.status}`);
+                        updateStatus('Token verification failed', 'error');
+                    }
+                } catch (error) {
+                    log(`❌ Token verification error: ${error.message}`);
+                    updateStatus('Token verification error', 'error');
+                }
+            } else {
+                log('❌ No token found in localStorage');
+                updateStatus('No authentication token found', 'error');
+            }
+        }
+
+        async function testInterviewAPI() {
+            log('Testing interview API...');
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                log('❌ No token available for API test');
+                updateStatus('Authentication required', 'error');
+                return;
+            }
+
+            try {
+                // Test create interview
+                const createResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume_id: 1,
+                        interview_type: 'comprehensive',
+                        total_questions: 15
+                    })
+                });
+
+                if (createResponse.ok) {
+                    const createData = await createResponse.json();
+                    log(`✅ Interview created: ${JSON.stringify(createData)}`);
+                    
+                    const sessionId = createData.session_id;
+                    
+                    // Test get interview details
+                    const getResponse = await fetch(`http://localhost:5001/api/v1/interviews/${sessionId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (getResponse.ok) {
+                        const getData = await getResponse.json();
+                        log(`✅ Interview details: ${JSON.stringify(getData)}`);
+                        updateStatus('Interview API tests passed', 'success');
+                        
+                        // Log test results
+                        resultsElement.textContent += `✅ New Interview Design Test Results:\n`;
+                        resultsElement.textContent += `- Backend API: Working\n`;
+                        resultsElement.textContent += `- Authentication: Valid\n`;
+                        resultsElement.textContent += `- Interview Creation: Success\n`;
+                        resultsElement.textContent += `- Session ID: ${sessionId}\n`;
+                        resultsElement.textContent += `- Total Questions: ${getData.total_questions}\n`;
+                        resultsElement.textContent += `- Page URL: http://localhost:3000/interview\n`;
+                        resultsElement.textContent += `- Test Time: ${new Date().toLocaleString()}\n\n`;
+                    } else {
+                        log(`❌ Get interview failed: ${getResponse.status}`);
+                        updateStatus('Get interview failed', 'error');
+                    }
+                } else {
+                    log(`❌ Create interview failed: ${createResponse.status}`);
+                    updateStatus('Create interview failed', 'error');
+                }
+            } catch (error) {
+                log(`❌ Interview API test failed: ${error.message}`);
+                updateStatus('Interview API test failed', 'error');
+            }
+        }
+
+        // Auto-run health check on page load
+        window.onload = function() {
+            setTimeout(() => {
+                checkBackendHealth();
+            }, 1000);
+        };
+    </script>
+</body>
+</html> 

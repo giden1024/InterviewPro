@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserInfo } from '../hooks/useUserInfo';
+import logoImg from '../assets/logo02.png';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const RegisterPage: React.FC = () => {
     }
 
     if (!formData.agreeToTerms) {
-      newErrors.agreeToTerms = 'You must agree to the terms and conditions';
+      newErrors.agreeToTerms = 'Please read and agree to the Terms of Use and Privacy Policy';
     }
 
     return newErrors;
@@ -62,24 +63,24 @@ const RegisterPage: React.FC = () => {
     
     if (Object.keys(newErrors).length === 0) {
       try {
-        // 调用注册并获取用户信息
+        // Call registration and get user information
         console.log('Registration attempt:', formData);
         
         const response = await registerAndFetchUserInfo(
           formData.email,
           formData.password,
-          formData.fullName // 使用fullName作为username
+          formData.fullName // Use fullName as username
         );
         
         if (response.success) {
           console.log('Registration successful:', response.data.user);
-          // 注册成功后跳转到主页（因为已经自动登录）
+          // Redirect to home page after successful registration (already auto-logged in)
           navigate('/home');
         }
       } catch (error) {
         console.error('Registration failed:', error);
-        // 显示错误消息给用户
-        alert(error instanceof Error ? error.message : '注册失败，请重试');
+        // Show error message to user
+        alert(error instanceof Error ? error.message : 'Registration failed, please try again');
       }
     } else {
       setErrors(newErrors);
@@ -91,9 +92,7 @@ const RegisterPage: React.FC = () => {
       {/* Navigation Bar */}
       <nav className="flex items-center justify-between px-8 py-4 bg-white shadow-sm">
         <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-10 h-10 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] rounded-full flex items-center justify-center mr-3">
-            <span className="text-white font-bold text-lg">O</span>
-          </div>
+          <img src={logoImg} alt="OfferOtter Logo" className="w-10 h-10 mr-3" />
           <span className="text-xl font-bold text-[#282828]">Offerotter</span>
         </div>
         <div className="flex items-center space-x-6">
@@ -206,12 +205,20 @@ const RegisterPage: React.FC = () => {
                     className="mt-1 mr-3 w-4 h-4 text-[#68C6F1] border-gray-300 rounded focus:ring-[#68C6F1]"
                   />
                   <span className="text-sm text-[#3D3D3D]">
-                    I agree to the{' '}
-                    <button type="button" className="text-[#68C6F1] hover:underline">
-                      Terms of Service
+                    I have read and agree to the{' '}
+                    <button 
+                      type="button" 
+                      onClick={() => navigate('/terms-of-use')}
+                      className="text-[#68C6F1] hover:underline"
+                    >
+                      Terms of Use
                     </button>{' '}
                     and{' '}
-                    <button type="button" className="text-[#68C6F1] hover:underline">
+                    <button 
+                      type="button" 
+                      onClick={() => navigate('/terms-of-use')}
+                      className="text-[#68C6F1] hover:underline"
+                    >
                       Privacy Policy
                     </button>
                   </span>
@@ -228,15 +235,15 @@ const RegisterPage: React.FC = () => {
               </button>
             </form>
 
-            {/* Divider */}
-            <div className="my-6 flex items-center">
+            {/* Divider - Hidden */}
+            <div className="my-6 flex items-center" style={{ display: 'none' }}>
               <div className="flex-1 border-t border-gray-300"></div>
               <span className="px-4 text-sm text-[#3D3D3D]">Or continue with</span>
               <div className="flex-1 border-t border-gray-300"></div>
             </div>
 
-            {/* Social Login Options */}
-            <div className="space-y-3">
+            {/* Social Login Options - Hidden */}
+            <div className="space-y-3" style={{ display: 'none' }}>
               <button
                 type="button"
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"

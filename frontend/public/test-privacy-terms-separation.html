@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy & Terms of Use Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .test-link:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>隐私协议和用户协议分离测试</h1>
+    
+    <div class="test-section">
+        <h2>测试说明</h2>
+        <p>此页面用于测试隐私协议和用户协议是否正确分离为两个独立页面：</p>
+        <ul>
+            <li><span class="info">隐私协议页面：</span>应该只显示来自 privacy policy.md 的内容</li>
+            <li><span class="info">用户协议页面：</span>应该只显示来自 terms of use.md 的内容</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>页面链接测试</h2>
+        <p>点击以下链接测试页面是否正确加载：</p>
+        <a href="http://localhost:3000/privacy-policy" class="test-link" target="_blank">
+            隐私协议页面 (/privacy-policy)
+        </a>
+        <a href="http://localhost:3000/terms-of-use" class="test-link" target="_blank">
+            用户协议页面 (/terms-of-use)
+        </a>
+    </div>
+
+    <div class="test-section">
+        <h2>登录页面链接测试</h2>
+        <p>测试登录页面中的链接是否正确指向对应页面：</p>
+        <a href="http://localhost:3000/login" class="test-link" target="_blank">
+            登录页面 - 检查Privacy Policy和Terms of Use链接
+        </a>
+    </div>
+
+    <div class="test-section">
+        <h2>注册页面链接测试</h2>
+        <p>测试注册页面中的链接是否正确指向对应页面：</p>
+        <a href="http://localhost:3000/register" class="test-link" target="_blank">
+            注册页面 - 检查Terms of Use和Privacy Policy链接
+        </a>
+    </div>
+
+    <div class="test-section">
+        <h2>验证要点</h2>
+        <ol>
+            <li><span class="success">隐私协议页面</span> 应该只包含隐私政策内容，不包含用户协议</li>
+            <li><span class="success">用户协议页面</span> 应该只包含用户协议内容，不包含隐私政策</li>
+            <li><span class="success">登录页面</span> 中"Privacy Policy"链接应指向 /privacy-policy</li>
+            <li><span class="success">登录页面</span> 中"Terms of Use"链接应指向 /terms-of-use</li>
+            <li><span class="success">注册页面</span> 中"Privacy Policy"链接应指向 /privacy-policy</li>
+            <li><span class="success">注册页面</span> 中"Terms of Use"链接应指向 /terms-of-use</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>预期结果</h2>
+        <p><strong>隐私协议页面内容应包含：</strong></p>
+        <ul>
+            <li>Information We Collect</li>
+            <li>How We Use Your Information</li>
+            <li>How We Share Your Information</li>
+            <li>Data Security</li>
+            <li>Your Rights</li>
+            <li>等等...</li>
+        </ul>
+        
+        <p><strong>用户协议页面内容应包含：</strong></p>
+        <ul>
+            <li>Acceptance of Terms</li>
+            <li>Eligibility</li>
+            <li>Description of Service</li>
+            <li>User Accounts</li>
+            <li>Subscriptions and Payments</li>
+            <li>等等...</li>
+        </ul>
+    </div>
+
+    <script>
+        // 简单的页面加载测试
+        window.onload = function() {
+            console.log('测试页面加载完成');
+            console.log('当前时间:', new Date().toLocaleString());
+        };
+    </script>
+</body>
+</html>

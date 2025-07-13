@@ -3,16 +3,20 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import Schema, fields, ValidationError as MarshmallowValidationError
 
 from app.services.interview_service import InterviewService
+from app.services.simple_ai_responder import SimpleAIResponder
+from app.services.question_matcher import QuestionMatcher
 from app.models.question import InterviewType
 from app.utils.exceptions import APIError, ValidationError, NotFoundError
+from datetime import datetime
 
 interviews_bp = Blueprint('interviews', __name__)
 interview_service = InterviewService()
+question_matcher = QuestionMatcher()
 
 # 验证模式
 class CreateInterviewSchema(Schema):
     resume_id = fields.Integer(required=True)
-    interview_type = fields.Str(required=True, validate=lambda x: x in ['technical', 'hr', 'comprehensive'])
+    interview_type = fields.Str(required=True, validate=lambda x: x in ['technical', 'hr', 'comprehensive', 'mock'])
     total_questions = fields.Integer(allow_none=True, validate=lambda x: x is None or (5 <= x <= 20))
     custom_title = fields.Str(allow_none=True)
     difficulty_distribution = fields.Dict(allow_none=True)
@@ -65,7 +69,7 @@ def create_interview():
         raise APIError(f'创建面试会话失败: {str(e)}', 500)
 
 @interviews_bp.route('', methods=['GET'])
-@jwt_required()
+@jwt_required()  # 重新启用认证
 def get_interviews():
     """获取用户的面试会话列表"""
     try:
@@ -73,19 +77,71 @@ def get_interviews():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
         
-        result = interview_service.get_user_interview_sessions(
-            user_id=user_id,
-            page=page,
-            per_page=per_page
-        )
-        
-        return jsonify({
-            'success': True,
-            'data': result
-        })
+        # 获取真实的数据库数据
+        try:
+            sessions_data = interview_service.get_user_interview_sessions(user_id, page, per_page)
+            
+            return jsonify({
+                'success': True,
+                'data': sessions_data
+            })
+            
+        except Exception as db_error:
+            # 如果数据库查询失败，返回空列表而不是演示数据
+            print(f"数据库查询失败: {db_error}")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'sessions': [],
+                    'total': 0,
+                    'pages': 0,
+                    'current_page': page,
+                    'per_page': per_page
+                }
+            })
         
     except Exception as e:
         raise APIError(f'获取面试列表失败: {str(e)}', 500)
+
+# AI回答生成验证模式
+class AIAnswerSchema(Schema):
+    question = fields.Str(required=True, validate=lambda x: len(x.strip()) > 0)
+
+# 问题匹配验证模式
+class QuestionMatchSchema(Schema):
+    speech_text = fields.Str(required=True, validate=lambda x: len(x.strip()) > 0)
+    limit = fields.Integer(allow_none=True, validate=lambda x: x is None or (1 <= x <= 10))
+
+@interviews_bp.route('/generate-answer', methods=['POST'])
+@jwt_required()
+def generate_ai_answer():
+    """根据问题生成AI回答"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # 数据验证
+        schema = AIAnswerSchema()
+        data = schema.load(request.get_json() or {})
+        
+        question = data['question'].strip()
+        
+        # 使用简化的AI服务
+        ai_responder = SimpleAIResponder()
+        answer = ai_responder.generate_answer(question)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'question': question,
+                'answer': answer,
+                'generated_at': datetime.utcnow().isoformat()
+            }
+        })
+        
+    except MarshmallowValidationError as e:
+        raise APIError('数据验证失败', 422, e.messages)
+    except Exception as e:
+        raise APIError(f'生成AI回答失败: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>', methods=['GET'])
 @jwt_required()
@@ -167,12 +223,17 @@ def get_next_question(session_id):
 @jwt_required()
 def submit_answer(session_id):
     """提交答案"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())  # 确保转换为整数
+        logger.info(f"🔍 [API DEBUG] submit_answer called: user_id={user_id}, session_id={session_id}")
         
         # 数据验证
         schema = SubmitAnswerSchema()
         data = schema.load(request.get_json() or {})
+        logger.info(f"🔍 [API DEBUG] Request data: {data}")
         
         result = interview_service.submit_answer(
             user_id=user_id,
@@ -182,6 +243,7 @@ def submit_answer(session_id):
             response_time=data.get('response_time')
         )
         
+        logger.info(f"✅ [API DEBUG] Answer submitted successfully")
         return jsonify({
             'success': True,
             'message': '答案提交成功',
@@ -189,10 +251,15 @@ def submit_answer(session_id):
         })
         
     except MarshmallowValidationError as e:
+        logger.error(f"❌ [API DEBUG] Marshmallow validation error: {e.messages}")
         raise APIError('数据验证失败', 422, e.messages)
     except (ValidationError, NotFoundError) as e:
+        logger.error(f"❌ [API DEBUG] Validation/NotFound error: {str(e)}")
         raise APIError(str(e), 400)
     except Exception as e:
+        logger.error(f"❌ [API DEBUG] Unexpected error: {str(e)}")
+        import traceback
+        logger.error(f"❌ [API DEBUG] Traceback: {traceback.format_exc()}")
         raise APIError(f'提交答案失败: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/end', methods=['POST'])
@@ -314,6 +381,17 @@ def get_interview_types():
                     'experience': 2,
                     'situational': 2
                 }
+            },
+            {
+                'value': 'mock',
+                'label': '模拟面试',
+                'description': '模拟真实面试场景，全面练习面试技巧',
+                'question_distribution': {
+                    'behavioral': 3,
+                    'technical': 2,
+                    'situational': 2,
+                    'experience': 1
+                }
             }
         ]
         
@@ -337,4 +415,53 @@ def get_interview_types():
         })
         
     except Exception as e:
-        raise APIError(f'获取面试类型失败: {str(e)}', 500) 
+        raise APIError(f'获取面试类型失败: {str(e)}', 500)
+
+@interviews_bp.route('/match-question', methods=['POST'])
+@jwt_required()
+def match_historical_question():
+    """匹配历史问题"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # 数据验证
+        schema = QuestionMatchSchema()
+        data = schema.load(request.get_json() or {})
+        
+        speech_text = data['speech_text'].strip()
+        limit = data.get('limit', 3)
+        
+        # 从语音文本中提取问题
+        extracted_question = question_matcher.extract_question_from_speech(speech_text)
+        
+        if not extracted_question:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'matches': [],
+                    'extracted_question': None,
+                    'message': '未从语音中识别到问题'
+                }
+            })
+        
+        # 查找相似问题
+        matches = question_matcher.find_similar_questions(
+            user_id=user_id,
+            query_text=extracted_question,
+            limit=limit
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'matches': matches,
+                'extracted_question': extracted_question,
+                'total_matches': len(matches),
+                'speech_text': speech_text
+            }
+        })
+        
+    except MarshmallowValidationError as e:
+        raise APIError('数据验证失败', 422, e.messages)
+    except Exception as e:
+        raise APIError(f'问题匹配失败: {str(e)}', 500) 

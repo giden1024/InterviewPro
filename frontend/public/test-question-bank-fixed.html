@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Bank 测试 - 用户 393893095@qq.com</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .question-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #fafafa;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .question-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+        .question-meta {
+            display: flex;
+            gap: 10px;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-easy { background-color: #d4edda; color: #155724; }
+        .badge-medium { background-color: #fff3cd; color: #856404; }
+        .badge-hard { background-color: #f8d7da; color: #721c24; }
+        .badge-technical { background-color: #e2e3f1; color: #383d41; }
+        .badge-behavioral { background-color: #d1ecf1; color: #0c5460; }
+        .answer-section {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .answer-text {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .answer-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .test-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Question Bank 测试页面</h1>
+        
+        <div class="test-info">
+            <strong>测试账号:</strong> 393893095@qq.com<br>
+            <strong>后端地址:</strong> http://localhost:5001<br>
+            <strong>前端地址:</strong> http://localhost:3003<br>
+            <strong>测试时间:</strong> <span id="currentTime"></span>
+        </div>
+
+        <div class="status info">
+            📊 正在测试 Question Bank 功能...
+        </div>
+
+        <button onclick="testQuestionBank()">🔄 刷新测试</button>
+        <button onclick="testAuth()">🔐 测试认证</button>
+        <button onclick="window.open('http://localhost:3003/home', '_blank')">🏠 打开首页</button>
+
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // 显示当前时间
+        document.getElementById('currentTime').textContent = new Date().toLocaleString();
+
+        const API_BASE = 'http://localhost:5001/api/v1';
+        const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MTI0MzY1NywianRpIjoiYTI2ZTgwMzctMjY0YS00MWUyLTg5YjktNzZmNmZiNzJmM2I0IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NTEyNDM2NTcsImNzcmYiOiJmODg0Y2ZlZS0yNDEwLTQ3NGItOThhYi02ODdmYWViNTNjYjciLCJleHAiOjE3NTEzMzAwNTd9.M5P9qdj64q_1rmx3Qv1ICymLMZsb9c1-nG2jC4WrpIk';
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${TOKEN}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                const data = await response.json();
+                return { success: response.ok, data, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testAuth() {
+            updateStatus('info', '🔐 测试用户认证...');
+            
+            const result = await makeRequest(`${API_BASE}/auth/profile`);
+            
+            if (result.success) {
+                updateStatus('success', `✅ 认证成功！用户: ${result.data.user.email}`);
+            } else {
+                updateStatus('error', `❌ 认证失败: ${result.error || result.data?.message || '未知错误'}`);
+            }
+        }
+
+        async function testQuestionBank() {
+            updateStatus('info', '📊 正在获取 Question Bank 数据...');
+            document.getElementById('results').innerHTML = '<div class="loading">加载中...</div>';
+
+            const result = await makeRequest(`${API_BASE}/questions/with-answers?page=1&per_page=10&has_answers=true`);
+            
+            if (result.success) {
+                const { data } = result.data;
+                const questions = data.questions;
+                const pagination = data.pagination;
+                
+                updateStatus('success', `✅ 成功获取 ${questions.length} 个问题！总计: ${pagination.total} 个`);
+                displayQuestions(questions, pagination);
+            } else {
+                updateStatus('error', `❌ 获取数据失败: ${result.error || result.data?.message || '未知错误'}`);
+                document.getElementById('results').innerHTML = '';
+            }
+        }
+
+        function updateStatus(type, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function displayQuestions(questions, pagination) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `
+                <h2>📋 Question Bank 数据 (${pagination.total} 题)</h2>
+                <div style="margin-bottom: 20px; color: #666;">
+                    页面 ${pagination.page}/${pagination.pages} | 每页 ${pagination.per_page} 条
+                </div>
+            `;
+
+            questions.forEach((item, index) => {
+                const difficultyClass = `badge-${item.difficulty}`;
+                const typeClass = `badge-${item.question_type}`;
+                
+                html += `
+                    <div class="question-item">
+                        <div class="question-header">
+                            <div class="question-title">
+                                ${index + 1}. ${item.question_text}
+                            </div>
+                            <div class="question-meta">
+                                <span class="badge ${difficultyClass}">${item.difficulty}</span>
+                                <span class="badge ${typeClass}">${item.question_type}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <strong>分类:</strong> ${item.category || '未分类'} | 
+                            <strong>标签:</strong> ${item.tags ? item.tags.join(', ') : '无'} |
+                            <strong>面试类型:</strong> ${item.session_title || '未知'}
+                        </div>
+                        
+                        ${item.latest_answer ? `
+                            <div class="answer-section">
+                                <h4 style="margin: 0 0 10px 0; color: #007bff;">💬 我的回答</h4>
+                                <div class="answer-text">${item.latest_answer.answer_text}</div>
+                                <div class="answer-stats">
+                                    <span>⭐ 评分: ${item.latest_answer.score?.toFixed(1) || 'N/A'}</span>
+                                    <span>📅 回答时间: ${new Date(item.latest_answer.answered_at).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="color: #999; font-style: italic;">暂无回答</div>
+                        `}
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            testAuth().then(() => {
+                setTimeout(testQuestionBank, 1000);
+            });
+        };
+    </script>
+</body>
+</html> 

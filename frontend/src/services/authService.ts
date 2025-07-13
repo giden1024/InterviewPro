@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse } from './api';
+import { apiClient } from './api';
 
 // 用户类型
 export interface User {
@@ -72,13 +72,34 @@ export class AuthService {
 
   // 获取用户信息
   async getUserInfo(): Promise<UserInfoResponse> {
-    const response = await apiClient.get<UserInfoResponse>('/auth/info');
+    const response = await apiClient.get<UserInfoResponse>('/auth/profile');
     return response;
   }
 
   // 检查是否已登录
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      return false;
+    }
+    
+    // 可以添加更多的token验证逻辑
+    // 例如检查token格式、过期时间等
+    try {
+      // 简单的JWT格式检查
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        // 不是有效的JWT格式，清除token
+        localStorage.removeItem('access_token');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      // token格式错误，清除token
+      localStorage.removeItem('access_token');
+      return false;
+    }
   }
 }
 

@@ -67,11 +67,19 @@ def login():
         schema = LoginSchema()
         data = schema.load(request.get_json() or {})
         
-        # 验证用户
-        user = User.query.filter_by(email=data['email'], is_active=True).first()
+        # 首先检查用户是否存在
+        user = User.query.filter_by(email=data['email']).first()
         
-        if not user or not user.check_password(data['password']):
-            raise AuthenticationError("邮箱或密码错误")
+        if not user:
+            raise AuthenticationError("用户不存在，请检查邮箱地址")
+        
+        # 检查用户是否激活
+        if not user.is_active:
+            raise AuthenticationError("用户账号已被禁用")
+        
+        # 验证密码
+        if not user.check_password(data['password']):
+            raise AuthenticationError("密码错误，请重新输入")
         
         # 更新最后登录时间
         user.update_last_login()

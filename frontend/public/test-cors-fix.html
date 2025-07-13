@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS修复测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .disabled { background: #6c757d; cursor: not-allowed; }
+        .log { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            padding: 10px; 
+            border-radius: 5px; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 CORS修复测试</h1>
+    
+    <div class="test-section">
+        <h2>🌐 跨域请求测试</h2>
+        <p>测试前端(localhost:3000)是否可以正常访问后端(localhost:5001)的API</p>
+        
+        <button onclick="testHealthEndpoint()">测试 /health 端点</button>
+        <button onclick="testApiEndpoint()">测试 /api/v1/interviews 端点</button>
+        <button onclick="testClearLogs()">清除日志</button>
+        
+        <div id="corsStatus" class="status info">等待测试...</div>
+        
+        <h3>📋 测试日志</h3>
+        <div id="corsLogs" class="log">
+            点击上方按钮开始测试...
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('corsLogs');
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            console.log(`[CORS Test] ${message}`);
+        }
+
+        function updateStatus(message, type) {
+            const statusElement = document.getElementById('corsStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        async function testHealthEndpoint() {
+            log('开始测试 /health 端点...');
+            updateStatus('正在测试 /health 端点...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:5001/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ /health 端点测试成功: ${JSON.stringify(data)}`, 'success');
+                    updateStatus('✅ /health 端点测试成功 - CORS已修复!', 'success');
+                } else {
+                    log(`❌ /health 端点返回错误状态: ${response.status}`, 'error');
+                    updateStatus('❌ /health 端点测试失败', 'error');
+                }
+            } catch (error) {
+                log(`❌ /health 端点测试失败: ${error.message}`, 'error');
+                updateStatus('❌ /health 端点测试失败 - CORS错误', 'error');
+                
+                if (error.message.includes('CORS')) {
+                    log('🔍 检测到CORS错误，请检查后端配置', 'error');
+                }
+            }
+        }
+
+        async function testApiEndpoint() {
+            log('开始测试 /api/v1/interviews 端点...');
+            updateStatus('正在测试 API 端点...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ API端点测试成功: 返回 ${data.data ? data.data.length : 0} 条记录`, 'success');
+                    updateStatus('✅ API端点测试成功 - CORS配置正常!', 'success');
+                } else if (response.status === 401) {
+                    log(`ℹ️ API端点返回401(需要认证) - CORS配置正常`, 'info');
+                    updateStatus('✅ API端点CORS正常 (需要认证)', 'success');
+                } else {
+                    log(`❌ API端点返回错误状态: ${response.status}`, 'error');
+                    updateStatus('❌ API端点测试失败', 'error');
+                }
+            } catch (error) {
+                log(`❌ API端点测试失败: ${error.message}`, 'error');
+                updateStatus('❌ API端点测试失败 - CORS错误', 'error');
+                
+                if (error.message.includes('CORS')) {
+                    log('🔍 检测到CORS错误，请检查后端配置', 'error');
+                }
+            }
+        }
+
+        function testClearLogs() {
+            document.getElementById('corsLogs').textContent = '日志已清除...\n';
+            updateStatus('等待测试...', 'info');
+            log('日志已清除，准备开始新的测试');
+        }
+
+        // 页面加载完成后自动测试
+        window.addEventListener('load', () => {
+            log('页面加载完成，CORS测试工具已准备就绪');
+            log('当前页面: ' + window.location.href);
+            log('目标后端: http://localhost:5001');
+            
+            // 自动运行健康检查测试
+            setTimeout(() => {
+                log('自动执行健康检查测试...');
+                testHealthEndpoint();
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR 图片文字识别测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #77C3FF;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.6);
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }
+        .upload-area.dragover {
+            background-color: rgba(119, 195, 255, 0.1);
+        }
+        .upload-area.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .file-input {
+            display: none;
+        }
+        .upload-btn {
+            background: linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%);
+            color: #383838;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .upload-btn:hover {
+            opacity: 0.9;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OCR 图片文字识别测试</h1>
+        <p>测试从图片中提取文字功能，支持格式：PNG, JPG, JPEG, BMP, TIFF, WEBP</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div id="uploadContent">
+                <h3>📷 拖拽图片到这里或点击选择文件</h3>
+                <p>支持图片格式: PNG, JPG, JPEG, BMP, TIFF, WEBP</p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    选择图片文件
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
+            </div>
+            <div id="loadingContent" style="display: none;">
+                <div class="loading"></div>
+                <p>正在识别图片中的文字...</p>
+            </div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div id="resultArea" class="result-area">
+            <h3>识别结果:</h3>
+            <div id="imagePreview"></div>
+            <h4>提取的文字:</h4>
+            <textarea id="extractedText" placeholder="识别的文字将显示在这里..."></textarea>
+            <div style="margin-top: 10px;">
+                <button class="upload-btn" onclick="copyToClipboard()">复制文字</button>
+                <button class="upload-btn" onclick="clearResults()">清除结果</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5001/api/v1'
+            : 'https://offerott.com/api/v1';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadContent = document.getElementById('uploadContent');
+        const loadingContent = document.getElementById('loadingContent');
+        const messagesDiv = document.getElementById('messages');
+        const resultArea = document.getElementById('resultArea');
+        const extractedText = document.getElementById('extractedText');
+        const imagePreview = document.getElementById('imagePreview');
+
+        // 拖拽功能
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // 验证文件类型
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/bmp', 'image/tiff', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showMessage('请选择有效的图片文件！', 'error');
+                return;
+            }
+
+            // 验证文件大小 (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showMessage('文件大小不能超过10MB！', 'error');
+                return;
+            }
+
+            // 显示图片预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="上传的图片">`;
+            };
+            reader.readAsDataURL(file);
+
+            // 上传并识别
+            uploadAndExtract(file);
+        }
+
+        async function uploadAndExtract(file) {
+            setLoading(true);
+            clearMessages();
+
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const token = localStorage.getItem('access_token');
+                const headers = {};
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/jobs/ocr-extract`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    extractedText.value = result.data.text;
+                    resultArea.style.display = 'block';
+                    showMessage('✅ OCR识别成功！文字已提取。', 'success');
+                    
+                    console.log('OCR结果:', result.data);
+                } else {
+                    throw new Error(result.message || '识别失败');
+                }
+
+            } catch (error) {
+                console.error('OCR识别失败:', error);
+                showMessage(`❌ 识别失败: ${error.message}`, 'error');
+                
+                // 如果是401错误，提示登录
+                if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+                    showMessage('⚠️ 请先登录系统后再使用OCR功能', 'error');
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                uploadContent.style.display = 'none';
+                loadingContent.style.display = 'block';
+                uploadArea.classList.add('loading');
+            } else {
+                uploadContent.style.display = 'block';
+                loadingContent.style.display = 'none';
+                uploadArea.classList.remove('loading');
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+
+            // 3秒后自动清除
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+        }
+
+        function copyToClipboard() {
+            extractedText.select();
+            document.execCommand('copy');
+            showMessage('✅ 文字已复制到剪贴板！', 'success');
+        }
+
+        function clearResults() {
+            extractedText.value = '';
+            imagePreview.innerHTML = '';
+            resultArea.style.display = 'none';
+            clearMessages();
+        }
+
+        // 页面加载时检查登录状态
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                showMessage('⚠️ 未检测到登录状态，请先登录系统', 'error');
+            } else {
+                showMessage('✅ 已登录，可以使用OCR功能', 'success');
+            }
+        });
+    </script>
+</body>
+</html> 

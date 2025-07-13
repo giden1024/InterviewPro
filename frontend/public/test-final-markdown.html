@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Markdown Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-button {
+            background: #68C6F1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #5AB5E0;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            min-height: 100px;
+        }
+        .error-box {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .loading {
+            color: #007bff;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Final Markdown Rendering Test</h1>
+    <p>测试前端页面的markdown渲染功能</p>
+
+    <div class="test-section">
+        <h2>✅ Step 1: Backend API Test</h2>
+        <p>验证后端API返回的markdown格式</p>
+        <button class="test-button" onclick="testBackendAPI()">Test Backend API</button>
+        <div id="backend-result" class="result-box"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Step 2: Frontend Integration Test</h2>
+        <p>打开前端页面测试markdown渲染</p>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3>📋 测试步骤:</h3>
+            <ol>
+                <li>打开 <a href="http://localhost:3000/interview" target="_blank">http://localhost:3000/interview</a></li>
+                <li>点击左侧"🎤 Start"按钮开始语音识别</li>
+                <li>说出问题: "What are your greatest strengths?"</li>
+                <li>等待AI生成回答</li>
+                <li>查看中间区域的AI回答是否正确显示markdown格式</li>
+            </ol>
+        </div>
+        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3>🔍 预期结果:</h3>
+            <ul>
+                <li><strong>标题</strong>: "## Answering Strengths Questions" 应该显示为大标题</li>
+                <li><strong>粗体文本</strong>: "**Key Structure:**" 应该加粗显示</li>
+                <li><strong>列表</strong>: 带有项目符号的列表</li>
+                <li><strong>引用</strong>: "> **Pro Tip**" 应该显示为引用块</li>
+                <li><strong>代码</strong>: "`STAR method`" 应该有代码样式</li>
+            </ul>
+        </div>
+        <button class="test-button" onclick="window.open('http://localhost:3000/interview', '_blank')">Open Interview Page</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Step 3: Manual Verification</h2>
+        <p>手动验证各种markdown元素的渲染效果</p>
+        <div id="manual-checklist">
+            <h4>✅ Markdown Elements Checklist:</h4>
+            <label><input type="checkbox"> Headers (##, ###)</label><br>
+            <label><input type="checkbox"> Bold text (**text**)</label><br>
+            <label><input type="checkbox"> Bullet lists (-)</label><br>
+            <label><input type="checkbox"> Blockquotes (>)</label><br>
+            <label><input type="checkbox"> Inline code (`code`)</label><br>
+            <label><input type="checkbox"> Overall formatting and spacing</label><br>
+        </div>
+    </div>
+
+    <script>
+        async function testBackendAPI() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<div class="loading">🔄 Testing Backend API...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews/generate-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MTE4Njc3MiwianRpIjoiOGEwOGRjOTItMWJkYi00NmNiLThlNjktMjcyY2ViZDJkMTk2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NTExODY3NzIsImNzcmYiOiI2YTgzNDVjYy01ZmNiLTQ4OTAtOTUyMC0yZWJkOWNkMGYyMDQiLCJleHAiOjE3NTEyNzMxNzJ9.ugZNmE-JeF-Ckg9VW68MEhweSVLTNRlsStfwD2ioy6k'
+                    },
+                    body: JSON.stringify({
+                        question: "What are your greatest strengths?"
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Backend API Response:', data);
+                
+                if (data.success && data.data.answer) {
+                    const markdownContent = data.data.answer;
+                    
+                    resultDiv.innerHTML = `
+                        <div style="background: white; padding: 15px; border-radius: 4px; border: 1px solid #e0e0e0;">
+                            <div style="margin-bottom: 10px; font-weight: bold; color: #28a745;">✅ Backend API Success!</div>
+                            <div style="margin-bottom: 15px;">
+                                <strong>Markdown Content:</strong>
+                                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e9ecef;">${markdownContent}</pre>
+                            </div>
+                            <div style="margin-bottom: 10px; font-weight: bold; color: #007bff;">📋 Markdown Elements Detected:</div>
+                            <ul style="font-size: 12px;">
+                                <li>${markdownContent.includes('##') ? '✅' : '❌'} Headers (##)</li>
+                                <li>${markdownContent.includes('**') ? '✅' : '❌'} Bold text (**)</li>
+                                <li>${markdownContent.includes('- ') ? '✅' : '❌'} Lists (-)</li>
+                                <li>${markdownContent.includes('> ') ? '✅' : '❌'} Blockquotes (>)</li>
+                                <li>${markdownContent.includes('`') ? '✅' : '❌'} Inline code (`)</li>
+                            </ul>
+                        </div>
+                        <div class="status">
+                            🎯 <strong>Next Step:</strong> Open the Interview Page to test frontend rendering
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`API Error: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Backend API Test Failed:', error);
+                resultDiv.innerHTML = `<div class="error-box">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            console.log('🎯 Final Markdown Rendering Test Page Loaded');
+            console.log('📋 Test Steps:');
+            console.log('  1. Test Backend API - Verify markdown content');
+            console.log('  2. Open Interview Page - Test frontend rendering');
+            console.log('  3. Manual Verification - Check all markdown elements');
+        };
+    </script>
+</body>
+</html> 

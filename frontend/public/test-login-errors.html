@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误处理测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>登录API错误处理测试</h1>
+        <p>测试不同的登录错误情况，验证API返回的具体错误信息</p>
+
+        <div class="test-section">
+            <h3>1. 用户不存在</h3>
+            <button class="test-button" onclick="testUserNotExists()">测试用户不存在</button>
+            <div id="result1"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 密码错误</h3>
+            <button class="test-button" onclick="testWrongPassword()">测试密码错误</button>
+            <div id="result2"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 用户被禁用</h3>
+            <button class="test-button" onclick="testDisabledUser()">测试被禁用用户</button>
+            <div id="result3"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 邮箱格式错误</h3>
+            <button class="test-button" onclick="testInvalidEmail()">测试无效邮箱</button>
+            <div id="result4"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 正确登录</h3>
+            <button class="test-button" onclick="testSuccessLogin()">测试正确登录</button>
+            <div id="result5"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 缺少必填字段</h3>
+            <button class="test-button" onclick="testMissingFields()">测试缺少字段</button>
+            <div id="result6"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+
+        async function makeLoginRequest(email, password) {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                return {
+                    status: response.status,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    status: 'NETWORK_ERROR',
+                    data: { error: error.message }
+                };
+            }
+        }
+
+        function displayResult(elementId, result, testName) {
+            const element = document.getElementById(elementId);
+            const status = result.status;
+            const data = result.data;
+            
+            let statusClass = 'info';
+            let statusText = '';
+            
+            if (status === 200) {
+                statusClass = 'success';
+                statusText = '✅ 登录成功';
+            } else if (status === 401) {
+                statusClass = 'error';
+                statusText = '❌ 认证失败 (401)';
+            } else if (status === 422) {
+                statusClass = 'error';
+                statusText = '❌ 数据验证失败 (422)';
+            } else if (status === 'NETWORK_ERROR') {
+                statusClass = 'error';
+                statusText = '❌ 网络错误';
+            } else {
+                statusClass = 'error';
+                statusText = `❌ 错误 (${status})`;
+            }
+
+            element.innerHTML = `
+                <div class="status ${statusClass}">${statusText}</div>
+                <div><strong>错误信息:</strong> ${data.error?.message || data.message || '无'}</div>
+                <div><strong>错误代码:</strong> ${data.error?.code || '无'}</div>
+                <details>
+                    <summary>详细响应</summary>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </details>
+            `;
+        }
+
+        async function testUserNotExists() {
+            const result = await makeLoginRequest('nonexistent@example.com', '123456');
+            displayResult('result1', result, '用户不存在');
+        }
+
+        async function testWrongPassword() {
+            const result = await makeLoginRequest('testuser@example.com', 'wrongpassword');
+            displayResult('result2', result, '密码错误');
+        }
+
+        async function testDisabledUser() {
+            const result = await makeLoginRequest('disabled@example.com', '123456');
+            displayResult('result3', result, '用户被禁用');
+        }
+
+        async function testInvalidEmail() {
+            const result = await makeLoginRequest('invalid-email', '123456');
+            displayResult('result4', result, '邮箱格式错误');
+        }
+
+        async function testSuccessLogin() {
+            const result = await makeLoginRequest('testuser@example.com', 'correctpassword');
+            displayResult('result5', result, '正确登录');
+        }
+
+        async function testMissingFields() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: 'test@example.com' }) // 缺少password
+                });
+
+                const data = await response.json();
+                displayResult('result6', { status: response.status, data }, '缺少字段');
+            } catch (error) {
+                displayResult('result6', { status: 'NETWORK_ERROR', data: { error: error.message } }, '缺少字段');
+            }
+        }
+
+        // 页面加载时检查后端服务状态
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_BASE}/../health`);
+                if (response.ok) {
+                    console.log('✅ 后端服务运行正常');
+                } else {
+                    console.log('⚠️ 后端服务状态异常');
+                }
+            } catch (error) {
+                console.log('❌ 无法连接到后端服务:', error.message);
+                alert('⚠️ 无法连接到后端服务，请确保后端服务已启动 (http://localhost:5001)');
+            }
+        };
+    </script>
+</body>
+</html> 

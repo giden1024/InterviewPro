@@ -1,37 +1,139 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { resumeService, Resume } from '../services/resumeService';
+import { jobService } from '../services/jobService';
+import { questionService } from '../services/questionService';
+import { interviewService } from '../services/interviewService';
+import { useUserInfo } from '../hooks/useUserInfo';
+import { useAuthRedirect } from '../hooks/useAuthRedirect';
+
+interface LocationState {
+  jobTitle?: string;
+  jobDescription?: string;
+  jobId?: string;
+  company?: string;
+  requirements?: string[];
+  skills?: string[];
+}
+
+interface ResumeAnalysis {
+  match_score?: number;
+  overall_score?: number;
+  suggestions?: string[];
+  analysis?: any;
+  score?: number;
+}
 
 const ResumePage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { jobTitle, jobDescription } = location.state || {};
+  const { user } = useUserInfo();
+  const { handleApiError } = useAuthRedirect();
+  const { jobTitle, jobDescription, jobId, company } = (location.state as LocationState) || {};
   
+  // State management
   const [resumeText, setResumeText] = useState<string>('');
   const [selectedLevel, setSelectedLevel] = useState<string>('Interns');
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const experienceLevels = ['Interns', 'Graduate', 'Junior', 'Senior'];
 
-  const handleBack = () => {
-    navigate('/job');
-  };
+  // Load user's resume list when page loads
+  useEffect(() => {
+    loadUserResumes();
+  }, []);
 
-  const handleNext = () => {
-    if (resumeText.trim() || uploadedFile) {
-      // 进入Complete页面，传递所有数据
-      navigate('/complete', { 
-        state: { 
-          jobTitle, 
-          jobDescription,
-          resumeText,
-          experienceLevel: selectedLevel,
-          uploadedFile: uploadedFile?.name 
-        } 
-      });
+  // Load user resume list
+  const loadUserResumes = async () => {
+    try {
+      setLoading(true);
+      const response = await resumeService.getResumes();
+      setResumes(response.resumes || []);
+    } catch (err) {
+      console.error('Failed to load resume list:', err);
+      handleApiError(err);
+      setError('Failed to load resume list');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // File upload handling
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please upload PDF or Word document');
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size cannot exceed 10MB');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError('');
+      
+      const resume = await resumeService.uploadResume(file);
+      
+      // Check if returned resume object is valid
+      if (!resume || !resume.id) {
+        console.error('Invalid resume object:', resume);
+        setError('Upload successful but resume data is invalid, please refresh and try again');
+        return;
+      }
+      
+      setUploadedFile(file);
+      setSelectedResume(resume);
+      
+      // Auto analyze resume
+      await analyzeResume(resume.id);
+      
+      // Update resume list
+      await loadUserResumes();
+      
+    } catch (err) {
+      console.error('Failed to upload resume:', err);
+      handleApiError(err);
+      setError(`Failed to upload resume: ${err instanceof Error ? err.message : 'Please try again later'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Analyze resume
+  const analyzeResume = async (resumeId: number) => {
+    try {
+      setAnalyzing(true);
+      const analysisResult = await resumeService.analyzeResume(resumeId, {
+        include_suggestions: true,
+        include_score: true
+      });
+      setAnalysis(analysisResult);
+    } catch (err) {
+      console.error('Failed to analyze resume:', err);
+      setError('Failed to analyze resume');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Drag handling
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -49,171 +151,465 @@ const ResumePage: React.FC = () => {
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.type === 'application/pdf' || 
-          file.type === 'application/msword' || 
-          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        setUploadedFile(file);
-        // 这里可以添加文件读取逻辑
-        console.log('Uploaded file:', file.name);
-      } else {
-        alert('Please upload a PDF or Word document');
-      }
+      handleFileUpload(file);
     }
   }, []);
 
+  // File selection handling
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploadedFile(file);
-      console.log('Selected file:', file.name);
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+
+  // Text resume handling
+  const handleTextResume = async () => {
+    if (!resumeText.trim()) {
+      setError('Please enter resume content');
+      return null;
+    }
+
+    try {
+      setUploading(true);
+      setError('');
+      
+      // Create temporary file and upload
+      const blob = new Blob([resumeText], { type: 'text/plain' });
+      const file = new File([blob], `resume_${Date.now()}.txt`, { type: 'text/plain' });
+      
+      const resume = await resumeService.uploadResume(file);
+      
+      setSelectedResume(resume);
+      await analyzeResume(resume.id);
+      await loadUserResumes();
+      
+      return resume; // Return created resume
+      
+    } catch (err) {
+      console.error('Failed to create text resume:', err);
+      setError('Failed to create resume, please try again later');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/jobs');
+  };
+
+  const handleNext = async () => {
+    if (!selectedResume && !resumeText.trim() && !uploadedFile) {
+      setError('Please upload resume or enter resume content first');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+
+      // 1. Ensure resume ID exists
+      let currentResumeId = selectedResume?.id;
+      if (!currentResumeId && resumeText.trim()) {
+        // If only text, create resume first
+        const createdResume = await handleTextResume();
+        if (!createdResume) {
+          setError('Unable to create resume, please retry');
+          return;
+        }
+        currentResumeId = createdResume.id;
+      }
+
+      if (!currentResumeId) {
+        setError('Unable to get resume information, please retry');
+        return;
+      }
+
+      // 2. Save job record (if job information exists)
+      let savedJobId = jobId;
+      if (jobTitle && !jobId) {
+        try {
+          const jobData = {
+            title: jobTitle,
+            company: company || '',
+            description: jobDescription || '',
+            requirements: [],
+            responsibilities: [],
+            experience_level: selectedLevel,
+            job_type: 'full-time' as const,
+            skills_required: []
+          };
+          
+          const savedJob = await jobService.createJob(jobData);
+          savedJobId = savedJob.id.toString();
+          console.log('Job saved successfully:', savedJob);
+        } catch (jobError) {
+          console.error('Failed to save job record:', jobError);
+          // Don't block the process, continue execution
+        }
+      }
+
+              // 3. Generate question list
+      setGenerating(true);
+      try {
+        // First create an interview session
+        const interviewSession = await interviewService.createInterview({
+          resume_id: currentResumeId,
+          interview_type: 'comprehensive',
+          total_questions: 8,
+          custom_title: `${jobTitle || 'Interview'} - ${selectedLevel} Level`
+        });
+
+        // Then generate questions for this session
+        const questionData = {
+          resume_id: currentResumeId,
+          session_id: interviewSession.session_id,
+          interview_type: 'comprehensive' as const,
+          total_questions: 8,
+          title: `${jobTitle || 'Interview'} - ${selectedLevel} Level`
+        };
+
+        const questionResult = await questionService.generateQuestions(questionData);
+        console.log('Questions generated successfully:', questionResult);
+
+        // 4. Navigate to Complete page, pass all data
+        navigate('/complete', { 
+          state: { 
+            jobTitle, 
+            jobDescription,
+            jobId: savedJobId,
+            company,
+            resumeId: currentResumeId,
+            resumeText,
+            experienceLevel: selectedLevel,
+            sessionId: questionResult.session.session_id,
+            totalQuestions: questionResult.questions.length,
+            completed: false,
+            questionsGenerated: true
+          } 
+        });
+
+      } catch (questionError) {
+        console.error('Failed to generate questions:', questionError);
+        // Even if question generation fails, continue navigation but don't pass question-related information
+        navigate('/complete', { 
+          state: { 
+            jobTitle, 
+            jobDescription,
+            jobId: savedJobId,
+            company,
+            resumeId: currentResumeId,
+            resumeText,
+            experienceLevel: selectedLevel,
+            completed: false,
+            questionsGenerated: false,
+            error: 'Question generation failed, but you can continue the interview process'
+          } 
+        });
+      }
+
+    } catch (error) {
+      console.error('Processing failed:', error);
+      setError(error instanceof Error ? error.message : 'Processing failed, please retry');
+    } finally {
+      setSaving(false);
+      setGenerating(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-blue-50 py-12">
-      <div className="container mx-auto px-6 max-w-6xl">
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-12">
-          <div className="bg-white rounded-full px-8 py-4 shadow-lg flex items-center space-x-16">
-            {/* Job Step - Completed */}
+    <div className="min-h-screen" style={{ backgroundColor: '#EEF9FF' }}>
+      <div className="container mx-auto px-6 max-w-5xl py-12">
+        {/* Progress Steps - Based on design mockup */}
+        <div className="flex items-center justify-center mb-8">
+          <div 
+            className="rounded-full px-8 py-4 flex items-center space-x-16"
+            style={{ 
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0px 0px 20px 0px rgba(156, 250, 255, 0.3)'
+            }}
+          >
+            {/* Job Step */}
             <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-gray-100 bg-opacity-50 border-2 border-gray-800 border-dashed rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
-                <svg className="w-4 h-4 text-gray-800" fill="currentColor" viewBox="0 0 20 20">
+              <div 
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  border: '2px dashed #282828',
+                  backdropFilter: 'blur(3.94px)',
+                  boxShadow: '0px 1.31px 3.94px 0px rgba(0, 0, 0, 0.03)'
+                }}
+              >
+                <svg className="w-4 h-4" style={{ color: '#282828' }} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M8 5l5 5-5 5V5z"/>
                 </svg>
               </div>
-              <span className="text-gray-600 text-lg">Job</span>
+              <span className="text-lg" style={{ color: '#282828', fontFamily: 'Poppins', fontWeight: 400 }}>Job</span>
             </div>
 
             {/* Arrow */}
-            <div className="w-9 h-9 bg-gray-100 bg-opacity-50 border-2 border-gray-800 border-dashed rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
-              <svg className="w-4 h-4 text-gray-800" fill="currentColor" viewBox="0 0 20 20">
+            <div 
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ 
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                border: '2px dashed #282828',
+                backdropFilter: 'blur(3.94px)',
+                boxShadow: '0px 1.31px 3.94px 0px rgba(0, 0, 0, 0.03)'
+              }}
+            >
+              <svg className="w-4 h-4" style={{ color: '#282828' }} fill="currentColor" viewBox="0 0 20 20">
                 <path d="M8 5l5 5-5 5V5z"/>
               </svg>
             </div>
 
-            {/* Resume Step - Current */}
+            {/* Resume Step - Active */}
             <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-blue-100 border-2 border-blue-500 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <div 
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  border: '2px dashed #282828',
+                  backdropFilter: 'blur(3.94px)',
+                  boxShadow: '0px 1.31px 3.94px 0px rgba(0, 0, 0, 0.03)'
+                }}
+              >
+                <svg className="w-4 h-4" style={{ color: '#282828' }} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M8 5l5 5-5 5V5z"/>
                 </svg>
               </div>
-              <span className="text-blue-800 text-lg font-semibold">Resume</span>
+              <span className="text-lg font-semibold" style={{ color: '#006FA2', fontFamily: 'Poppins', fontWeight: 600 }}>Resume</span>
             </div>
 
             {/* Arrow */}
-            <div className="w-9 h-9 bg-gray-50 bg-opacity-60 border-2 border-gray-400 border-dashed rounded-full flex items-center justify-center backdrop-blur-sm shadow-md">
-              <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <div 
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ 
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                border: '2px dashed #282828',
+                backdropFilter: 'blur(3.94px)',
+                boxShadow: '0px 1.31px 3.94px 0px rgba(0, 0, 0, 0.03)'
+              }}
+            >
+              <svg className="w-4 h-4" style={{ color: '#282828' }} fill="currentColor" viewBox="0 0 20 20">
                 <path d="M8 5l5 5-5 5V5z"/>
               </svg>
             </div>
 
             {/* Complete Step */}
             <div className="flex items-center space-x-4">
-              <div className="w-9 h-9 bg-gray-50 bg-opacity-60 border-2 border-gray-400 border-dashed rounded-full flex items-center justify-center backdrop-blur-sm shadow-md">
-                <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              <div 
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  border: '2px dashed #282828',
+                  backdropFilter: 'blur(3.94px)',
+                  boxShadow: '0px 1.31px 3.94px 0px rgba(0, 0, 0, 0.03)'
+                }}
+              >
+                <svg className="w-4 h-4" style={{ color: '#282828' }} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M8 5l5 5-5 5V5z"/>
                 </svg>
               </div>
-              <span className="text-gray-400 text-lg">Complete</span>
+              <span className="text-lg" style={{ color: '#282828', fontFamily: 'Poppins', fontWeight: 400 }}>Complete</span>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Title and Description */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-medium text-gray-800 mb-4">
+          <h1 
+            className="text-2xl font-medium mb-4"
+            style={{ 
+              color: '#262626', 
+              fontFamily: 'Poppins',
+              fontSize: '23px',
+              lineHeight: '127.06%'
+            }}
+          >
             Please upload your resume
           </h1>
-          <p className="text-gray-600">
+          <p 
+            className="text-base"
+            style={{ 
+              color: '#666666', 
+              fontFamily: 'Poppins',
+              fontSize: '15px',
+              lineHeight: '141%'
+            }}
+          >
             We want to get to know you and generate custom interview questions for you
           </p>
         </div>
 
-        {/* Upload Area */}
-        <div 
-          className={`mb-6 border-2 border-dashed rounded-2xl p-16 text-center transition-colors ${
-            dragActive 
-              ? 'border-blue-400 bg-blue-50' 
-              : 'border-blue-300 bg-white bg-opacity-60'
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          {/* Upload Icon */}
-          <div className="flex justify-center mb-6 relative">
-            <div className="w-12 h-12 relative">
-              {/* Document Icon */}
-              <svg className="w-12 h-12 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                <path d="M8,12H16V14H8V12M8,16H13V18H8V16Z"/>
-              </svg>
-              {/* Plus Icon */}
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 3v14M3 10h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="text-red-600 text-sm">{error}</div>
+          </div>
+        )}
+
+        {/* File Upload Area */}
+        <div className="mb-6">
+          <div 
+            className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors ${
+              dragActive 
+                ? 'border-blue-400 bg-blue-50' 
+                : ''
+            }`}
+            style={{ 
+              borderColor: '#77C3FF',
+              backgroundColor: 'rgba(255, 255, 255, 0.6)'
+            }}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            {uploading ? (
+              <div className="space-y-4">
+                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p style={{ color: '#666666' }}>Uploading and parsing resume...</p>
               </div>
-            </div>
+            ) : uploadedFile ? (
+              <div className="space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <p className="text-green-600 font-medium">✅ {uploadedFile.name}</p>
+                <p style={{ color: '#666666' }} className="text-sm">File uploaded successfully</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* File Icon */}
+                <div className="w-12 h-12 mx-auto relative">
+                  <div 
+                    className="w-10 h-12 rounded-sm"
+                    style={{ backgroundColor: '#75A6FF' }}
+                  >
+                    {/* File corner */}
+                    <div 
+                      className="absolute top-0 right-0 w-2.5 h-2.5"
+                      style={{ backgroundColor: '#75A6FF' }}
+                    />
+                    {/* File content lines */}
+                    <div className="p-2 space-y-1">
+                      <div className="h-0.5 bg-white w-6"></div>
+                      <div className="h-0.5 bg-white w-4"></div>
+                    </div>
+                  </div>
+                  {/* Plus icon */}
+                  <div 
+                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: '#2F51FF' }}
+                  >
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div>
+                  <p 
+                    className="text-lg font-medium mb-2"
+                    style={{ color: '#282828', fontFamily: 'Poppins', fontSize: '15px' }}
+                  >
+                    Drag and drop resume here to upload
+                  </p>
+                  <p 
+                    className="text-sm mb-4"
+                    style={{ color: '#666666', fontFamily: 'Poppins', fontSize: '12px' }}
+                  >
+                    Or click to select a file to upload（PDF or Word Document）
+                  </p>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="resume-upload"
+                  />
+                  <label
+                    htmlFor="resume-upload"
+                    className="inline-block px-6 py-3 rounded-lg cursor-pointer transition-colors"
+                    style={{ 
+                      background: 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)',
+                      color: '#383838'
+                    }}
+                  >
+                                          Select File
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
-
-          {uploadedFile ? (
-            <div className="space-y-2">
-              <p className="text-green-600 font-medium">File uploaded: {uploadedFile.name}</p>
-              <p className="text-gray-500 text-sm">Click to select a different file</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-gray-800 font-medium">
-                Drag and drop resume here to upload
-              </p>
-              <p className="text-gray-500 text-sm">
-                Or click to select a file to upload（PDF or Word Document）
-              </p>
-            </div>
-          )}
-
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            accept=".pdf,.doc,.docx"
-            onChange={handleFileSelect}
-          />
         </div>
 
-        {/* Resume Text Area */}
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
-          <p className="text-xs text-gray-500 mb-4">
-            You can also paste your resume text directly here, but we recommend uploading your resume file
-          </p>
-          <textarea
-            value={resumeText}
-            onChange={(e) => setResumeText(e.target.value)}
-            className="w-full h-80 border-none outline-none resize-none text-gray-800 placeholder-gray-400"
-            placeholder="Paste your resume text here..."
-            maxLength={3000}
-          />
-          <div className="text-right mt-2">
-            <span className="text-xs text-gray-500">{resumeText.length}/3000</span>
+        {/* Text Input Area */}
+        <div className="mb-8">
+          <div 
+            className="rounded-xl p-6"
+            style={{ 
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0px 2px 8px 0px rgba(145, 215, 255, 0.2)'
+            }}
+          >
+            <p 
+              className="text-sm mb-4"
+              style={{ color: '#999999', fontFamily: 'Poppins', fontSize: '12px' }}
+            >
+              You can also paste your resume text directly here, but we recommend uploading your resume file
+            </p>
+            <textarea
+              value={resumeText}
+              onChange={(e) => setResumeText(e.target.value)}
+                              placeholder="Please paste your resume content..."
+              className="w-full h-64 p-4 border-0 resize-none focus:outline-none"
+              style={{ backgroundColor: 'transparent' }}
+            />
+            <div className="flex justify-between items-center mt-4">
+              <span 
+                className="text-sm"
+                style={{ color: '#666666', fontFamily: 'Poppins', fontSize: '12px' }}
+              >
+                {resumeText.length}/3000
+              </span>
+              {resumeText.length > 0 && (
+                <button
+                  onClick={handleTextResume}
+                  disabled={uploading}
+                  className="px-4 py-2 rounded-lg transition-colors"
+                  style={{ 
+                    background: 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)',
+                    color: '#383838'
+                  }}
+                >
+                  {uploading ? 'Processing...' : 'Create Resume'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Experience Level Selection */}
-        <div className="mb-12">
-          <div className="flex justify-center space-x-4">
+        {/* Experience Level Tags */}
+        <div className="mb-8">
+          <div className="flex justify-center space-x-3">
             {experienceLevels.map((level) => (
               <button
                 key={level}
                 onClick={() => setSelectedLevel(level)}
-                className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-lg transition-colors ${
                   selectedLevel === level
-                    ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white shadow-lg'
-                    : 'bg-blue-100 text-gray-700 hover:bg-blue-200'
+                    ? 'text-gray-700'
+                    : 'text-gray-700'
                 }`}
+                style={{ 
+                  backgroundColor: selectedLevel === level ? 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)' : '#E4F5FF',
+                  fontFamily: 'Poppins',
+                  fontSize: '15px',
+                  lineHeight: '141%'
+                }}
               >
                 {level}
               </button>
@@ -221,35 +617,94 @@ const ResumePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Navigation */}
+        {/* Navigation Buttons */}
         <div className="flex justify-center space-x-6">
           {/* Back Button */}
           <button
             onClick={handleBack}
-            className="bg-white text-gray-700 px-8 py-3 rounded-full font-medium text-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+            className="px-12 py-3 rounded-full transition-colors flex items-center space-x-2"
+            style={{ 
+              backgroundColor: '#FFFFFF',
+              color: '#363636',
+              opacity: 0.9
+            }}
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd"/>
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
             </svg>
-            <span>Back</span>
+            <span style={{ fontFamily: 'Poppins', fontSize: '20px' }}>Back</span>
           </button>
 
           {/* Next Button */}
           <button
             onClick={handleNext}
-            disabled={!resumeText.trim() && !uploadedFile}
-            className={`px-8 py-3 rounded-full font-medium text-lg transition-all duration-200 shadow-lg flex items-center space-x-2 ${
-              (resumeText.trim() || uploadedFile)
-                ? 'bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white hover:shadow-xl'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            disabled={(!selectedResume && !resumeText.trim() && !uploadedFile) || saving || generating}
+            className="px-12 py-3 rounded-full transition-colors flex items-center space-x-2 disabled:opacity-50"
+            style={{ 
+              background: 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)',
+              color: '#383838'
+            }}
           >
-            <span>Next</span>
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/>
-            </svg>
+            {saving || generating ? (
+              <>
+                <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                <span style={{ fontFamily: 'Poppins', fontSize: '20px' }}>
+                  {saving && !generating ? 'Saving...' : generating ? 'Generating questions...' : 'Processing...'}
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontFamily: 'Poppins', fontSize: '20px' }}>Next</span>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </>
+            )}
           </button>
         </div>
+
+        {/* Resume Analysis - Show if analysis results exist */}
+        {analysis && (
+          <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Resume Analysis Results</h3>
+            
+            {analyzing ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Analyzing resume...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{analysis.match_score || analysis.score || 0}%</div>
+                    <div className="text-sm text-gray-600">Score</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{analysis.overall_score || analysis.score || 0}%</div>
+                    <div className="text-sm text-gray-600">Overall Score</div>
+                  </div>
+                </div>
+
+                {analysis.suggestions && analysis.suggestions.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-2">Optimization Suggestions</h4>
+                    <ul className="space-y-2">
+                      {analysis.suggestions.slice(0, 3).map((suggestion: string, index: number) => (
+                        <li key={index} className="flex items-start space-x-2">
+                          <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-sm text-gray-700">{suggestion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

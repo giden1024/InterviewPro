@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Page Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .test-section { 
+            background: #f9f9f9; 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 5px; 
+        }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Mock Interview Page Test</h1>
+    
+    <div class="test-section">
+        <h3>🔍 页面访问测试</h3>
+        <div id="page-status" class="status info">检查中...</div>
+        <button onclick="testPageAccess()">测试页面访问</button>
+        <button onclick="openMockInterviewPage()">打开 Mock Interview 页面</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 API连接测试</h3>
+        <div id="api-status" class="status info">检查中...</div>
+        <button onclick="testBackendConnection()">测试后端连接</button>
+        <button onclick="testLogin()">测试登录</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📋 简历和问题测试</h3>
+        <div id="resume-status" class="status info">等待测试...</div>
+        <button onclick="testResumeAPI()">测试简历API</button>
+        <button onclick="testQuestionGeneration()">测试问题生成</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 控制台日志</h3>
+        <div id="console-logs" style="background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 200px; overflow-y: auto;"></div>
+        <button onclick="clearLogs()">清除日志</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        const FRONTEND_BASE = 'http://localhost:3006';
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logs.push(logMessage);
+            console.log(logMessage);
+            updateLogsDisplay();
+        }
+
+        function updateLogsDisplay() {
+            const logsDiv = document.getElementById('console-logs');
+            logsDiv.innerHTML = logs.slice(-20).join('\n');
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logs = [];
+            updateLogsDisplay();
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        async function testPageAccess() {
+            log('🔍 开始测试页面访问...');
+            try {
+                const response = await fetch(`${FRONTEND_BASE}/mock-interview`);
+                if (response.ok) {
+                    updateStatus('page-status', '✅ Mock Interview 页面可以访问', 'success');
+                    log('✅ 页面访问成功');
+                } else {
+                    updateStatus('page-status', `❌ 页面访问失败: ${response.status}`, 'error');
+                    log(`❌ 页面访问失败: ${response.status}`);
+                }
+            } catch (error) {
+                updateStatus('page-status', `❌ 页面访问错误: ${error.message}`, 'error');
+                log(`❌ 页面访问错误: ${error.message}`);
+            }
+        }
+
+        async function testBackendConnection() {
+            log('🔧 开始测试后端连接...');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                if (response.ok && data.status === 'healthy') {
+                    updateStatus('api-status', '✅ 后端服务正常运行', 'success');
+                    log('✅ 后端连接成功');
+                } else {
+                    updateStatus('api-status', '❌ 后端服务异常', 'error');
+                    log('❌ 后端服务异常');
+                }
+            } catch (error) {
+                updateStatus('api-status', `❌ 后端连接失败: ${error.message}`, 'error');
+                log(`❌ 后端连接失败: ${error.message}`);
+            }
+        }
+
+        async function testLogin() {
+            log('🔑 开始测试登录...');
+            try {
+                const response = await fetch(`${API_BASE}/dev/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com',
+                        password: '12345678'
+                    })
+                });
+                const data = await response.json();
+                if (response.ok && data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    updateStatus('api-status', '✅ 登录成功，Token已保存', 'success');
+                    log('✅ 登录成功');
+                } else {
+                    updateStatus('api-status', `❌ 登录失败: ${data.message || 'Unknown error'}`, 'error');
+                    log(`❌ 登录失败: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                updateStatus('api-status', `❌ 登录错误: ${error.message}`, 'error');
+                log(`❌ 登录错误: ${error.message}`);
+            }
+        }
+
+        async function testResumeAPI() {
+            log('📋 开始测试简历API...');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                updateStatus('resume-status', '❌ 请先登录', 'error');
+                log('❌ 需要先登录');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    updateStatus('resume-status', `✅ 简历API正常，找到 ${data.data?.length || 0} 个简历`, 'success');
+                    log(`✅ 简历API成功，简历数量: ${data.data?.length || 0}`);
+                } else {
+                    updateStatus('resume-status', `❌ 简历API失败: ${data.message}`, 'error');
+                    log(`❌ 简历API失败: ${data.message}`);
+                }
+            } catch (error) {
+                updateStatus('resume-status', `❌ 简历API错误: ${error.message}`, 'error');
+                log(`❌ 简历API错误: ${error.message}`);
+            }
+        }
+
+        async function testQuestionGeneration() {
+            log('❓ 开始测试问题生成...');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                updateStatus('resume-status', '❌ 请先登录', 'error');
+                log('❌ 需要先登录');
+                return;
+            }
+
+            try {
+                // 首先获取简历
+                const resumeResponse = await fetch(`${API_BASE}/resumes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const resumeData = await resumeResponse.json();
+                
+                if (!resumeData.data || resumeData.data.length === 0) {
+                    updateStatus('resume-status', '❌ 没有找到简历', 'error');
+                    log('❌ 没有找到简历');
+                    return;
+                }
+
+                const resumeId = resumeData.data[0].id;
+                log(`📄 使用简历ID: ${resumeId}`);
+
+                // 生成问题
+                const questionResponse = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        job_title: 'Software Engineer',
+                        job_description: 'We are looking for a skilled software engineer...',
+                        company_name: 'Test Company',
+                        difficulty_level: 'intermediate'
+                    })
+                });
+
+                const questionData = await questionResponse.json();
+                if (questionResponse.ok) {
+                    updateStatus('resume-status', `✅ 问题生成成功，生成了 ${questionData.questions?.length || 0} 个问题`, 'success');
+                    log(`✅ 问题生成成功，问题数量: ${questionData.questions?.length || 0}`);
+                } else {
+                    updateStatus('resume-status', `❌ 问题生成失败: ${questionData.message}`, 'error');
+                    log(`❌ 问题生成失败: ${questionData.message}`);
+                }
+            } catch (error) {
+                updateStatus('resume-status', `❌ 问题生成错误: ${error.message}`, 'error');
+                log(`❌ 问题生成错误: ${error.message}`);
+            }
+        }
+
+        function openMockInterviewPage() {
+            const url = `${FRONTEND_BASE}/mock-interview`;
+            log(`🔗 打开页面: ${url}`);
+            window.open(url, '_blank');
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            log('🚀 页面加载完成，开始自动测试...');
+            testPageAccess();
+            testBackendConnection();
+        };
+    </script>
+</body>
+</html> 

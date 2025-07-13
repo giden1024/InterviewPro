@@ -35,7 +35,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
-      {/* 用户头像 */}
+      {/* User avatar */}
       <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] flex items-center justify-center">
         {user.avatar_url ? (
           <img 
@@ -50,23 +50,23 @@ export const UserInfo: React.FC<UserInfoProps> = ({
         )}
       </div>
 
-      {/* 用户信息 */}
+      {/* User information */}
       <div className="flex flex-col">
         <span className="text-sm font-medium text-gray-900">
-          {user.username || '用户'}
+          {user.username || 'User'}
         </span>
         <span className="text-xs text-gray-500">
           {user.email}
         </span>
       </div>
 
-      {/* 登出按钮 */}
+      {/* Logout button */}
       {showLogout && (
         <button
           onClick={logout}
           className="ml-2 px-3 py-1 text-xs text-gray-600 hover:text-red-600 border border-gray-300 hover:border-red-300 rounded-md transition-colors"
         >
-          登出
+          Logout
         </button>
       )}
     </div>

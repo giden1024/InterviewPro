@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formal Interview功能修复测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #c3e6cb;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ffeaa7;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Formal Interview功能修复测试</h1>
+        <p>测试修复后的Formal Interview功能，验证动态简历获取是否正常工作。</p>
+        
+        <div class="test-section">
+            <h3>📝 测试步骤</h3>
+            <div class="step">
+                <strong>1. 用户认证</strong>
+                <div id="auth-status">未开始</div>
+                <button onclick="testAuth()">测试登录</button>
+            </div>
+            
+            <div class="step">
+                <strong>2. 简历检查</strong>
+                <div id="resume-status">等待认证</div>
+                <button onclick="testResumes()" disabled id="resume-btn">检查简历</button>
+            </div>
+            
+            <div class="step">
+                <strong>3. 创建面试</strong>
+                <div id="interview-status">等待简历检查</div>
+                <button onclick="testCreateInterview()" disabled id="interview-btn">创建面试</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 测试结果</h3>
+            <div id="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 调试信息</h3>
+            <pre id="debug-info">等待测试开始...</pre>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let availableResumes = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            console.log(`[${type}]`, message);
+        }
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        async function testAuth() {
+            try {
+                log('开始用户认证测试...');
+                
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+
+                const data = await response.json();
+                log(`认证响应: ${JSON.stringify(data, null, 2)}`);
+
+                if (data.success && data.data.access_token) {
+                    authToken = data.data.access_token;
+                    showResult('auth-status', '✅ 认证成功', 'success');
+                    document.getElementById('resume-btn').disabled = false;
+                    log(`认证成功，获取到token: ${authToken.substring(0, 20)}...`);
+                } else {
+                    showResult('auth-status', '❌ 认证失败', 'error');
+                    log(`认证失败: ${data.message || '未知错误'}`);
+                }
+            } catch (error) {
+                log(`认证测试失败: ${error.message}`, 'error');
+                showResult('auth-status', `❌ 认证失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testResumes() {
+            if (!authToken) {
+                showResult('resume-status', '❌ 请先完成认证', 'error');
+                return;
+            }
+
+            try {
+                log('开始简历检查测试...');
+                
+                const response = await fetch('http://localhost:5001/api/v1/resumes?per_page=10', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                log(`简历响应: ${JSON.stringify(data, null, 2)}`);
+
+                if (data.success && data.data.resumes) {
+                    availableResumes = data.data.resumes;
+                    const processedResumes = availableResumes.filter(resume => 
+                        resume.status === 'completed' || resume.status === 'processed'
+                    );
+                    
+                    if (processedResumes.length > 0) {
+                        showResult('resume-status', 
+                            `✅ 找到 ${processedResumes.length} 个已处理的简历`, 'success');
+                        document.getElementById('interview-btn').disabled = false;
+                        log(`可用简历: ${processedResumes.map(r => `ID:${r.id}, 状态:${r.status}`).join(', ')}`);
+                    } else {
+                        showResult('resume-status', 
+                            `⚠️ 共有 ${availableResumes.length} 个简历，但没有已处理完成的`, 'warning');
+                        log(`所有简历状态: ${availableResumes.map(r => `ID:${r.id}, 状态:${r.status}`).join(', ')}`);
+                    }
+                } else {
+                    showResult('resume-status', '❌ 获取简历失败', 'error');
+                    log(`获取简历失败: ${data.message || '未知错误'}`);
+                }
+            } catch (error) {
+                log(`简历检查失败: ${error.message}`, 'error');
+                showResult('resume-status', `❌ 简历检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateInterview() {
+            if (!authToken) {
+                showResult('interview-status', '❌ 请先完成认证', 'error');
+                return;
+            }
+
+            if (availableResumes.length === 0) {
+                showResult('interview-status', '❌ 请先检查简历', 'error');
+                return;
+            }
+
+            try {
+                log('开始创建面试测试...');
+                
+                const processedResume = availableResumes.find(resume => 
+                    resume.status === 'completed' || resume.status === 'processed'
+                );
+                
+                if (!processedResume) {
+                    showResult('interview-status', '❌ 没有可用的已处理简历', 'error');
+                    return;
+                }
+
+                const interviewData = {
+                    resume_id: processedResume.id,
+                    interview_type: 'comprehensive',
+                    total_questions: 15
+                };
+                
+                log(`创建面试请求数据: ${JSON.stringify(interviewData, null, 2)}`);
+
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(interviewData)
+                });
+
+                const data = await response.json();
+                log(`创建面试响应: ${JSON.stringify(data, null, 2)}`);
+
+                if (data.success && data.data.session_id) {
+                    showResult('interview-status', 
+                        `✅ 面试创建成功！会话ID: ${data.data.session_id}`, 'success');
+                    log(`面试创建成功，会话ID: ${data.data.session_id}`);
+                    
+                    // 显示完整结果
+                    document.getElementById('test-results').innerHTML = `
+                        <div class="success">
+                            <h4>🎉 测试通过！</h4>
+                            <p><strong>会话ID:</strong> ${data.data.session_id}</p>
+                            <p><strong>使用简历:</strong> ID ${processedResume.id} (${processedResume.filename})</p>
+                            <p><strong>面试类型:</strong> comprehensive</p>
+                            <p><strong>问题数量:</strong> 15</p>
+                            <p><strong>状态:</strong> ${data.data.session.status}</p>
+                        </div>
+                    `;
+                } else {
+                    showResult('interview-status', '❌ 创建面试失败', 'error');
+                    log(`创建面试失败: ${data.message || '未知错误'}`);
+                }
+            } catch (error) {
+                log(`创建面试测试失败: ${error.message}`, 'error');
+                showResult('interview-status', `❌ 创建面试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('测试页面已加载，准备开始测试...');
+            log('请按顺序点击测试按钮：1. 测试登录 → 2. 检查简历 → 3. 创建面试');
+        });
+    </script>
+</body>
+</html> 

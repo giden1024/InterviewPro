@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { questionService } from '../services/questionService';
 
 export interface Job {
   id: string;
@@ -7,11 +8,20 @@ export interface Job {
   isSelected?: boolean;
 }
 
-export interface Question {
-  id: string;
-  title: string;
-  content: string;
-  isAnswered?: boolean;
+export interface QuestionWithAnswer {
+  id: number;
+  question_text: string;
+  question_type: string;
+  difficulty: string;
+  category: string;
+  tags: string[];
+  latest_answer?: {
+    id: number;
+    answer_text: string;
+    score?: number;
+    answered_at: string;
+  };
+  created_at: string;
 }
 
 export interface InterviewStats {
@@ -30,29 +40,49 @@ export const useHomePage = () => {
     { id: '2', title: 'Marketing Planner', isSelected: false }
   ]);
 
-  const [questions] = useState<Question[]>([
-    {
-      id: '1',
-      title: 'How would you design a campaign to recruit new live streamers in a market where live streaming is still stigmatized?',
-      content: "To tackle stigma, I'd focus on reframing live streaming as a tool for ​​community empowerment​​ rather than just entertainment. For example, in Indonesia, I'd partner with local religious leaders or educators to launch a campaign like 'Knowledge Live,' where respected figures (e.g., Quran teachers, traditional artisans) demonstrate how streaming helps them share skills or preserve culture. To incentivize participation, I'd create a 'First Stream Kit'—offering free lighting filters and halal-compliant............",
-      isAnswered: true
-    },
-    {
-      id: '2', 
-      title: 'How would you measure the success of a live streamer recruitment campaign?',
-      content: "Quality of adoption​​: % of new streamers who complete ≥3 streams (measuring retention, not just interest).Sentiment shift​​: Pre/post-campaign surveys on perceptions (e.g., 'Is streaming a respectable career?').Efficiency​​: Cost-per-engaged-streamer (CPES), factoring in training/resources provided.For example, if we recruit 1,000 streamers but only 200 stay active after a month, I'd investigate pain points (e.g., monetization clarity) and iterate. I'd also benchmark against local competitors' retention rates to contextualize results.",
-      isAnswered: true
-    }
-  ]);
+  const [questionsWithAnswers, setQuestionsWithAnswers] = useState<QuestionWithAnswer[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [stats] = useState<InterviewStats>({
+  const [stats, setStats] = useState<InterviewStats>({
     mockMinutes: 15,
     formalMinutes: 30,
-    totalQuestions: 10,
-    answeredQuestions: 2
+    totalQuestions: 0,
+    answeredQuestions: 0
   });
 
   const [activeTab, setActiveTab] = useState<'questions' | 'records'>('questions');
+
+  // 加载问题和答案数据
+  const loadQuestionsWithAnswers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await questionService.getQuestionsWithAnswers({
+        page: 1,
+        per_page: 10,
+        has_answers: true
+      });
+      
+      setQuestionsWithAnswers(response.questions);
+      setStats(prev => ({
+        ...prev,
+        totalQuestions: response.pagination.total,
+        answeredQuestions: response.questions.filter(q => q.latest_answer).length
+      }));
+    } catch (error) {
+      console.error('加载问题和答案失败:', error);
+      setError('加载数据失败，请重试');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 初始化加载数据
+  useEffect(() => {
+    loadQuestionsWithAnswers();
+  }, [loadQuestionsWithAnswers]);
 
   // 交互事件处理
   const handleAddNewJob = useCallback(() => {
@@ -66,15 +96,25 @@ export const useHomePage = () => {
     })));
   }, []);
 
-  const handleQuestionEdit = useCallback((questionId: string) => {
+  const handleQuestionEdit = useCallback((questionId: number) => {
     console.log('Edit question:', questionId);
-    // TODO: 实现编辑功能
-  }, []);
+    // 跳转到编辑页面
+    navigate(`/questions/${questionId}/edit`);
+  }, [navigate]);
 
-  const handleQuestionDelete = useCallback((questionId: string) => {
-    console.log('Delete question:', questionId);
-    // TODO: 实现删除功能
-  }, []);
+  const handleQuestionDelete = useCallback(async (questionId: number) => {
+    try {
+      if (window.confirm('确定要删除这个问题吗？此操作不可撤销。')) {
+        await questionService.deleteQuestion(questionId);
+        // 重新加载数据
+        await loadQuestionsWithAnswers();
+        alert('问题删除成功');
+      }
+    } catch (error) {
+      console.error('删除问题失败:', error);
+      alert('删除问题失败，请重试');
+    }
+  }, [loadQuestionsWithAnswers]);
 
   const handleUpgrade = useCallback(() => {
     navigate('/pricing');
@@ -102,9 +142,11 @@ export const useHomePage = () => {
   return {
     // 状态
     jobs,
-    questions,
+    questionsWithAnswers,
     stats,
     activeTab,
+    isLoading,
+    error,
     
     // 交互方法
     handleAddNewJob,
@@ -115,6 +157,7 @@ export const useHomePage = () => {
     handleStartMockInterview,
     handleStartFormalInterview,
     handleAddQuestion,
-    handleTabChange
+    handleTabChange,
+    loadQuestionsWithAnswers
   };
 }; 

@@ -24,7 +24,13 @@ class ResumeParser:
     """简历解析器"""
     
     def __init__(self):
-        self.supported_formats = ['pdf', 'docx', 'doc']
+        self.supported_formats = ['pdf', 'docx', 'doc', 'txt']
+        # 数据库字段长度限制 (预留3个字符给"...")
+        self.field_limits = {
+            'name': 97,    # 100 - 3
+            'email': 117,  # 120 - 3  
+            'phone': 17    # 20 - 3
+        }
         
     def parse_resume(self, file_path: str, file_type: str) -> Dict:
         """
@@ -38,29 +44,44 @@ class ResumeParser:
             解析结果字典
         """
         try:
+            # 验证文件存在
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"文件不存在: {file_path}")
+            
+            # 验证文件大小
+            file_size = os.path.getsize(file_path)
+            if file_size == 0:
+                raise ValueError("文件为空")
+            if file_size > 50 * 1024 * 1024:  # 50MB
+                raise ValueError("文件过大")
+            
             # 提取文本内容
             raw_text = self._extract_text(file_path, file_type)
             
-            if not raw_text:
-                raise ValueError("无法从文件中提取文本内容")
+            if not raw_text or len(raw_text.strip()) < 10:
+                raise ValueError("无法从文件中提取有效文本内容")
             
             # 解析结构化信息
-            parsed_data = self._parse_content(raw_text)
+            parsed_data = self._parse_content_safe(raw_text)
+            
+            # 验证和清理数据
+            validated_data = self._validate_and_clean_data(parsed_data)
             
             return {
                 'success': True,
                 'raw_text': raw_text,
-                'parsed_data': parsed_data,
+                'parsed_data': validated_data,
                 'error': None
             }
             
         except Exception as e:
-            logger.error(f"简历解析失败: {str(e)}")
+            error_msg = f"简历解析失败: {str(e)}"
+            logger.error(error_msg)
             return {
                 'success': False,
                 'raw_text': None,
                 'parsed_data': None,
-                'error': str(e)
+                'error': error_msg
             }
     
     def _extract_text(self, file_path: str, file_type: str) -> str:
@@ -70,6 +91,8 @@ class ResumeParser:
             return self._extract_pdf_text(file_path)
         elif file_type.lower() in ['docx', 'doc']:
             return self._extract_docx_text(file_path)
+        elif file_type.lower() == 'txt':
+            return self._extract_txt_text(file_path)
         else:
             raise ValueError(f"不支持的文件格式: {file_type}")
     
@@ -117,6 +140,15 @@ class ResumeParser:
         except Exception as e:
             raise ValueError(f"Word文档解析失败: {e}")
     
+    def _extract_txt_text(self, file_path: str) -> str:
+        """提取txt文本"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                text = file.read()
+            return text
+        except Exception as e:
+            raise ValueError(f"txt文件解析失败: {e}")
+    
     def _parse_content(self, text: str) -> Dict:
         """解析文本内容，提取结构化信息"""
         
@@ -130,6 +162,89 @@ class ResumeParser:
         }
         
         return result
+    
+    def _parse_content_safe(self, text: str) -> Dict:
+        """安全地解析文本内容，提取结构化信息"""
+        result = {
+            'name': None,
+            'email': None,
+            'phone': None,
+            'skills': [],
+            'experience': [],
+            'education': []
+        }
+        
+        # 安全地提取每个字段，单个失败不影响其他字段
+        try:
+            result['name'] = self._extract_name(text)
+        except Exception as e:
+            logger.warning(f"姓名提取失败: {e}")
+        
+        try:
+            result['email'] = self._extract_email(text)
+        except Exception as e:
+            logger.warning(f"邮箱提取失败: {e}")
+        
+        try:
+            result['phone'] = self._extract_phone(text)
+        except Exception as e:
+            logger.warning(f"电话提取失败: {e}")
+        
+        try:
+            result['skills'] = self._extract_skills(text)
+        except Exception as e:
+            logger.warning(f"技能提取失败: {e}")
+            result['skills'] = []
+        
+        try:
+            result['experience'] = self._extract_experience(text)
+        except Exception as e:
+            logger.warning(f"工作经历提取失败: {e}")
+            result['experience'] = []
+        
+        try:
+            result['education'] = self._extract_education(text)
+        except Exception as e:
+            logger.warning(f"教育背景提取失败: {e}")
+            result['education'] = []
+        
+        return result
+    
+    def _validate_and_clean_data(self, data: Dict) -> Dict:
+        """验证和清理数据"""
+        result = {}
+        
+        # 处理字符串字段的长度限制
+        for field in ['name', 'email', 'phone']:
+            value = data.get(field)
+            if value and isinstance(value, str):
+                limit = self.field_limits.get(field, 100)
+                if len(value) > limit:
+                    result[field] = value[:limit] + "..."
+                else:
+                    result[field] = value
+            else:
+                result[field] = value
+        
+        # 处理列表字段，确保JSON序列化
+        for field in ['skills', 'experience', 'education']:
+            value = data.get(field, [])
+            result[field] = self._ensure_json_serializable(value)
+        
+        return result
+    
+    def _ensure_json_serializable(self, obj):
+        """确保对象可以JSON序列化"""
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            if isinstance(obj, list):
+                return [str(item) for item in obj if item is not None][:20]  # 限制数量
+            elif isinstance(obj, dict):
+                return {k: str(v) for k, v in obj.items() if v is not None}
+            else:
+                return str(obj) if obj is not None else None
     
     def _extract_name(self, text: str) -> Optional[str]:
         """提取姓名"""
@@ -204,7 +319,7 @@ class ResumeParser:
         return None
     
     def _extract_skills(self, text: str) -> List[str]:
-        """提取技能"""
+        """提取技能 - 安全版本"""
         skills = []
         
         # 技术技能关键词
@@ -216,31 +331,47 @@ class ResumeParser:
             'TensorFlow', 'PyTorch', 'Pandas', 'NumPy', 'HTML', 'CSS', 'SQL'
         ]
         
-        text_lower = text.lower()
-        for keyword in tech_keywords:
-            if keyword.lower() in text_lower:
-                skills.append(keyword)
-        
-        # 寻找技能部分
+        # 安全地进行关键词匹配
         try:
-            skill_sections = re.findall(
-                r'(?:技能|skills?|专业技能|技术技能|核心技能)[:\s]*\n?(.*?)(?:\n\n|\n(?=[A-Z])|$)',
-                text, re.IGNORECASE | re.DOTALL
-            )
-            
-            for section in skill_sections:
-                # 提取技能项目 - 修复字符范围问题
-                skill_items = re.findall(r'[•·\-]?\s*([^•·\-\n]+)', section)
-                for item in skill_items:
-                    item = item.strip()
-                    if item and len(item) < 50:
-                        skills.append(item)
-        except re.error as e:
-            logger.warning(f"技能解析正则表达式错误: {e}")
-            # 如果正则表达式失败，只返回关键词匹配的技能
-            pass
+            text_lower = text.lower()
+            for keyword in tech_keywords:
+                if keyword.lower() in text_lower:
+                    skills.append(keyword)
+        except Exception as e:
+            logger.warning(f"关键词匹配失败: {e}")
         
-        return list(set(skills))  # 去重
+        # 安全地寻找技能部分
+        try:
+            # 使用更简单和安全的正则表达式
+            patterns = [
+                r'(?:技能|skills?)[:\s]*([^\n]+)',
+                r'(?:专业技能|技术技能)[:\s]*([^\n]+)',
+                r'(?:核心技能|主要技能)[:\s]*([^\n]+)'
+            ]
+            
+            for pattern in patterns:
+                try:
+                    matches = re.findall(pattern, text, re.IGNORECASE)
+                    for match in matches:
+                        # 分割技能项
+                        skill_items = re.split(r'[,，；;、\|]', match)
+                        for item in skill_items:
+                            item = item.strip()
+                            if item and 2 <= len(item) <= 30:  # 合理的技能长度
+                                # 移除常见的项目符号
+                                item = re.sub(r'^[•·\-\*\s]+', '', item)
+                                if item:
+                                    skills.append(item)
+                except re.error as e:
+                    logger.warning(f"技能正则表达式 {pattern} 失败: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.warning(f"技能部分解析失败: {e}")
+        
+        # 去重并限制数量
+        unique_skills = list(set(skills))
+        return unique_skills[:20]  # 最多返回20个技能
     
     def _extract_experience(self, text: str) -> List[Dict]:
         """提取工作经历"""

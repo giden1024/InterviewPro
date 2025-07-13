@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面访问测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-family: monospace;
+        }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #555; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 InterviewPro 页面访问测试</h1>
+    
+    <div class="test-section">
+        <h2>📊 服务状态检查</h2>
+        <button onclick="checkBackendHealth()">检查后端服务</button>
+        <button onclick="checkFrontendPages()">检查前端页面</button>
+        <button onclick="runFullTest()">运行完整测试</button>
+        <div id="serviceStatus"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 页面访问测试</h2>
+        <button onclick="testPageAccess()">测试页面访问</button>
+        <div id="pageAccessResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🛠 API连接测试</h2>
+        <button onclick="testAPIConnections()">测试API连接</button>
+        <div id="apiResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 Mock Interview 页面测试</h2>
+        <button onclick="testMockInterviewPage()">测试Mock Interview页面</button>
+        <button onclick="openMockInterviewPage()">打开Mock Interview页面</button>
+        <div id="mockInterviewResults"></div>
+    </div>
+
+    <script>
+        const baseURL = 'http://localhost:5001';
+        const frontendURL = 'http://localhost:3000';
+
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        async function checkBackendHealth() {
+            clearResults('serviceStatus');
+            addResult('serviceStatus', '🔄 检查后端服务健康状态...', 'info');
+            
+            try {
+                const response = await fetch(`${baseURL}/health`);
+                const data = await response.json();
+                addResult('serviceStatus', `✅ 后端服务正常: ${data.service} - ${data.status}`, 'success');
+                return true;
+            } catch (error) {
+                addResult('serviceStatus', `❌ 后端服务连接失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function checkFrontendPages() {
+            addResult('serviceStatus', '🔄 检查前端页面...', 'info');
+            
+            try {
+                const response = await fetch(frontendURL);
+                if (response.ok) {
+                    addResult('serviceStatus', '✅ 前端服务正常运行', 'success');
+                    return true;
+                } else {
+                    addResult('serviceStatus', `⚠️ 前端服务响应异常: ${response.status}`, 'warning');
+                    return false;
+                }
+            } catch (error) {
+                addResult('serviceStatus', `❌ 前端服务连接失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testPageAccess() {
+            clearResults('pageAccessResults');
+            const pages = [
+                { name: 'Home', url: '/' },
+                { name: 'Mock Interview', url: '/mock-interview' },
+                { name: 'Resume', url: '/resume' },
+                { name: 'Job', url: '/job' }
+            ];
+
+            for (const page of pages) {
+                try {
+                    addResult('pageAccessResults', `🔄 测试 ${page.name} 页面...`, 'info');
+                    const response = await fetch(`${frontendURL}${page.url}`);
+                    if (response.ok) {
+                        addResult('pageAccessResults', `✅ ${page.name} 页面可访问`, 'success');
+                    } else {
+                        addResult('pageAccessResults', `⚠️ ${page.name} 页面响应异常: ${response.status}`, 'warning');
+                    }
+                } catch (error) {
+                    addResult('pageAccessResults', `❌ ${page.name} 页面访问失败: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testAPIConnections() {
+            clearResults('apiResults');
+            const apis = [
+                { name: '健康检查', url: '/health' },
+                { name: '简历列表', url: '/api/v1/resumes' },
+                { name: '面试记录', url: '/api/v1/interviews' }
+            ];
+
+            for (const api of apis) {
+                try {
+                    addResult('apiResults', `🔄 测试 ${api.name} API...`, 'info');
+                    const response = await fetch(`${baseURL}${api.url}`);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        addResult('apiResults', `✅ ${api.name} API正常`, 'success');
+                    } else {
+                        addResult('apiResults', `⚠️ ${api.name} API响应: ${response.status} - ${data.message || '未知错误'}`, 'warning');
+                    }
+                } catch (error) {
+                    addResult('apiResults', `❌ ${api.name} API连接失败: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function testMockInterviewPage() {
+            clearResults('mockInterviewResults');
+            addResult('mockInterviewResults', '🔄 测试Mock Interview页面功能...', 'info');
+            
+            try {
+                // 测试页面访问
+                const pageResponse = await fetch(`${frontendURL}/mock-interview`);
+                if (pageResponse.ok) {
+                    addResult('mockInterviewResults', '✅ Mock Interview页面可访问', 'success');
+                } else {
+                    addResult('mockInterviewResults', `⚠️ Mock Interview页面响应异常: ${pageResponse.status}`, 'warning');
+                }
+
+                // 测试相关API
+                const apiTests = [
+                    { name: '简历API', url: '/api/v1/resumes' },
+                    { name: '面试API', url: '/api/v1/interviews' }
+                ];
+
+                for (const test of apiTests) {
+                    try {
+                        const response = await fetch(`${baseURL}${test.url}`);
+                        if (response.ok) {
+                            addResult('mockInterviewResults', `✅ ${test.name} 可用`, 'success');
+                        } else {
+                            addResult('mockInterviewResults', `⚠️ ${test.name} 响应异常: ${response.status}`, 'warning');
+                        }
+                    } catch (error) {
+                        addResult('mockInterviewResults', `❌ ${test.name} 连接失败`, 'error');
+                    }
+                }
+
+            } catch (error) {
+                addResult('mockInterviewResults', `❌ Mock Interview页面测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        function openMockInterviewPage() {
+            addResult('mockInterviewResults', '🔄 正在打开Mock Interview页面...', 'info');
+            window.open(`${frontendURL}/mock-interview`, '_blank');
+        }
+
+        async function runFullTest() {
+            clearResults('serviceStatus');
+            clearResults('pageAccessResults');
+            clearResults('apiResults');
+            clearResults('mockInterviewResults');
+            
+            addResult('serviceStatus', '🚀 开始运行完整测试...', 'info');
+            
+            // 按顺序运行所有测试
+            await checkBackendHealth();
+            await checkFrontendPages();
+            await testPageAccess();
+            await testAPIConnections();
+            await testMockInterviewPage();
+            
+            addResult('serviceStatus', '✅ 完整测试运行完毕', 'success');
+        }
+
+        // 页面加载时自动检查服务状态
+        window.onload = function() {
+            addResult('serviceStatus', '📋 页面已加载，点击按钮开始测试', 'info');
+        };
+    </script>
+</body>
+</html> 

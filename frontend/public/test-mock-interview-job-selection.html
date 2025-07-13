@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview 职位选择功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .section {
+            margin-bottom: 32px;
+        }
+        .section h3 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .test-step {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .test-step h4 {
+            margin: 0 0 8px 0;
+            color: #2563eb;
+        }
+        .test-step p {
+            margin: 8px 0;
+            color: #475569;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 4px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button.secondary {
+            background: #6b7280;
+        }
+        .button.success {
+            background: #10b981;
+        }
+        .result {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+        .success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status.running {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Mock Interview 职位选择功能测试</h1>
+            <p>测试新的职位选择和简历关联功能</p>
+        </div>
+
+        <div class="section">
+            <h3>🔧 服务状态检查</h3>
+            <div class="test-step">
+                <h4>后端服务状态</h4>
+                <button class="button" onclick="checkBackendStatus()">检查后端服务</button>
+                <div id="backend-status" class="result" style="display: none;"></div>
+            </div>
+            
+            <div class="test-step">
+                <h4>前端服务状态</h4>
+                <button class="button" onclick="checkFrontendStatus()">检查前端服务</button>
+                <div id="frontend-status" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>👤 用户认证</h3>
+            <div class="test-step">
+                <h4>开发者登录</h4>
+                <p>使用开发者API进行快速登录</p>
+                <button class="button" onclick="devLogin()">开发者登录</button>
+                <div id="auth-status" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📊 数据准备</h3>
+            <div class="test-step">
+                <h4>检查用户数据</h4>
+                <p>检查用户的职位和简历数据</p>
+                <button class="button" onclick="checkUserData()">检查数据</button>
+                <div id="user-data" class="result" style="display: none;"></div>
+            </div>
+            
+            <div class="test-step">
+                <h4>创建测试数据</h4>
+                <p>如果没有数据，创建测试职位和简历</p>
+                <button class="button success" onclick="createTestData()">创建测试数据</button>
+                <div id="test-data" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🎯 Mock Interview 功能测试</h3>
+            <div class="test-step">
+                <h4>访问HomePage</h4>
+                <p>打开HomePage并测试Mock Interview按钮</p>
+                <a href="http://localhost:3000/home" target="_blank" class="button">打开HomePage</a>
+            </div>
+            
+            <div class="test-step">
+                <h4>测试职位选择弹窗</h4>
+                <p>点击Mock Interview按钮应该弹出职位选择弹窗，显示可选的职位和简历</p>
+                <div class="result">
+                    <p><strong>预期行为：</strong></p>
+                    <ul>
+                        <li>✅ 点击"Mock Interview"按钮弹出选择弹窗</li>
+                        <li>✅ 显示用户的所有职位列表</li>
+                        <li>✅ 显示用户已处理完成的简历列表</li>
+                        <li>✅ 用户可以选择职位和简历</li>
+                        <li>✅ 选择后显示配置确认信息</li>
+                        <li>✅ 点击"开始模拟面试"创建面试会话</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📋 测试日志</h3>
+            <div class="test-step">
+                <button class="button secondary" onclick="clearLog()">清空日志</button>
+                <button class="button secondary" onclick="exportLog()">导出日志</button>
+                <div id="test-log" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('auth_token');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('test-log');
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logElement.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('test-log').textContent = '';
+        }
+
+        function exportLog() {
+            const logContent = document.getElementById('test-log').textContent;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mock-interview-test-${new Date().toISOString().slice(0,10)}.log`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function checkBackendStatus() {
+            const statusDiv = document.getElementById('backend-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status running">检查中...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `
+                        <div class="success">
+                            <span class="status success">运行正常</span>
+                            <p>服务: ${data.service}</p>
+                            <p>状态: ${data.status}</p>
+                        </div>
+                    `;
+                    log('后端服务运行正常', 'success');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status error">连接失败</span>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+                log(`后端服务检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkFrontendStatus() {
+            const statusDiv = document.getElementById('frontend-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status running">检查中...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:3000/');
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `
+                        <div class="success">
+                            <span class="status success">运行正常</span>
+                            <p>前端开发服务器正常运行</p>
+                        </div>
+                    `;
+                    log('前端服务运行正常', 'success');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status error">连接失败</span>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+                log(`前端服务检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function devLogin() {
+            const statusDiv = document.getElementById('auth-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status running">登录中...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        username: 'testuser'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    localStorage.setItem('auth_token', authToken);
+                    
+                    statusDiv.innerHTML = `
+                        <div class="success">
+                            <span class="status success">登录成功</span>
+                            <p>用户: ${data.data.user.username} (${data.data.user.email})</p>
+                            <p>Token: ${authToken.substring(0, 20)}...</p>
+                        </div>
+                    `;
+                    log(`用户登录成功: ${data.data.user.username}`, 'success');
+                } else {
+                    throw new Error(data.message || '登录失败');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status error">登录失败</span>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+                log(`登录失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkUserData() {
+            if (!authToken) {
+                alert('请先登录');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('user-data');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status running">检查中...</span>';
+            
+            try {
+                // 并行获取职位和简历数据
+                const [jobsResponse, resumesResponse] = await Promise.all([
+                    fetch('http://localhost:5001/api/v1/jobs?per_page=50', {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch('http://localhost:5001/api/v1/resumes?per_page=50', {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                ]);
+                
+                const jobsData = await jobsResponse.json();
+                const resumesData = await resumesResponse.json();
+                
+                const jobs = jobsData.success ? jobsData.data.jobs : [];
+                const resumes = resumesData.success ? resumesData.data.resumes : [];
+                const processedResumes = resumes.filter(r => r.status === 'completed' || r.status === 'processed');
+                
+                statusDiv.innerHTML = `
+                    <div class="success">
+                        <span class="status success">数据检查完成</span>
+                        <p>📋 职位数量: ${jobs.length}</p>
+                        <p>📄 简历数量: ${resumes.length} (已处理: ${processedResumes.length})</p>
+                        <details style="margin-top: 12px;">
+                            <summary>详细信息</summary>
+                            <div style="margin-top: 8px;">
+                                <strong>职位列表:</strong>
+                                ${jobs.length > 0 ? jobs.map(job => `<br>• ${job.title} @ ${job.company}`).join('') : '<br>暂无职位'}
+                                <br><br>
+                                <strong>简历列表:</strong>
+                                ${resumes.length > 0 ? resumes.map(resume => `<br>• ${resume.filename} (${resume.status})`).join('') : '<br>暂无简历'}
+                            </div>
+                        </details>
+                    </div>
+                `;
+                
+                log(`数据检查完成 - 职位: ${jobs.length}, 简历: ${resumes.length} (已处理: ${processedResumes.length})`, 'success');
+                
+                if (jobs.length === 0 || processedResumes.length === 0) {
+                    log('建议创建测试数据以进行完整测试', 'info');
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status error">检查失败</span>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+                log(`数据检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function createTestData() {
+            if (!authToken) {
+                alert('请先登录');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('test-data');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="status running">创建中...</span>';
+            
+            try {
+                log('开始创建测试数据...', 'info');
+                
+                // 1. 创建测试简历
+                log('创建测试简历...', 'info');
+                const resumeFormData = new FormData();
+                const resumeBlob = new Blob(['测试简历内容 - 软件工程师\n技能: JavaScript, React, Node.js, Python\n经验: 3年开发经验'], { type: 'text/plain' });
+                resumeFormData.append('file', resumeBlob, 'test_resume.txt');
+                
+                const resumeResponse = await fetch('http://localhost:5001/api/v1/resumes', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: resumeFormData
+                });
+                
+                const resumeData = await resumeResponse.json();
+                if (!resumeResponse.ok) throw new Error(`简历上传失败: ${resumeData.message}`);
+                
+                const resumeId = resumeData.data.resume.id;
+                log(`简历创建成功 (ID: ${resumeId})`, 'success');
+                
+                // 2. 分析简历
+                log('分析简历...', 'info');
+                const analyzeResponse = await fetch(`http://localhost:5001/api/v1/resumes/${resumeId}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const analyzeData = await analyzeResponse.json();
+                if (!analyzeResponse.ok) throw new Error(`简历分析失败: ${analyzeData.message}`);
+                
+                log('简历分析完成', 'success');
+                
+                // 3. 创建测试职位
+                log('创建测试职位...', 'info');
+                const jobData = {
+                    title: '前端开发工程师',
+                    company: 'TechCorp',
+                    location: '北京',
+                    salary_range: '15k-25k',
+                    description: '负责前端开发工作，要求熟悉React、TypeScript等技术栈',
+                    requirements: ['React', 'TypeScript', 'JavaScript', 'HTML/CSS'],
+                    job_type: 'full_time',
+                    experience_level: 'mid_level'
+                };
+                
+                const jobResponse = await fetch('http://localhost:5001/api/v1/jobs', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jobData)
+                });
+                
+                const jobResult = await jobResponse.json();
+                if (!jobResponse.ok) throw new Error(`职位创建失败: ${jobResult.message}`);
+                
+                const jobId = jobResult.data.job.id;
+                log(`职位创建成功 (ID: ${jobId})`, 'success');
+                
+                // 4. 创建第二个职位
+                const job2Data = {
+                    title: '全栈开发工程师',
+                    company: 'StartupCo',
+                    location: '上海',
+                    salary_range: '20k-30k',
+                    description: '负责全栈开发工作，前后端都要熟悉',
+                    requirements: ['Node.js', 'React', 'Python', 'Database'],
+                    job_type: 'full_time',
+                    experience_level: 'senior_level'
+                };
+                
+                const job2Response = await fetch('http://localhost:5001/api/v1/jobs', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(job2Data)
+                });
+                
+                const job2Result = await job2Response.json();
+                if (!job2Response.ok) throw new Error(`第二个职位创建失败: ${job2Result.message}`);
+                
+                const job2Id = job2Result.data.job.id;
+                log(`第二个职位创建成功 (ID: ${job2Id})`, 'success');
+                
+                statusDiv.innerHTML = `
+                    <div class="success">
+                        <span class="status success">测试数据创建成功</span>
+                        <p>✅ 创建了1个简历 (ID: ${resumeId})</p>
+                        <p>✅ 创建了2个职位 (ID: ${jobId}, ${job2Id})</p>
+                        <p>✅ 现在可以测试Mock Interview功能了</p>
+                    </div>
+                `;
+                
+                log('测试数据创建完成，可以开始测试Mock Interview功能', 'success');
+                
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status error">创建失败</span>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+                log(`测试数据创建失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Mock Interview 职位选择功能测试页面已加载', 'info');
+            if (authToken) {
+                log('检测到已保存的认证token', 'info');
+            } else {
+                log('未检测到认证token，请先登录', 'info');
+            }
+        });
+    </script>
+</body>
+</html> 

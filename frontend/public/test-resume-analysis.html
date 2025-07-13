@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analysis Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Resume Analysis Fix Test</h1>
+        <div class="success">
+            <strong>✅ PDF解析库已修复！</strong><br>
+            PDF解析库已确认正常工作，简历状态已重置为UPLOADED。
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: 获取新的访问Token</h3>
+            <div>
+                <label>Email:</label>
+                <input type="email" id="email" value="test@example.com" style="width: 200px;">
+            </div>
+            <div>
+                <label>Password:</label>
+                <input type="password" id="password" value="test123" style="width: 200px;">
+            </div>
+            <button onclick="login()">Login & Get Token</button>
+            <div id="loginResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: 测试简历分析API</h3>
+            <div>
+                <label>Token:</label>
+                <textarea id="token" placeholder="Token will be filled automatically after login..."></textarea>
+            </div>
+            <div>
+                <label>Resume ID:</label>
+                <input type="number" id="resumeId" value="3" style="width: 100px;">
+            </div>
+            <button onclick="analyzeResume()">Analyze Resume</button>
+            <div id="analysisResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: 查看所有简历</h3>
+            <button onclick="listResumes()">List All Resumes</button>
+            <div id="resumesList"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Test Results Log</h2>
+        <div id="testLog" class="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        const API_BASE = 'https://offerott.com/api/v1';
+        let currentToken = '';
+
+        function log(message) {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toISOString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').textContent = '';
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            log(`Attempting login with email: ${email}`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.access_token;
+                    document.getElementById('token').value = currentToken;
+                    resultDiv.innerHTML = `<div class="success">✅ Login successful! Token obtained.</div>`;
+                    log(`Login successful. Token: ${currentToken.substring(0, 20)}...`);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Login failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Login failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`Login network error: ${error.message}`);
+            }
+        }
+
+        async function analyzeResume() {
+            const token = document.getElementById('token').value || currentToken;
+            const resumeId = document.getElementById('resumeId').value;
+            const resultDiv = document.getElementById('analysisResult');
+            
+            if (!token) {
+                resultDiv.innerHTML = `<div class="error">❌ No token available. Please login first.</div>`;
+                return;
+            }
+            
+            log(`Testing resume analysis for ID: ${resumeId}`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/resumes/${resumeId}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Resume analysis successful!<br>
+                            Score: ${data.analysis?.score || 'N/A'}<br>
+                            Suggestions: ${data.analysis?.suggestions?.length || 0}<br>
+                            Strengths: ${data.analysis?.strengths?.length || 0}
+                        </div>
+                    `;
+                    log(`Resume analysis success: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Analysis failed (${response.status}): ${data.message || JSON.stringify(data)}</div>`;
+                    log(`Resume analysis failed: ${response.status} - ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`Resume analysis network error: ${error.message}`);
+            }
+        }
+
+        async function listResumes() {
+            const token = document.getElementById('token').value || currentToken;
+            const resultDiv = document.getElementById('resumesList');
+            
+            if (!token) {
+                resultDiv.innerHTML = `<div class="error">❌ No token available. Please login first.</div>`;
+                return;
+            }
+            
+            log('Fetching all resumes...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const resumes = data.data || [];
+                    let resumesList = `<div class="success">✅ Found ${resumes.length} resumes:</div>`;
+                    
+                    resumes.forEach(resume => {
+                        resumesList += `
+                            <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <strong>ID:</strong> ${resume.id}<br>
+                                <strong>Filename:</strong> ${resume.filename}<br>
+                                <strong>Status:</strong> ${resume.status}<br>
+                                <strong>Type:</strong> ${resume.file_type}<br>
+                                <strong>Size:</strong> ${resume.file_size} bytes
+                            </div>
+                        `;
+                    });
+                    
+                    resultDiv.innerHTML = resumesList;
+                    log(`Resumes list success: ${JSON.stringify(data)}`);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Failed to load resumes: ${data.message || 'Unknown error'}</div>`;
+                    log(`Resumes list failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`Resumes list network error: ${error.message}`);
+            }
+        }
+
+        // Auto-clear results on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🔧 Resume Analysis Fix Test Started');
+            log('✅ PDF parsing libraries confirmed working');
+            log('✅ Resume status reset to UPLOADED');
+            log('📋 Ready to test resume analysis functionality');
+        });
+    </script>
+</body>
+</html> 

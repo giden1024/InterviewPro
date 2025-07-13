@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Answer Update Final Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .log { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            font-size: 12px; 
+            max-height: 300px; 
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .question-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .ai-answer {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #6fbdff;
+        }
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .token-display {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 AI参考答案更新修复测试</h1>
+    
+    <div class="test-section">
+        <h2>🔑 用户认证状态</h2>
+        <div id="auth-status" class="status info">正在检查认证状态...</div>
+        <div class="token-display" id="token-display">Token: 未获取</div>
+        <button onclick="loginUser()">登录用户 (393893095@qq.com)</button>
+        <button onclick="checkAuthStatus()">检查认证状态</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 简历状态检查</h2>
+        <div id="resume-status" class="status info">点击按钮检查简历</div>
+        <button onclick="checkResumes()">检查用户简历</button>
+        <div id="resume-list"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 问题生成测试</h2>
+        <div id="question-status" class="status info">准备测试问题生成</div>
+        <button onclick="testQuestionGeneration()">测试问题生成</button>
+        <div id="question-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🤖 AI参考答案生成测试</h2>
+        <div id="ai-status" class="status info">准备测试AI参考答案</div>
+        <button onclick="testAIReferenceGeneration()">测试AI参考答案生成</button>
+        <div id="ai-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 测试日志</h2>
+        <button onclick="clearLog()">清除日志</button>
+        <div id="test-log" class="log"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let currentToken = null;
+        let testResumes = [];
+        let testQuestions = [];
+
+        function log(message) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('test-log').textContent = '';
+        }
+
+        function updateTokenDisplay() {
+            const tokenDisplay = document.getElementById('token-display');
+            if (currentToken) {
+                tokenDisplay.textContent = `Token: ${currentToken.substring(0, 50)}...`;
+            } else {
+                tokenDisplay.textContent = 'Token: 未获取';
+            }
+        }
+
+        async function loginUser() {
+            try {
+                log('🔑 开始登录用户 393893095@qq.com...');
+                
+                const response = await fetch(`${API_BASE}/dev/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentToken = data.data.access_token;
+                    localStorage.setItem('access_token', currentToken);
+                    updateTokenDisplay();
+                    
+                    document.getElementById('auth-status').className = 'status success';
+                    document.getElementById('auth-status').textContent = `登录成功！用户: ${data.data.user.username} (${data.data.user.email})`;
+                    
+                    log(`✅ 登录成功: ${data.data.user.email}`);
+                    log(`🎫 Token已保存: ${currentToken.substring(0, 50)}...`);
+                } else {
+                    throw new Error(data.message || '登录失败');
+                }
+            } catch (error) {
+                log(`❌ 登录失败: ${error.message}`);
+                document.getElementById('auth-status').className = 'status error';
+                document.getElementById('auth-status').textContent = `登录失败: ${error.message}`;
+            }
+        }
+
+        async function checkAuthStatus() {
+            try {
+                currentToken = localStorage.getItem('access_token');
+                if (!currentToken) {
+                    throw new Error('未找到认证token，请先登录');
+                }
+
+                updateTokenDisplay();
+                log('🔍 检查认证状态...');
+
+                const response = await fetch(`${API_BASE}/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('auth-status').className = 'status success';
+                    document.getElementById('auth-status').textContent = `认证有效！用户: ${data.data.username} (${data.data.email})`;
+                    log(`✅ 认证有效: ${data.data.email}`);
+                } else {
+                    throw new Error(data.message || '认证失败');
+                }
+            } catch (error) {
+                log(`❌ 认证检查失败: ${error.message}`);
+                document.getElementById('auth-status').className = 'status error';
+                document.getElementById('auth-status').textContent = `认证失败: ${error.message}`;
+            }
+        }
+
+        async function checkResumes() {
+            try {
+                if (!currentToken) {
+                    throw new Error('请先登录');
+                }
+
+                log('📋 检查用户简历...');
+
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    testResumes = data.data.resumes;
+                    
+                    document.getElementById('resume-status').className = 'status success';
+                    document.getElementById('resume-status').textContent = `找到 ${testResumes.length} 个简历`;
+                    
+                    const resumeList = document.getElementById('resume-list');
+                    resumeList.innerHTML = testResumes.map(resume => `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                            <strong>ID: ${resume.id}</strong> - ${resume.filename} 
+                            <span style="color: ${resume.status === 'processed' ? 'green' : 'orange'};">
+                                (${resume.status})
+                            </span>
+                        </div>
+                    `).join('');
+                    
+                    log(`✅ 找到 ${testResumes.length} 个简历`);
+                    testResumes.forEach(resume => {
+                        log(`  - ID: ${resume.id}, 文件: ${resume.filename}, 状态: ${resume.status}`);
+                    });
+                } else {
+                    throw new Error(data.message || '获取简历失败');
+                }
+            } catch (error) {
+                log(`❌ 检查简历失败: ${error.message}`);
+                document.getElementById('resume-status').className = 'status error';
+                document.getElementById('resume-status').textContent = `检查简历失败: ${error.message}`;
+            }
+        }
+
+        async function testQuestionGeneration() {
+            try {
+                if (!currentToken) {
+                    throw new Error('请先登录');
+                }
+
+                if (testResumes.length === 0) {
+                    throw new Error('请先检查简历');
+                }
+
+                const processedResume = testResumes.find(r => r.status === 'processed');
+                if (!processedResume) {
+                    throw new Error('没有找到已处理的简历');
+                }
+
+                log(`🎯 测试问题生成，使用简历 ID: ${processedResume.id}`);
+
+                const response = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: processedResume.id,
+                        interview_type: 'comprehensive',
+                        total_questions: 3
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    testQuestions = data.data.questions;
+                    
+                    document.getElementById('question-status').className = 'status success';
+                    document.getElementById('question-status').textContent = `成功生成 ${testQuestions.length} 个问题`;
+                    
+                    const questionResult = document.getElementById('question-result');
+                    questionResult.innerHTML = testQuestions.map((q, index) => `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                            <strong>问题 ${index + 1} (ID: ${q.id})</strong><br>
+                            ${q.question_text}<br>
+                            <small>类型: ${q.question_type}, 难度: ${q.difficulty}</small>
+                        </div>
+                    `).join('');
+                    
+                    log(`✅ 成功生成 ${testQuestions.length} 个问题`);
+                    testQuestions.forEach((q, index) => {
+                        log(`  问题 ${index + 1}: ${q.question_text.substring(0, 50)}...`);
+                    });
+                } else {
+                    throw new Error(data.message || '生成问题失败');
+                }
+            } catch (error) {
+                log(`❌ 问题生成失败: ${error.message}`);
+                document.getElementById('question-status').className = 'status error';
+                document.getElementById('question-status').textContent = `问题生成失败: ${error.message}`;
+            }
+        }
+
+        async function testAIReferenceGeneration() {
+            try {
+                if (!currentToken) {
+                    throw new Error('请先登录');
+                }
+
+                if (testQuestions.length === 0) {
+                    throw new Error('请先生成问题');
+                }
+
+                const testQuestion = testQuestions[0];
+                log(`🤖 测试AI参考答案生成，使用问题 ID: ${testQuestion.id}`);
+
+                const response = await fetch(`${API_BASE}/questions/${testQuestion.id}/generate-reference`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('ai-status').className = 'status success';
+                    document.getElementById('ai-status').textContent = '成功生成AI参考答案';
+                    
+                    const aiResult = document.getElementById('ai-result');
+                    const aiAnswer = data.data.ai_reference_answer;
+                    aiResult.innerHTML = `
+                        <div style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; background: #f8f9fa;">
+                            <h4>问题: ${testQuestion.question_text}</h4>
+                            <div style="margin: 10px 0;">
+                                <strong>参考答案:</strong><br>
+                                <div style="background: white; padding: 10px; border-radius: 4px; margin: 5px 0;">
+                                    ${aiAnswer.sample_answer || aiAnswer.reference_answer || '未生成具体答案'}
+                                </div>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <strong>生成来源:</strong> ${aiAnswer.generated_by || '未知'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    log(`✅ 成功生成AI参考答案`);
+                    log(`  问题: ${testQuestion.question_text.substring(0, 50)}...`);
+                    log(`  答案长度: ${(aiAnswer.sample_answer || aiAnswer.reference_answer || '').length} 字符`);
+                    log(`  生成来源: ${aiAnswer.generated_by || '未知'}`);
+                } else {
+                    throw new Error(data.message || '生成AI参考答案失败');
+                }
+            } catch (error) {
+                log(`❌ AI参考答案生成失败: ${error.message}`);
+                document.getElementById('ai-status').className = 'status error';
+                document.getElementById('ai-status').textContent = `AI参考答案生成失败: ${error.message}`;
+            }
+        }
+
+        // 页面加载时检查认证状态
+        window.onload = function() {
+            log('🚀 页面加载完成，开始测试...');
+            checkAuthStatus();
+        };
+    </script>
+</body>
+</html> 
+</html> 

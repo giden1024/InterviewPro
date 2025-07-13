@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formal Interview 职位选择功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .status {
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #1e7e34; }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Formal Interview 职位选择功能测试</h1>
+        <p>测试 Formal Interview 按钮是否能正确打开职位选择弹窗，并且显示正确的标题和参数</p>
+        
+        <div class="test-section">
+            <h3>📋 测试准备</h3>
+            <div class="step">
+                <strong>步骤 1：</strong> 确保后端服务运行在 http://localhost:5001
+                <button onclick="checkBackendHealth()">检查后端状态</button>
+                <div id="backend-status"></div>
+            </div>
+            
+            <div class="step">
+                <strong>步骤 2：</strong> 获取有效的认证令牌
+                <button onclick="getAuthToken()">获取Token</button>
+                <div id="token-status"></div>
+            </div>
+            
+            <div class="step">
+                <strong>步骤 3：</strong> 检查职位数据
+                <button onclick="checkJobs()">检查职位</button>
+                <div id="jobs-status"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Formal Interview 功能测试</h3>
+            <div class="step">
+                <strong>测试目标：</strong>
+                <ul>
+                    <li>点击 Formal Interview 按钮应该打开职位选择弹窗</li>
+                    <li>弹窗标题应该显示"选择正式面试职位"</li>
+                    <li>描述应该显示"（15道题目）"</li>
+                    <li>选择职位后应该导航到 /interview 页面</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <strong>访问测试：</strong>
+                <button onclick="openHomePage()">打开首页测试</button>
+                <button onclick="testFormalInterviewFlow()">模拟测试流程</button>
+                <div id="test-result"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 API 测试</h3>
+            <div class="step">
+                <strong>创建面试会话测试：</strong>
+                <button onclick="testCreateFormalInterview()">测试创建正式面试</button>
+                <div id="create-interview-result"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 对比测试</h3>
+            <div class="step">
+                <strong>Mock vs Formal 对比：</strong>
+                <table border="1" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <th style="padding: 8px;">功能</th>
+                        <th style="padding: 8px;">Mock Interview</th>
+                        <th style="padding: 8px;">Formal Interview</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">弹窗标题</td>
+                        <td style="padding: 8px;">选择模拟面试职位</td>
+                        <td style="padding: 8px;">选择正式面试职位</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">题目数量</td>
+                        <td style="padding: 8px;">8道题目</td>
+                        <td style="padding: 8px;">15道题目</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">导航页面</td>
+                        <td style="padding: 8px;">/mock-interview</td>
+                        <td style="padding: 8px;">/interview</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">标题后缀</td>
+                        <td style="padding: 8px;">模拟面试</td>
+                        <td style="padding: 8px;">正式面试</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div id="test-logs" class="test-section">
+            <h3>📝 测试日志</h3>
+            <div id="logs" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('access_token');
+        
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.textContent += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function setStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${status}">${message}</div>`;
+        }
+
+        async function checkBackendHealth() {
+            log('检查后端健康状态...');
+            try {
+                const response = await fetch('http://localhost:5001/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    setStatus('backend-status', 'success', '✅ 后端服务正常运行');
+                    log('后端服务状态正常');
+                } else {
+                    setStatus('backend-status', 'error', '❌ 后端服务响应异常');
+                    log('后端服务响应异常: ' + response.status);
+                }
+            } catch (error) {
+                setStatus('backend-status', 'error', '❌ 无法连接到后端服务');
+                log('后端连接失败: ' + error.message);
+            }
+        }
+
+        async function getAuthToken() {
+            log('获取认证令牌...');
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/dev/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.data.access_token;
+                    localStorage.setItem('access_token', authToken);
+                    setStatus('token-status', 'success', '✅ Token 获取成功');
+                    log('Token 获取成功');
+                } else {
+                    setStatus('token-status', 'error', '❌ Token 获取失败');
+                    log('Token 获取失败: ' + response.status);
+                }
+            } catch (error) {
+                setStatus('token-status', 'error', '❌ Token 获取异常');
+                log('Token 获取异常: ' + error.message);
+            }
+        }
+
+        async function checkJobs() {
+            log('检查职位数据...');
+            if (!authToken) {
+                setStatus('jobs-status', 'warning', '⚠️ 请先获取Token');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/jobs?per_page=10', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const jobCount = data.jobs ? data.jobs.length : 0;
+                    setStatus('jobs-status', 'success', `✅ 找到 ${jobCount} 个职位`);
+                    log(`职位数据检查完成，共 ${jobCount} 个职位`);
+                    
+                    if (jobCount === 0) {
+                        setStatus('jobs-status', 'warning', '⚠️ 暂无职位数据，请先添加职位');
+                    }
+                } else {
+                    setStatus('jobs-status', 'error', '❌ 职位数据获取失败');
+                    log('职位数据获取失败: ' + response.status);
+                }
+            } catch (error) {
+                setStatus('jobs-status', 'error', '❌ 职位数据检查异常');
+                log('职位数据检查异常: ' + error.message);
+            }
+        }
+
+        function openHomePage() {
+            log('打开首页进行手动测试...');
+            window.open('http://localhost:3000/home', '_blank');
+            setStatus('test-result', 'info', 'ℹ️ 已打开首页，请手动测试 Formal Interview 按钮');
+        }
+
+        async function testFormalInterviewFlow() {
+            log('开始模拟 Formal Interview 流程测试...');
+            
+            if (!authToken) {
+                setStatus('test-result', 'warning', '⚠️ 请先获取Token');
+                return;
+            }
+
+            // 模拟创建正式面试的参数
+            const testParams = {
+                resume_id: 1,
+                interview_type: 'comprehensive',
+                total_questions: 15,
+                custom_title: 'Test Job @ Test Company 正式面试'
+            };
+
+            log('模拟参数: ' + JSON.stringify(testParams, null, 2));
+            setStatus('test-result', 'info', 'ℹ️ 流程模拟完成，查看日志了解详情');
+        }
+
+        async function testCreateFormalInterview() {
+            log('测试创建正式面试会话...');
+            
+            if (!authToken) {
+                setStatus('create-interview-result', 'warning', '⚠️ 请先获取Token');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 1,
+                        interview_type: 'comprehensive',
+                        total_questions: 15,
+                        custom_title: 'Test Job @ Test Company 正式面试'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setStatus('create-interview-result', 'success', '✅ 正式面试会话创建成功');
+                    log('正式面试会话创建成功:');
+                    log(JSON.stringify(data, null, 2));
+                } else {
+                    const errorData = await response.text();
+                    setStatus('create-interview-result', 'error', '❌ 正式面试会话创建失败');
+                    log('正式面试会话创建失败: ' + response.status);
+                    log('错误详情: ' + errorData);
+                }
+            } catch (error) {
+                setStatus('create-interview-result', 'error', '❌ 正式面试会话创建异常');
+                log('正式面试会话创建异常: ' + error.message);
+            }
+        }
+
+        // 页面加载完成后的初始化
+        window.onload = function() {
+            log('🎯 Formal Interview 职位选择功能测试页面已加载');
+            log('请按顺序执行测试步骤：');
+            log('1. 检查后端状态');
+            log('2. 获取认证令牌');
+            log('3. 检查职位数据');
+            log('4. 进行功能测试');
+            
+            if (authToken) {
+                setStatus('token-status', 'info', 'ℹ️ 已有Token，可直接测试');
+            }
+        };
+    </script>
+</body>
+</html> 

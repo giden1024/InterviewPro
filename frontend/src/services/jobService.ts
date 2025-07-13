@@ -3,6 +3,7 @@ import { apiClient } from './api';
 export interface Job {
   id: number;
   user_id: number;
+  resume_id?: number;
   title: string;
   company: string;
   description: string;
@@ -20,6 +21,7 @@ export interface Job {
   match_score?: number;
   match_details?: any;
   parsed_data?: any;
+  resume?: any;  // 关联的简历信息
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +39,7 @@ export interface CreateJobData {
   title: string;
   company?: string;
   description?: string;
+  resume_id?: number;
   requirements?: string[];
   responsibilities?: string[];
   salary_range?: string;
@@ -73,8 +76,8 @@ class JobService {
    */
   async createJob(jobData: CreateJobData): Promise<Job> {
     try {
-      const response: any = await apiClient.post('/jobs', jobData);
-      return response.data.job;
+      const response = await apiClient.post('/jobs', jobData);
+      return (response as any).data.job;
     } catch (error) {
       console.error('创建职位失败:', error);
       throw error;
@@ -99,8 +102,8 @@ class JobService {
       if (params?.search) queryParams.append('search', params.search);
       
       const endpoint = queryParams.toString() ? `/jobs?${queryParams.toString()}` : '/jobs';
-      const response: any = await apiClient.get(endpoint);
-      return response.data;
+      const response = await apiClient.get(endpoint);
+      return (response as any).data;
     } catch (error) {
       console.error('获取职位列表失败:', error);
       throw error;
@@ -112,8 +115,8 @@ class JobService {
    */
   async getJob(jobId: number): Promise<Job> {
     try {
-      const response: any = await apiClient.get(`/jobs/${jobId}`);
-      return response.data.job;
+      const response = await apiClient.get(`/jobs/${jobId}`);
+      return (response as any).data.job;
     } catch (error) {
       console.error('获取职位详情失败:', error);
       throw error;
@@ -125,7 +128,7 @@ class JobService {
    */
   async updateJob(jobId: number, jobData: Partial<CreateJobData>): Promise<Job> {
     const response = await apiClient.post(`/jobs/${jobId}`, jobData); // 使用POST模拟PUT
-    return response.data.job;
+    return (response as any).data.job;
   }
 
   /**
@@ -189,7 +192,7 @@ class JobService {
     const response = await apiClient.post(`/jobs/${jobId}/match-resume`, {
       resume_id: resumeId
     });
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -197,7 +200,7 @@ class JobService {
    */
   async getJobStats(): Promise<JobStats> {
     const response = await apiClient.get('/jobs/stats');
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -257,6 +260,45 @@ class JobService {
       ).join('\n');
       
       return new Blob([csvHeader + csvData], { type: 'text/csv' });
+    }
+  }
+
+  /**
+   * 从图片中提取文字 (OCR)
+   */
+  async extractTextFromImage(imageFile: File): Promise<{ text: string; original_text: string; language: string }> {
+    try {
+      // 使用专门的文件上传方法，但需要调整参数名
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      const headers: HeadersInit = {};
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+        (process.env.NODE_ENV === 'production' 
+          ? 'https://offerott.com/api/v1'
+          : 'http://localhost:5001/api/v1');
+
+      const response = await fetch(`${API_BASE_URL}/jobs/ocr-extract`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('图片文字识别失败:', error);
+      throw error;
     }
   }
 }

@@ -5,30 +5,30 @@ import { useNavigate } from 'react-router-dom';
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
-  // API 基础地址配置
+  // API base URL configuration
   // const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   const handleGetStarted = () => {
-    // 直接跳转到Job页面，开始面试准备流程
-    navigate('/job');
+    // Redirect to Jobs page to start interview preparation process
+    navigate('/jobs');
   };
 
   const handleWatchDemo = () => {
-    // 打开演示页面
+    // Open demo page
     navigate('/demo');
   };
 
   const handleContactUs = () => {
-    // 跳转到联系页面
+    // Redirect to contact page
     navigate('/contact');
   };
 
   const handleLogin = () => {
-    // 跳转到登录页面
+    // Redirect to login page
     navigate('/login');
   };
 
-  // 自定义统计数据（可以从 API 获取）
+  // Custom statistics data (can be fetched from API)
   const statistics = {
     resumesAnalyzed: '380,000+',
     interviewParticipants: '1,200,000',
@@ -41,8 +41,8 @@ const HomePage: React.FC = () => {
       onContactUs={handleContactUs}
       onLogin={handleLogin}
       statistics={statistics}
-      heroTitle="InterviewPro AI面试助手"
-      heroSubtitle="智能面试练习，实时语音识别，专业简历优化 - 助您轻松获得心仪工作"
+      heroTitle="InterviewPro AI Interview Assistant"
+      heroSubtitle="Smart interview practice, real-time speech recognition, professional resume optimization - helping you easily land your dream job"
       theme="light"
     />
   );

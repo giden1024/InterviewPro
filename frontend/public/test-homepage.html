@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomePage Style Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #EEF9FF;
+            font-family: 'Poppins', sans-serif;
+        }
+        .container {
+            min-height: 100vh;
+            display: flex;
+        }
+        .sidebar {
+            width: 240px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(145, 215, 255, 0.2);
+        }
+        .main-content {
+            flex: 1;
+            padding: 24px;
+        }
+        .interview-cards {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .interview-card {
+            flex: 1;
+            height: 172px;
+            border: 2px dashed #77C3FF;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.5);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .interview-card:hover {
+            background: rgba(255, 255, 255, 0.7);
+        }
+        .card-content {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+        }
+        .card-left {
+            flex: 1;
+        }
+        .card-image {
+            width: 98px;
+            height: 98px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .card-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #282828;
+            text-align: center;
+        }
+        .arrow-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px dashed #68C6F1;
+            background: rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .arrow-button:hover {
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .double-arrow {
+            display: flex;
+            color: #68C6F1;
+        }
+        .double-arrow svg {
+            width: 20px;
+            height: 20px;
+        }
+        .double-arrow svg:last-child {
+            margin-left: -8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <!-- 侧边栏内容 -->
+        </div>
+        <div class="main-content">
+            <div class="interview-cards">
+                <!-- Mock Interview Card -->
+                <div class="interview-card">
+                    <div class="card-content">
+                        <div class="card-left">
+                            <div class="card-image">
+                                <img src="/images/mock-interview.png" alt="Mock Interview">
+                            </div>
+                            <div class="card-title">Mock Interview</div>
+                        </div>
+                        <div class="arrow-button">
+                            <div class="double-arrow">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formal Interview Card -->
+                <div class="interview-card">
+                    <div class="card-content">
+                        <div class="card-left">
+                            <div class="card-image">
+                                <img src="/images/formal-interview.png" alt="Formal Interview">
+                            </div>
+                            <div class="card-title">Formal Interview</div>
+                        </div>
+                        <div class="arrow-button">
+                            <div class="double-arrow">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 添加点击事件
+        document.querySelectorAll('.interview-card').forEach((card, index) => {
+            card.addEventListener('click', () => {
+                if (index === 0) {
+                    alert('点击了 Mock Interview - 将跳转到 /mock-interview');
+                } else {
+                    alert('点击了 Formal Interview - 将跳转到 /interview');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

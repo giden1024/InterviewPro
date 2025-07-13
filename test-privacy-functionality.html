@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Privacy Policy Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check if login page loads</h2>
+        <p id="test1-result">Testing...</p>
+        <button onclick="testLoginPage()">Test Login Page</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Check if privacy policy page loads</h2>
+        <p id="test2-result">Testing...</p>
+        <button onclick="testPrivacyPage()">Test Privacy Policy Page</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Check if terms of use page loads</h2>
+        <p id="test3-result">Testing...</p>
+        <button onclick="testTermsPage()">Test Terms of Use Page</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Check JavaScript files</h2>
+        <p id="test4-result">Testing...</p>
+        <button onclick="testJavaScript()">Test JavaScript</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Test Instructions</h2>
+        <ol>
+            <li>Go to <a href="https://offerott.com/login" target="_blank">https://offerott.com/login</a></li>
+            <li>Check if there's a privacy policy checkbox at the bottom of the login form</li>
+            <li>Try to login without checking the checkbox - should show error</li>
+            <li>Click on "Privacy Policy" link - should navigate to privacy policy page</li>
+            <li>Click on "Terms of Use" link - should navigate to terms page</li>
+            <li>Check the checkbox and try to login - should work</li>
+        </ol>
+    </div>
+
+    <script>
+        async function testLoginPage() {
+            const result = document.getElementById('test1-result');
+            try {
+                const response = await fetch('https://offerott.com/login');
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✅ Login page loads successfully</span>';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Login page failed to load</span>';
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+            }
+        }
+
+        async function testPrivacyPage() {
+            const result = document.getElementById('test2-result');
+            try {
+                const response = await fetch('https://offerott.com/privacy-policy');
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✅ Privacy policy page loads successfully</span>';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Privacy policy page failed to load</span>';
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+            }
+        }
+
+        async function testTermsPage() {
+            const result = document.getElementById('test3-result');
+            try {
+                const response = await fetch('https://offerott.com/terms-of-use');
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✅ Terms of use page loads successfully</span>';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Terms of use page failed to load</span>';
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+            }
+        }
+
+        async function testJavaScript() {
+            const result = document.getElementById('test4-result');
+            try {
+                const response = await fetch('https://offerott.com/assets/index-CK55EuO1.js');
+                if (response.ok) {
+                    const jsContent = await response.text();
+                    const hasPrivacyCode = jsContent.includes('privacy-policy') && 
+                                         jsContent.includes('agreeToPrivacy') || 
+                                         jsContent.includes('Privacy Policy');
+                    
+                    if (hasPrivacyCode) {
+                        result.innerHTML = '<span class="success">✅ JavaScript contains privacy policy functionality</span>';
+                    } else {
+                        result.innerHTML = '<span class="error">❌ JavaScript missing privacy policy functionality</span>';
+                    }
+                } else {
+                    result.innerHTML = '<span class="error">❌ JavaScript file failed to load</span>';
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+            }
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            testLoginPage();
+            testPrivacyPage();
+            testTermsPage();
+            testJavaScript();
+        };
+    </script>
+</body>
+</html> 

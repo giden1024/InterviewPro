@@ -1,38 +1,42 @@
-import React, { useState } from 'react';
-
-interface InterviewRecord {
-  id: string;
-  title: string;
-  date: string;
-  duration: string;
-  type: 'Mock Interview' | 'Formal interview';
-}
+import React from 'react';
+import { useInterviewRecord } from '../hooks/useInterviewRecord';
+import logoImg from '../assets/logo02.png';
 
 export const InterviewRecordPage: React.FC = () => {
-  const [records] = useState<InterviewRecord[]>([
-    {
-      id: '1',
-      title: 'Product Management of TikTok Live',
-      date: '2025/04/16',
-      duration: '1min 44sec',
-      type: 'Formal interview'
-    },
-    {
-      id: '2',
-      title: 'Product Management of TikTok Live',
-      date: '2025/04/16',
-      duration: '1min 44sec',
-      type: 'Mock Interview'
+  const { 
+    records, 
+    loading, 
+    error, 
+    refreshRecords, 
+    deleteRecord 
+  } = useInterviewRecord();
+
+  const handleReview = (recordId: string) => {
+    // TODO: Navigate to interview details page
+    console.log('Review interview:', recordId);
+  };
+
+  const handleDelete = async (recordId: string, recordTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete interview record "${recordTitle}"?`)) {
+      await deleteRecord(recordId);
     }
-  ]);
+  };
 
   return (
     <div className="min-h-screen bg-[#EEF9FF] flex">
       {/* Left Sidebar */}
-      <div className="w-60 bg-white shadow-lg flex flex-col">
+      <div className="w-60 bg-white shadow-lg flex flex-col relative">
         {/* Sidebar toggle indicator */}
         <div className="absolute left-0 top-[309px] w-10 h-12 bg-[#87D2F6] rounded-r-[20px] transform -rotate-90"></div>
         
+        {/* Logo */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center">
+            <img src={logoImg} alt="OfferOtter Logo" className="w-8 h-8 mr-3" />
+            <span className="text-[11.58px] font-bold text-[#A07161] font-pump-demi">Offerotter</span>
+          </div>
+        </div>
+
         {/* User Profile Section */}
         <div className="p-6 border-b border-gray-100">
           {/* Avatar and User Info */}
@@ -42,6 +46,9 @@ export const InterviewRecordPage: React.FC = () => {
                 src="https://image-resource.mastergo.com/105099925135800/105099925135802/48570855d6c32d6234b602603ee985c8.png" 
                 alt="Josephine" 
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzgiIGhlaWdodD0iMzgiIHZpZXdCb3g9IjAgMCAzOCAzOCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTkiIGN5PSIxOSIgcj0iMTkiIGZpbGw9IiNEOEYwRkYiLz4KPHN2ZyB4PSI5IiB5PSI5IiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Ik0xMiAxMkM5Ljc5IDEyIDggMTAuMjEgOCA4UzkuNzkgNDIgMTIgNDJTMTYgNS43OSAxNiA4UzE0LjIxIDEyIDEyIDEyWk0xMiAxNEM3LjU4IDE0IDQgMTcuNTggNCAyMlYyNEgyMFYyMkMtIDIwIDE2LjQyIDE0IDEyIDE0WiIgZmlsbD0iIzY4QzZGMSIvPgo8L3N2Zz4KPC9zdmc+';
+                }}
               />
             </div>
             <div className="flex-1">
@@ -109,9 +116,12 @@ export const InterviewRecordPage: React.FC = () => {
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 mb-2">
                 <img 
-                  src="https://image-resource.mastergo.com/105099925135800/105099925135802/f4fa9a0aaa5417bc3208392a86dbde45.png"
+                  src="/images/mock-interview.png"
                   alt="Mock Interview"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTgiIGhlaWdodD0iOTgiIHZpZXdCb3g9IjAgMCA5OCA5OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk4IiBoZWlnaHQ9Ijk4IiByeD0iMTYiIGZpbGw9IiNEOEYwRkYiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjNjhDNkYxIi8+CjwvcGF0aD4KPC9zdmc+Cjwvc3ZnPg==';
+                  }}
                 />
               </div>
               <span className="text-[15px] text-[#282828] font-poppins">Mock Interview</span>
@@ -131,9 +141,12 @@ export const InterviewRecordPage: React.FC = () => {
             <div className="flex flex-col items-center">
               <div className="w-27 h-26 mb-2">
                 <img 
-                  src="https://image-resource.mastergo.com/105099925135800/105099925135802/ae46929a901122c10783a34b2677c2db.png"
+                  src="/images/formal-interview.png"
                   alt="Formal Interview"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEwIiBoZWlnaHQ9IjEwNCIgdmlld0JveD0iMCAwIDExMCAxMDQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMTAiIGhlaWdodD0iMTA0IiByeD0iMTYiIGZpbGw9IiNEOEYwRkYiLz4KPHN2ZyB4PSIzMCIgeT0iMzAiIHdpZHRoPSI1MCIgaGVpZ2h0PSI0NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjNjhDNkYxIi8+CjwvcGF0aD4KPC9zdmc+Cjwvc3ZnPg==';
+                  }}
                 />
               </div>
               <span className="text-[15px] text-[#282828] font-poppins">Formal Interview</span>
@@ -185,7 +198,7 @@ export const InterviewRecordPage: React.FC = () => {
         </div>
 
         {/* Interview Record Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden relative">
           {/* Table Header */}
           <div className="bg-[#D8F0FF] px-8 py-4 rounded-t-[10px]">
             <div className="grid grid-cols-5 gap-4">
@@ -202,24 +215,57 @@ export const InterviewRecordPage: React.FC = () => {
 
           {/* Table Content */}
           <div className="p-8">
-            {records.map((record, index) => (
-              <React.Fragment key={record.id}>
-                <div className="grid grid-cols-5 gap-4 py-4">
-                  <div className="text-[14px] text-[#333333] font-poppins">{record.title}</div>
-                  <div className="text-[14px] text-[#333333] font-poppins">{record.date}</div>
-                  <div className="text-[14px] text-[#333333] font-poppins">{record.duration}</div>
-                  <div className="text-[14px] text-[#333333] font-poppins">{record.type}</div>
-                  <div>
-                    <button className="text-[14px] font-medium text-[#042EFF] font-poppins hover:underline">
-                      review
-                    </button>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#68C6F1]"></div>
+                <span className="ml-2 text-[#333333] font-poppins">Loading interview records...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <div className="text-red-500 mb-4">{error}</div>
+                <button 
+                  onClick={refreshRecords}
+                  className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5bb3e8] transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : records.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-[#999] mb-4">No interview records yet</div>
+                <p className="text-sm text-[#666]">Start your first interview!</p>
+              </div>
+            ) : (
+              records.map((record, index) => (
+                <React.Fragment key={record.id}>
+                  <div className="grid grid-cols-5 gap-4 py-4">
+                    <div className="text-[14px] text-[#333333] font-poppins">{record.title}</div>
+                    <div className="text-[14px] text-[#333333] font-poppins">{record.date}</div>
+                    <div className="text-[14px] text-[#333333] font-poppins">{record.duration}</div>
+                    <div className="text-[14px] text-[#333333] font-poppins">{record.type}</div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleReview(record.id)}
+                        className="text-[14px] font-medium text-[#042EFF] font-poppins hover:underline"
+                      >
+                        review
+                      </button>
+                      {record.status !== 'in_progress' && (
+                        <button 
+                          onClick={() => handleDelete(record.id, record.title)}
+                          className="text-[14px] font-medium text-red-500 font-poppins hover:underline ml-2"
+                        >
+                          delete
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {index < records.length - 1 && (
-                  <div className="h-px bg-[#E9EFFD]"></div>
-                )}
-              </React.Fragment>
-            ))}
+                  {index < records.length - 1 && (
+                    <div className="h-px bg-[#E9EFFD]"></div>
+                  )}
+                </React.Fragment>
+              ))
+            )}
           </div>
 
           {/* Vertical divider line */}

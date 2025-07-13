@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 Error Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 500 Error Fix Verification</h1>
+        <div class="success">
+            <strong>✅ Database Schema Fixed!</strong><br>
+            The resumes table now has all required columns. The 500 error should be resolved.
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Test Login (Get New Token)</h3>
+            <div>
+                <label>Email:</label>
+                <input type="email" id="email" value="test@example.com" style="width: 200px; margin: 5px;">
+            </div>
+            <div>
+                <label>Password:</label>
+                <input type="password" id="password" value="test123" style="width: 200px; margin: 5px;">
+            </div>
+            <button onclick="testLogin()">Login & Get Token</button>
+            <div id="loginResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Resumes API</h3>
+            <div>
+                <label>Token:</label>
+                <textarea id="token" placeholder="Token will be automatically filled from login..."></textarea>
+            </div>
+            <button onclick="testResumesAPI()">Test Resumes API</button>
+            <div id="resumesResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Other APIs</h3>
+            <button onclick="testHealthCheck()">Test Health Check</button>
+            <button onclick="testJobsAPI()">Test Jobs API</button>
+            <button onclick="testQuestionsAPI()">Test Questions API</button>
+            <div id="otherAPIResults"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Test Results Log</h2>
+        <div id="testLog" class="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        const API_BASE = 'https://offerott.com/api/v1';
+        let currentToken = '';
+
+        function log(message) {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toISOString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').textContent = '';
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            log(`Attempting login with email: ${email}`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.access_token;
+                    document.getElementById('token').value = currentToken;
+                    resultDiv.innerHTML = `<div class="success">✅ Login successful! Token obtained.</div>`;
+                    log(`Login successful. Token: ${currentToken.substring(0, 20)}...`);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Login failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Login failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`Login network error: ${error.message}`);
+            }
+        }
+
+        async function testResumesAPI() {
+            const token = document.getElementById('token').value || currentToken;
+            const resultDiv = document.getElementById('resumesResult');
+            
+            if (!token) {
+                resultDiv.innerHTML = `<div class="error">❌ No token available. Please login first.</div>`;
+                return;
+            }
+            
+            log(`Testing resumes API with token: ${token.substring(0, 20)}...`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Resumes API working! Found ${data.data?.length || 0} resumes.</div>`;
+                    log(`Resumes API success: ${JSON.stringify(data)}`);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Resumes API failed (${response.status}): ${data.message || JSON.stringify(data)}</div>`;
+                    log(`Resumes API failed: ${response.status} - ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`Resumes API network error: ${error.message}`);
+            }
+        }
+
+        async function testHealthCheck() {
+            const resultDiv = document.getElementById('otherAPIResults');
+            
+            log('Testing health check endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += `<div class="success">✅ Health check passed</div>`;
+                    log(`Health check success: ${JSON.stringify(data)}`);
+                } else {
+                    resultDiv.innerHTML += `<div class="error">❌ Health check failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Health check failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="error">❌ Health check network error: ${error.message}</div>`;
+                log(`Health check network error: ${error.message}`);
+            }
+        }
+
+        async function testJobsAPI() {
+            const token = document.getElementById('token').value || currentToken;
+            const resultDiv = document.getElementById('otherAPIResults');
+            
+            if (!token) {
+                resultDiv.innerHTML += `<div class="error">❌ No token for jobs API test</div>`;
+                return;
+            }
+            
+            log('Testing jobs API...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/jobs`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += `<div class="success">✅ Jobs API working</div>`;
+                    log(`Jobs API success: ${JSON.stringify(data)}`);
+                } else {
+                    resultDiv.innerHTML += `<div class="error">❌ Jobs API failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Jobs API failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="error">❌ Jobs API network error: ${error.message}</div>`;
+                log(`Jobs API network error: ${error.message}`);
+            }
+        }
+
+        async function testQuestionsAPI() {
+            const token = document.getElementById('token').value || currentToken;
+            const resultDiv = document.getElementById('otherAPIResults');
+            
+            if (!token) {
+                resultDiv.innerHTML += `<div class="error">❌ No token for questions API test</div>`;
+                return;
+            }
+            
+            log('Testing questions API...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/questions`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += `<div class="success">✅ Questions API working</div>`;
+                    log(`Questions API success: ${JSON.stringify(data)}`);
+                } else {
+                    resultDiv.innerHTML += `<div class="error">❌ Questions API failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Questions API failed: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="error">❌ Questions API network error: ${error.message}</div>`;
+                log(`Questions API network error: ${error.message}`);
+            }
+        }
+
+        // Auto-clear results on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🔧 Database Schema Fix Verification Started');
+            log('✅ Database now has all required columns:');
+            log('   - filename, original_filename, file_size, file_type');
+            log('   - status, error_message, parsed_content, raw_text');
+            log('   - name, email, phone, skills, experience, education');
+            log('   - uploaded_at, processed_at, updated_at');
+            log('📋 Next: Test API endpoints to confirm fix');
+        });
+    </script>
+</body>
+</html> 

@@ -36,6 +36,9 @@ pdfplumber==0.9.0
 PyPDF2==3.0.1
 python-docx==0.8.11
 
+# 网页解析
+beautifulsoup4==4.12.2
+
 # 实用工具
 python-magic==0.4.27
 chardet==5.2.0
@@ -60,6 +63,8 @@ nltk==3.8.1
 
 # 图像处理
 Pillow==10.1.0
+pytesseract==0.3.10
+opencv-python==4.8.1.78
 
 # 监控和日志
 prometheus-client==0.19.0
