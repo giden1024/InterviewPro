@@ -38,6 +38,7 @@ class Resume(db.Model):
     skills = db.Column(db.JSON)  # 技能列表
     experience = db.Column(db.JSON)  # 工作经历
     education = db.Column(db.JSON)  # 教育背景
+    projects = db.Column(db.JSON)  # 项目经验
     
     # 时间戳
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -63,5 +64,6 @@ class Resume(db.Model):
             'skills': self.skills or [],
             'experience': self.experience or [],
             'education': self.education or [],
+            'projects': self.projects or [],
             'error_message': self.error_message
         } 

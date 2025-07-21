@@ -10,9 +10,16 @@ load_dotenv()
 # 创建Flask应用
 app = Flask(__name__)
 
-# 加载配置类
-from app.config import ProductionConfig
-app.config.from_object(ProductionConfig)
+# 根据环境变量加载配置类
+import os
+from app.config import DevelopmentConfig, ProductionConfig
+
+# 根据环境变量决定使用哪个配置
+config_name = os.environ.get('FLASK_ENV', 'development')
+if config_name == 'production':
+    app.config.from_object(ProductionConfig)
+else:
+    app.config.from_object(DevelopmentConfig)
 
 # 补充JWT配置
 app.config['JWT_TOKEN_LOCATION'] = ['headers']

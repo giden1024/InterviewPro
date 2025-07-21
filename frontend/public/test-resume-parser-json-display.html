@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历解析JSON显示测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .json-viewer {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .json-key { color: #9cdcfe; }
+        .json-string { color: #ce9178; }
+        .json-number { color: #b5cea8; }
+        .json-boolean { color: #569cd6; }
+        .json-null { color: #569cd6; }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .tab-button:not(.active):hover {
+            background-color: #e5e7eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">
+                📄 简历解析 JSON 显示测试
+            </h1>
+
+            <!-- 服务器选择 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">🔧 服务器选择</h2>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="server" value="localhost:5002" checked class="mr-2">
+                        <span class="text-sm">测试服务器 (localhost:5002) - 无需认证</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="server" value="localhost:5001" class="mr-2">
+                        <span class="text-sm">主服务器 (localhost:5001) - 需要认证</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 文件测试区域 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">📁 预定义文件测试</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button onclick="testFile('陈熙蕾.docx')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        陈熙蕾.docx
+                    </button>
+                    <button onclick="testFile('app_cv.pdf')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        app_cv.pdf
+                    </button>
+                    <button onclick="testFile('resume.docx')" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        resume.docx
+                    </button>
+                    <button onclick="testFile('刘婧哲 Ven.docx')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        刘婧哲 Ven.docx
+                    </button>
+                </div>
+            </div>
+
+            <!-- 文件上传区域 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">📤 文件上传测试</h2>
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <input type="file" id="fileInput" accept=".pdf,.doc,.docx" class="flex-1 border border-gray-300 rounded px-3 py-2">
+                    <button onclick="uploadFile()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded transition-colors">
+                        上传并解析
+                    </button>
+                </div>
+            </div>
+
+            <!-- 认证区域 -->
+            <div id="authSection" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 hidden">
+                <h3 class="font-semibold text-yellow-800 mb-2">🔐 需要登录认证</h3>
+                <div class="flex gap-2">
+                    <button onclick="createTestUser()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        创建测试用户
+                    </button>
+                    <button onclick="login()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                        登录
+                    </button>
+                </div>
+            </div>
+
+            <!-- 结果显示区域 -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="border-b border-gray-200">
+                    <nav class="flex">
+                        <button onclick="switchTab('formatted')" class="tab-button active px-6 py-3 text-sm font-medium border-r border-gray-200">
+                            📋 格式化显示
+                        </button>
+                        <button onclick="switchTab('json')" class="tab-button px-6 py-3 text-sm font-medium border-r border-gray-200">
+                            🔤 原始JSON
+                        </button>
+                        <button onclick="switchTab('debug')" class="tab-button px-6 py-3 text-sm font-medium">
+                            🐛 调试信息
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="p-6">
+                    <!-- 格式化显示标签页 -->
+                    <div id="formattedTab" class="tab-content">
+                        <div id="results" class="text-gray-600">
+                            点击上方按钮测试文件解析...
+                        </div>
+                    </div>
+
+                    <!-- JSON标签页 -->
+                    <div id="jsonTab" class="tab-content hidden">
+                        <div class="mb-4">
+                            <button onclick="copyJson()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                                📋 复制JSON
+                            </button>
+                            <button onclick="downloadJson()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm ml-2 transition-colors">
+                                💾 下载JSON
+                            </button>
+                        </div>
+                        <div id="jsonViewer" class="json-viewer">
+                            暂无JSON数据
+                        </div>
+                    </div>
+
+                    <!-- 调试信息标签页 -->
+                    <div id="debugTab" class="tab-content hidden">
+                        <div id="debugInfo" class="bg-gray-100 p-4 rounded text-sm font-mono">
+                            暂无调试信息
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJson = null;
+        let debugLogs = [];
+
+        // 获取当前选择的服务器
+        function getSelectedServer() {
+            return document.querySelector('input[name="server"]:checked').value;
+        }
+
+        // 切换标签页
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+
+            // 显示选择的标签页
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            event.target.classList.add('active');
+        }
+
+        // 记录调试信息
+        function addDebugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLogs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            document.getElementById('debugInfo').textContent = debugLogs.join('\n');
+        }
+
+        // 监听服务器选择变化
+        document.querySelectorAll('input[name="server"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const authSection = document.getElementById('authSection');
+                if (this.value === 'localhost:5001') {
+                    authSection.classList.remove('hidden');
+                    addDebugLog('切换到主服务器，需要认证');
+                } else {
+                    authSection.classList.add('hidden');
+                    addDebugLog('切换到测试服务器，无需认证');
+                }
+            });
+        });
+
+        // 创建测试用户
+        async function createTestUser() {
+            try {
+                addDebugLog('正在创建测试用户...');
+                const response = await fetch('http://localhost:5001/api/v1/dev/create-test-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+                const result = await response.json();
+                addDebugLog(`创建用户结果: ${JSON.stringify(result)}`);
+            } catch (error) {
+                addDebugLog(`创建用户失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 登录
+        async function login() {
+            try {
+                addDebugLog('正在登录...');
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'test123'
+                    })
+                });
+                const result = await response.json();
+                if (result.access_token) {
+                    localStorage.setItem('token', result.access_token);
+                    addDebugLog('登录成功');
+                } else {
+                    addDebugLog(`登录失败: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                addDebugLog(`登录出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试预定义文件
+        async function testFile(filename) {
+            const server = getSelectedServer();
+            addDebugLog(`开始测试文件: ${filename}`);
+
+            try {
+                let url, options;
+                
+                if (server === 'localhost:5002') {
+                    // 测试服务器
+                    url = `http://localhost:5002/test-file/${encodeURIComponent(filename)}`;
+                    options = {
+                        method: 'POST',
+                        headers: {
+                            'Access-Control-Allow-Origin': '*'
+                        }
+                    };
+                } else {
+                    // 主服务器 - 需要先上传文件再解析
+                    addDebugLog('主服务器测试功能暂未实现，请使用文件上传功能');
+                    return;
+                }
+
+                addDebugLog(`请求URL: ${url}`);
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                addDebugLog(`解析完成，状态: ${response.status}`);
+                displayResults(result, filename);
+                
+            } catch (error) {
+                addDebugLog(`测试文件失败: ${error.message}`, 'error');
+                displayError(error.message);
+            }
+        }
+
+        // 上传文件
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                addDebugLog('请选择文件', 'error');
+                return;
+            }
+
+            const server = getSelectedServer();
+            addDebugLog(`上传文件: ${file.name} 到 ${server}`);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                let url, options;
+                
+                if (server === 'localhost:5002') {
+                    url = 'http://localhost:5002/test-project-extraction';
+                    options = {
+                        method: 'POST',
+                        body: formData
+                    };
+                } else {
+                    url = 'http://localhost:5001/api/v1/resumes';
+                    options = {
+                        method: 'POST',
+                        body: formData
+                    };
+                    
+                    // 如果有token，添加认证头
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        options.headers = {
+                            'Authorization': `Bearer ${token}`
+                        };
+                    }
+                }
+
+                addDebugLog(`上传URL: ${url}`);
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                addDebugLog(`上传完成，状态: ${response.status}`);
+                displayResults(result, file.name);
+                
+            } catch (error) {
+                addDebugLog(`上传失败: ${error.message}`, 'error');
+                displayError(error.message);
+            }
+        }
+
+        // 显示结果
+        function displayResults(data, filename) {
+            currentJson = data;
+            
+            // 更新格式化显示
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = formatResults(data, filename);
+            
+            // 更新JSON显示
+            const jsonViewer = document.getElementById('jsonViewer');
+            jsonViewer.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+            
+            addDebugLog('结果显示完成');
+        }
+
+        // 格式化结果显示
+        function formatResults(data, filename) {
+            if (!data) return '<div class="text-red-500">❌ 无数据</div>';
+
+            let html = `<div class="space-y-6">`;
+            html += `<div class="border-b border-gray-200 pb-4"><h3 class="text-xl font-bold text-gray-800">📄 ${filename}</h3></div>`;
+
+            // 显示基本信息
+            if (data.name || data.email || data.phone) {
+                html += `<div class="bg-blue-50 p-4 rounded-lg">`;
+                html += `<h4 class="font-semibold text-blue-800 mb-2">👤 基本信息</h4>`;
+                html += `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">`;
+                if (data.name) html += `<div><span class="font-medium">姓名:</span> ${data.name}</div>`;
+                if (data.email) html += `<div><span class="font-medium">邮箱:</span> ${data.email}</div>`;
+                if (data.phone) html += `<div><span class="font-medium">电话:</span> ${data.phone}</div>`;
+                html += `</div></div>`;
+            }
+
+            // 显示技能
+            if (data.skills && data.skills.length > 0) {
+                html += `<div class="bg-green-50 p-4 rounded-lg">`;
+                html += `<h4 class="font-semibold text-green-800 mb-2">🔧 技能 (${data.skills.length})</h4>`;
+                html += `<div class="flex flex-wrap gap-2">`;
+                data.skills.forEach(skill => {
+                    html += `<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">${skill}</span>`;
+                });
+                html += `</div></div>`;
+            }
+
+            // 显示工作经历
+            if (data.experience && data.experience.length > 0) {
+                html += `<div class="bg-purple-50 p-4 rounded-lg">`;
+                html += `<h4 class="font-semibold text-purple-800 mb-3">💼 工作经历 (${data.experience.length})</h4>`;
+                html += `<div class="space-y-3">`;
+                data.experience.forEach((exp, index) => {
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-purple-400">`;
+                    html += `<div class="font-medium text-gray-800">${exp.position || '职位未知'}</div>`;
+                    if (exp.company) html += `<div class="text-sm text-gray-600">${exp.company}</div>`;
+                    if (exp.duration) html += `<div class="text-sm text-gray-500">${exp.duration}</div>`;
+                    if (exp.location) html += `<div class="text-sm text-gray-500">📍 ${exp.location}</div>`;
+                    if (exp.description) html += `<div class="text-sm text-gray-700 mt-2">${exp.description}</div>`;
+                    html += `</div>`;
+                });
+                html += `</div></div>`;
+            }
+
+            // 显示教育背景
+            if (data.education && data.education.length > 0) {
+                html += `<div class="bg-yellow-50 p-4 rounded-lg">`;
+                html += `<h4 class="font-semibold text-yellow-800 mb-3">🎓 教育背景 (${data.education.length})</h4>`;
+                html += `<div class="space-y-3">`;
+                data.education.forEach((edu, index) => {
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-yellow-400">`;
+                    if (edu.institution) html += `<div class="font-medium text-gray-800">${edu.institution}</div>`;
+                    if (edu.degree) html += `<div class="text-sm text-gray-600">${edu.degree}</div>`;
+                    if (edu.duration) html += `<div class="text-sm text-gray-500">${edu.duration}</div>`;
+                    if (edu.gpa) html += `<div class="text-sm text-gray-500">GPA: ${edu.gpa}</div>`;
+                    if (edu.location) html += `<div class="text-sm text-gray-500">📍 ${edu.location}</div>`;
+                    html += `</div>`;
+                });
+                html += `</div></div>`;
+            }
+
+            // 显示项目经历
+            if (data.projects && data.projects.length > 0) {
+                html += `<div class="bg-indigo-50 p-4 rounded-lg">`;
+                html += `<h4 class="font-semibold text-indigo-800 mb-3">🚀 项目经历 (${data.projects.length})</h4>`;
+                html += `<div class="space-y-3">`;
+                data.projects.forEach((project, index) => {
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-indigo-400">`;
+                    html += `<div class="font-medium text-gray-800">${project.name || `项目 ${index + 1}`}</div>`;
+                    if (project.description) html += `<div class="text-sm text-gray-700 mt-1">${project.description}</div>`;
+                    if (project.technologies && project.technologies.length > 0) {
+                        html += `<div class="flex flex-wrap gap-1 mt-2">`;
+                        project.technologies.forEach(tech => {
+                            html += `<span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs">${tech}</span>`;
+                        });
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                });
+                html += `</div></div>`;
+            }
+
+            // 显示解析状态
+            const success = data.success !== undefined ? data.success : true;
+            html += `<div class="bg-gray-50 p-4 rounded-lg">`;
+            html += `<h4 class="font-semibold text-gray-800 mb-2">📊 解析状态</h4>`;
+            html += `<div class="text-sm">`;
+            html += `<div class="flex items-center gap-2">`;
+            html += success ? 
+                `<span class="text-green-600">✅ 解析成功</span>` : 
+                `<span class="text-red-600">❌ 解析失败</span>`;
+            html += `</div>`;
+            if (data.error) html += `<div class="text-red-600 mt-1">错误: ${data.error}</div>`;
+            html += `</div></div>`;
+
+            html += `</div>`;
+            return html;
+        }
+
+        // 显示错误
+        function displayError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<div class="text-red-500 bg-red-50 p-4 rounded-lg">❌ 错误: ${message}</div>`;
+            
+            document.getElementById('jsonViewer').textContent = '解析失败，无JSON数据';
+        }
+
+        // JSON语法高亮
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                var cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // 复制JSON
+        function copyJson() {
+            if (!currentJson) {
+                addDebugLog('无JSON数据可复制', 'error');
+                return;
+            }
+            
+            navigator.clipboard.writeText(JSON.stringify(currentJson, null, 2)).then(() => {
+                addDebugLog('JSON已复制到剪贴板');
+                // 临时改变按钮文字
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已复制';
+                btn.className = btn.className.replace('bg-gray-500', 'bg-green-500');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.className = btn.className.replace('bg-green-500', 'bg-gray-500');
+                }, 2000);
+            }).catch(err => {
+                addDebugLog(`复制失败: ${err.message}`, 'error');
+            });
+        }
+
+        // 下载JSON
+        function downloadJson() {
+            if (!currentJson) {
+                addDebugLog('无JSON数据可下载', 'error');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(currentJson, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `resume-parse-result-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            addDebugLog('JSON文件下载开始');
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            addDebugLog('页面加载完成');
+            addDebugLog('当前配置: 测试服务器 localhost:5002');
+        });
+    </script>
+</body>
+</html> 

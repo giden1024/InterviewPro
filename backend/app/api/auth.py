@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
-from marshmallow import Schema, fields, ValidationError as MarshmallowValidationError
+from marshmallow import Schema, fields, ValidationError as MarshmallowValidationError, validates, validates_schema
 
 from app.models.user import User
 from app.extensions import db
@@ -8,10 +8,15 @@ from app.utils.exceptions import APIError, ValidationError, AuthenticationError
 
 auth_bp = Blueprint('auth', __name__)
 
+# 自定义密码验证函数
+def validate_password_length(value):
+    if len(value) < 6:
+        raise MarshmallowValidationError('Password must be at least 6 characters')
+
 # 验证模式
 class RegisterSchema(Schema):
     email = fields.Email(required=True)
-    password = fields.Str(required=True, validate=lambda x: len(x) >= 6)
+    password = fields.Str(required=True, validate=validate_password_length)
     username = fields.Str(allow_none=True)
 
 class LoginSchema(Schema):
@@ -28,7 +33,7 @@ def register():
         
         # 检查邮箱是否已存在
         if User.query.filter_by(email=data['email']).first():
-            raise ValidationError("邮箱已被注册")
+            raise ValidationError("Email is already registered")
         
         # 创建新用户
         user = User(
@@ -46,7 +51,7 @@ def register():
         
         return jsonify({
             'success': True,
-            'message': '注册成功',
+            'message': 'Registration successful',
             'data': {
                 'access_token': access_token,
                 'refresh_token': refresh_token,
@@ -55,7 +60,9 @@ def register():
         }), 201
         
     except MarshmallowValidationError as e:
-        raise APIError('数据验证失败', 422, e.messages)
+        raise APIError('Data validation failed', 422, e.messages)
+    except (ValidationError, AuthenticationError, APIError):
+        raise  # 直接重新抛出我们的自定义异常
     except Exception as e:
         raise APIError(str(e), 400)
 
@@ -71,15 +78,15 @@ def login():
         user = User.query.filter_by(email=data['email']).first()
         
         if not user:
-            raise AuthenticationError("用户不存在，请检查邮箱地址")
+            raise AuthenticationError("User does not exist, please check your email address")
         
         # 检查用户是否激活
         if not user.is_active:
-            raise AuthenticationError("用户账号已被禁用")
+            raise AuthenticationError("User account has been disabled")
         
         # 验证密码
         if not user.check_password(data['password']):
-            raise AuthenticationError("密码错误，请重新输入")
+            raise AuthenticationError("Incorrect password, please try again")
         
         # 更新最后登录时间
         user.update_last_login()
@@ -90,7 +97,7 @@ def login():
         
         return jsonify({
             'success': True,
-            'message': '登录成功',
+            'message': 'Login successful',
             'data': {
                 'access_token': access_token,
                 'refresh_token': refresh_token,
@@ -99,9 +106,9 @@ def login():
         })
         
     except MarshmallowValidationError as e:
-        raise APIError('数据验证失败', 422, e.messages)
-    except (AuthenticationError, APIError):
-        raise
+        raise APIError('Data validation failed', 422, e.messages)
+    except (ValidationError, AuthenticationError, APIError):
+        raise  # 直接重新抛出我们的自定义异常
     except Exception as e:
         raise APIError(str(e), 400)
 
@@ -114,7 +121,7 @@ def get_profile():
         user = User.query.get(user_id)
         
         if not user:
-            raise ValidationError("用户不存在")
+            raise ValidationError("User does not exist")
         
         return jsonify({
             'success': True,
@@ -133,7 +140,7 @@ def get_user_info():
         user = User.query.get(user_id)
         
         if not user:
-            raise ValidationError("用户不存在")
+            raise ValidationError("User does not exist")
         
         return jsonify({
             'success': True,
@@ -150,5 +157,5 @@ def logout():
     # TODO: 实现令牌黑名单
     return jsonify({
         'success': True,
-        'message': '登出成功'
+        'message': 'Logout successful'
     }) 

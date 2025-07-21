@@ -147,6 +147,8 @@ def upload_resume():
                 resume.skills = parsed_data.get('skills', [])
                 resume.experience = parsed_data.get('experience', [])
                 resume.education = parsed_data.get('education', [])
+                # 添加项目经验支持
+                resume.projects = parsed_data.get('projects', [])
                 
             else:
                 resume.status = ResumeStatus.FAILED
@@ -253,6 +255,8 @@ def reparse_resume(resume_id):
             resume.skills = parsed_data.get('skills', [])
             resume.experience = parsed_data.get('experience', [])
             resume.education = parsed_data.get('education', [])
+            # 添加项目经验支持
+            resume.projects = parsed_data.get('projects', [])
             
         else:
             resume.status = ResumeStatus.FAILED
@@ -401,6 +405,8 @@ def analyze_resume(resume_id):
                         resume.skills = parsed_data.get('skills', [])
                         resume.experience = parsed_data.get('experience', [])
                         resume.education = parsed_data.get('education', [])
+                        # 添加项目经验支持
+                        resume.projects = parsed_data.get('projects', [])
                         resume.error_message = None
                         
                         db.session.commit()
@@ -575,6 +581,8 @@ def batch_operations():
                         resume.skills = parsed_data.get('skills', [])
                         resume.experience = parsed_data.get('experience', [])
                         resume.education = parsed_data.get('education', [])
+                        # 添加项目经验支持
+                        resume.projects = parsed_data.get('projects', [])
                         
                         results.append({'id': resume.id, 'success': True})
                     else:

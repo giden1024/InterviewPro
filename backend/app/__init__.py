@@ -20,8 +20,17 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    # CORS配置已在run_complete.py中处理
-    # cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    
+    # 配置CORS - 支持前端开发端口
+    cors.init_app(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", 
+                       "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
     
     # 优化SocketIO配置
     socketio.init_app(
