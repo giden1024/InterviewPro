@@ -54,7 +54,7 @@ def create_interview():
         
         return jsonify({
             'success': True,
-            'message': '面试会话创建成功',
+            'message': 'Interview session created successfully',
             'data': {
                 'session': session.to_dict(),
                 'session_id': session.session_id
@@ -62,11 +62,11 @@ def create_interview():
         }), 201
         
     except MarshmallowValidationError as e:
-        raise APIError('数据验证失败', 422, e.messages)
+        raise APIError('Data validation failed', 422, e.messages)
     except (ValidationError, NotFoundError) as e:
         raise APIError(str(e), 400)
     except Exception as e:
-        raise APIError(f'创建面试会话失败: {str(e)}', 500)
+        raise APIError(f'Failed to create interview session: {str(e)}', 500)
 
 @interviews_bp.route('', methods=['GET'])
 @jwt_required()  # 重新启用认证
@@ -88,7 +88,7 @@ def get_interviews():
             
         except Exception as db_error:
             # 如果数据库查询失败，返回空列表而不是演示数据
-            print(f"数据库查询失败: {db_error}")
+            print(f"Database query failed: {db_error}")
             return jsonify({
                 'success': True,
                 'data': {
@@ -101,7 +101,7 @@ def get_interviews():
             })
         
     except Exception as e:
-        raise APIError(f'获取面试列表失败: {str(e)}', 500)
+        raise APIError(f'Failed to get interview list: {str(e)}', 500)
 
 # AI回答生成验证模式
 class AIAnswerSchema(Schema):
@@ -139,9 +139,9 @@ def generate_ai_answer():
         })
         
     except MarshmallowValidationError as e:
-        raise APIError('数据验证失败', 422, e.messages)
+        raise APIError('Data validation failed', 422, e.messages)
     except Exception as e:
-        raise APIError(f'生成AI回答失败: {str(e)}', 500)
+        raise APIError(f'Failed to generate AI answer: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>', methods=['GET'])
 @jwt_required()
@@ -165,7 +165,7 @@ def get_interview(session_id):
     except NotFoundError as e:
         raise APIError(str(e), 404)
     except Exception as e:
-        raise APIError(f'获取面试详情失败: {str(e)}', 500)
+        raise APIError(f'Failed to get interview details: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/start', methods=['POST'])
 @jwt_required()
@@ -179,7 +179,7 @@ def start_interview(session_id):
         
         return jsonify({
             'success': True,
-            'message': '面试已开始',
+            'message': 'Interview started',
             'data': {
                 'session': session.to_dict(),
                 'next_question': next_question
@@ -189,7 +189,7 @@ def start_interview(session_id):
     except (ValidationError, NotFoundError) as e:
         raise APIError(str(e), 400)
     except Exception as e:
-        raise APIError(f'开始面试失败: {str(e)}', 500)
+        raise APIError(f'Failed to start interview: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/next', methods=['GET'])
 @jwt_required()
@@ -205,7 +205,7 @@ def get_next_question(session_id):
                 'success': True,
                 'data': {
                     'completed': True,
-                    'message': '所有问题已完成'
+                    'message': 'All questions completed'
                 }
             })
         
@@ -217,7 +217,7 @@ def get_next_question(session_id):
     except (ValidationError, NotFoundError) as e:
         raise APIError(str(e), 400)
     except Exception as e:
-        raise APIError(f'获取问题失败: {str(e)}', 500)
+        raise APIError(f'Failed to get question: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/answer', methods=['POST'])
 @jwt_required()
@@ -246,13 +246,13 @@ def submit_answer(session_id):
         logger.info(f"✅ [API DEBUG] Answer submitted successfully")
         return jsonify({
             'success': True,
-            'message': '答案提交成功',
+            'message': 'Answer submitted successfully',
             'data': result
         })
         
     except MarshmallowValidationError as e:
         logger.error(f"❌ [API DEBUG] Marshmallow validation error: {e.messages}")
-        raise APIError('数据验证失败', 422, e.messages)
+        raise APIError('Data validation failed', 422, e.messages)
     except (ValidationError, NotFoundError) as e:
         logger.error(f"❌ [API DEBUG] Validation/NotFound error: {str(e)}")
         raise APIError(str(e), 400)
@@ -260,7 +260,7 @@ def submit_answer(session_id):
         logger.error(f"❌ [API DEBUG] Unexpected error: {str(e)}")
         import traceback
         logger.error(f"❌ [API DEBUG] Traceback: {traceback.format_exc()}")
-        raise APIError(f'提交答案失败: {str(e)}', 500)
+        raise APIError(f'Failed to submit answer: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/end', methods=['POST'])
 @jwt_required()
@@ -273,7 +273,7 @@ def end_interview(session_id):
         
         return jsonify({
             'success': True,
-            'message': '面试已结束',
+            'message': 'Interview ended',
             'data': {
                 'session': session.to_dict()
             }
@@ -282,7 +282,7 @@ def end_interview(session_id):
     except NotFoundError as e:
         raise APIError(str(e), 404)
     except Exception as e:
-        raise APIError(f'结束面试失败: {str(e)}', 500)
+        raise APIError(f'Failed to end interview: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>', methods=['DELETE'])
 @jwt_required()
@@ -295,13 +295,13 @@ def delete_interview(session_id):
         
         return jsonify({
             'success': True,
-            'message': '面试会话已删除'
+            'message': 'Interview session deleted'
         })
         
     except NotFoundError as e:
         raise APIError(str(e), 404)
     except Exception as e:
-        raise APIError(f'删除面试失败: {str(e)}', 500)
+        raise APIError(f'Failed to delete interview: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>/regenerate', methods=['POST'])
 @jwt_required()
@@ -315,7 +315,7 @@ def regenerate_questions(session_id):
         
         return jsonify({
             'success': True,
-            'message': '问题重新生成成功',
+            'message': 'Questions regenerated successfully',
             'data': {
                 'session': session.to_dict(),
                 'questions': questions,
@@ -326,7 +326,7 @@ def regenerate_questions(session_id):
     except (ValidationError, NotFoundError) as e:
         raise APIError(str(e), 400)
     except Exception as e:
-        raise APIError(f'重新生成问题失败: {str(e)}', 500)
+        raise APIError(f'Failed to regenerate questions: {str(e)}', 500)
 
 @interviews_bp.route('/statistics', methods=['GET'])
 @jwt_required()
@@ -343,7 +343,7 @@ def get_statistics():
         })
         
     except Exception as e:
-        raise APIError(f'获取统计信息失败: {str(e)}', 500)
+        raise APIError(f'Failed to get statistics: {str(e)}', 500)
 
 @interviews_bp.route('/types', methods=['GET'])
 def get_interview_types():
@@ -352,8 +352,8 @@ def get_interview_types():
         types = [
             {
                 'value': 'technical',
-                'label': '技术面试',
-                'description': '主要考察技术技能和编程能力',
+                'label': 'Technical Interview',
+                'description': 'Mainly examines technical skills and programming abilities',
                 'question_distribution': {
                     'technical': 6,
                     'experience': 2,
@@ -362,8 +362,8 @@ def get_interview_types():
             },
             {
                 'value': 'hr',
-                'label': 'HR面试',
-                'description': '主要考察行为表现和团队协作能力',
+                'label': 'HR Interview',
+                'description': 'Mainly examines behavioral performance and teamwork abilities',
                 'question_distribution': {
                     'behavioral': 4,
                     'experience': 3,
@@ -373,8 +373,8 @@ def get_interview_types():
             },
             {
                 'value': 'comprehensive',
-                'label': '综合面试',
-                'description': '技术和行为能力的综合考察',
+                'label': 'Comprehensive Interview',
+                'description': 'Comprehensive assessment of technical and behavioral abilities',
                 'question_distribution': {
                     'technical': 3,
                     'behavioral': 3,
@@ -384,8 +384,8 @@ def get_interview_types():
             },
             {
                 'value': 'mock',
-                'label': '模拟面试',
-                'description': '模拟真实面试场景，全面练习面试技巧',
+                'label': 'Mock Interview',
+                'description': 'Simulates real interview scenarios to comprehensively practice interview skills',
                 'question_distribution': {
                     'behavioral': 3,
                     'technical': 2,
@@ -400,22 +400,22 @@ def get_interview_types():
             'data': {
                 'types': types,
                 'difficulty_levels': [
-                    {'value': 'easy', 'label': '简单'},
-                    {'value': 'medium', 'label': '中等'},
-                    {'value': 'hard', 'label': '困难'}
+                    {'value': 'easy', 'label': 'Easy'},
+                    {'value': 'medium', 'label': 'Medium'},
+                    {'value': 'hard', 'label': 'Hard'}
                 ],
                 'question_types': [
-                    {'value': 'technical', 'label': '技术问题'},
-                    {'value': 'behavioral', 'label': '行为问题'},
-                    {'value': 'experience', 'label': '经验问题'},
-                    {'value': 'situational', 'label': '情景问题'},
-                    {'value': 'general', 'label': '通用问题'}
+                    {'value': 'technical', 'label': 'Technical Questions'},
+                    {'value': 'behavioral', 'label': 'Behavioral Questions'},
+                    {'value': 'experience', 'label': 'Experience Questions'},
+                    {'value': 'situational', 'label': 'Situational Questions'},
+                    {'value': 'general', 'label': 'General Questions'}
                 ]
             }
         })
         
     except Exception as e:
-        raise APIError(f'获取面试类型失败: {str(e)}', 500)
+        raise APIError(f'Failed to get interview types: {str(e)}', 500)
 
 @interviews_bp.route('/match-question', methods=['POST'])
 @jwt_required()
@@ -440,7 +440,7 @@ def match_historical_question():
                 'data': {
                     'matches': [],
                     'extracted_question': None,
-                    'message': '未从语音中识别到问题'
+                    'message': 'No question recognized from speech'
                 }
             })
         
@@ -462,6 +462,6 @@ def match_historical_question():
         })
         
     except MarshmallowValidationError as e:
-        raise APIError('数据验证失败', 422, e.messages)
+        raise APIError('Data validation failed', 422, e.messages)
     except Exception as e:
-        raise APIError(f'问题匹配失败: {str(e)}', 500) 
+        raise APIError(f'Failed to match question: {str(e)}', 500) 

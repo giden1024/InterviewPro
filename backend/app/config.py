@@ -6,7 +6,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'interview-genius-secret-key-2024'
     
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///interview_genius.db'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'mysql+pymysql://root@localhost/interview_genius?charset=utf8mb4'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
@@ -48,8 +48,8 @@ class Config:
     RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL') or 'memory://'
     
     # CORS配置
-    CORS_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000']
-
+    CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001']
+    
     @staticmethod
     def init_app(app):
         pass
@@ -57,31 +57,36 @@ class Config:
 class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or 'sqlite:///dev_interview_genius.db'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or 'mysql+pymysql://root@localhost/dev_interview_genius?charset=utf8mb4'
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads', 'dev')
     
     # 开发环境国际化配置
     QUESTION_LANGUAGE = 'english'  # 开发环境默认使用英文
     AI_QUESTION_CONFIG = {
-        **Config.AI_QUESTION_CONFIG,
-        'debug_mode': True,
-        'log_ai_responses': True
+        'language': 'english',
+        'cultural_neutrality': True,
+        'professional_tone': True,
+        'international_friendly': True,
+        'avoid_colloquialisms': True,
+        'clear_instructions': True
     }
 
 class ProductionConfig(Config):
     """生产环境配置"""
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+pymysql://username:password@localhost/interview_genius'
+        'mysql+pymysql://root@localhost/interview_genius?charset=utf8mb4'
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or '/app/uploads'
     
     # 生产环境国际化配置
     QUESTION_LANGUAGE = os.environ.get('QUESTION_LANGUAGE', 'english')
     AI_QUESTION_CONFIG = {
-        **Config.AI_QUESTION_CONFIG,
-        'cache_questions': True,      # 生产环境启用问题缓存
-        'batch_generation': True,     # 启用批量生成
-        'quality_check': True         # 启用质量检查
+        'language': os.environ.get('QUESTION_LANGUAGE', 'english'),
+        'cultural_neutrality': True,
+        'professional_tone': True,
+        'international_friendly': True,
+        'avoid_colloquialisms': True,
+        'clear_instructions': True
     }
 
 class TestingConfig(Config):
@@ -93,11 +98,15 @@ class TestingConfig(Config):
     # 测试环境配置
     QUESTION_LANGUAGE = 'english'  # 测试环境使用英文
     AI_QUESTION_CONFIG = {
-        **Config.AI_QUESTION_CONFIG,
-        'use_mock_ai': True,         # 测试环境使用模拟AI
-        'deterministic_output': True  # 确定性输出用于测试
+        'language': 'english',
+        'cultural_neutrality': True,
+        'professional_tone': True,
+        'international_friendly': True,
+        'avoid_colloquialisms': True,
+        'clear_instructions': True
     }
 
+# 配置字典
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,

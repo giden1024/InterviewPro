@@ -70,7 +70,7 @@ def create_job():
         if resume_id:
             resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
             if not resume:
-                return error_response("关联的简历不存在", 404)
+                return error_response("Associated resume does not exist", 404)
         
         # 创建职位
         job = Job(
@@ -96,13 +96,13 @@ def create_job():
         
         return success_response({
             'job': job.to_dict()
-        }, "职位创建成功", 201)
+        }, "Job created successfully", 201)
         
     except MarshmallowValidationError as e:
-        return error_response("数据验证失败", 422, details=e.messages)
+        return error_response("Data validation failed", 422, details=e.messages)
     except Exception as e:
-        current_app.logger.error(f"创建职位失败: {str(e)}")
-        return error_response("创建职位失败", 500)
+        current_app.logger.error(f"Failed to create job: {str(e)}")
+        return error_response("Failed to create job", 500)
 
 @jobs_bp.route('', methods=['GET'])
 @jwt_required()
@@ -149,8 +149,8 @@ def get_jobs():
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取职位列表失败: {str(e)}")
-        return error_response("获取职位列表失败", 500)
+        current_app.logger.error(f"Failed to get job list: {str(e)}")
+        return error_response("Failed to get job list", 500)
 
 @jobs_bp.route('/<int:job_id>', methods=['GET'])
 @jwt_required()
@@ -161,7 +161,7 @@ def get_job(job_id):
         
         job = Job.query.filter_by(id=job_id, user_id=user_id).first()
         if not job:
-            return error_response("职位不存在", 404)
+            return error_response("Job does not exist", 404)
         
         job_data = job.to_dict()
         
@@ -174,8 +174,8 @@ def get_job(job_id):
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取职位详情失败: {str(e)}")
-        return error_response("获取职位详情失败", 500)
+        current_app.logger.error(f"Failed to get job details: {str(e)}")
+        return error_response("Failed to get job details", 500)
 
 @jobs_bp.route('/<int:job_id>', methods=['PUT'])
 @jwt_required()
@@ -186,7 +186,7 @@ def update_job(job_id):
         
         job = Job.query.filter_by(id=job_id, user_id=user_id).first()
         if not job:
-            return error_response("职位不存在", 404)
+            return error_response("Job does not exist", 404)
         
         # 数据验证
         schema = UpdateJobSchema()
@@ -205,13 +205,13 @@ def update_job(job_id):
         
         return success_response({
             'job': job.to_dict()
-        }, "职位更新成功")
+        }, "Job updated successfully")
         
     except MarshmallowValidationError as e:
-        return error_response("数据验证失败", 422, details=e.messages)
+        return error_response("Data validation failed", 422, details=e.messages)
     except Exception as e:
-        current_app.logger.error(f"更新职位失败: {str(e)}")
-        return error_response("更新职位失败", 500)
+        current_app.logger.error(f"Failed to update job: {str(e)}")
+        return error_response("Failed to update job", 500)
 
 @jobs_bp.route('/<int:job_id>', methods=['DELETE'])
 @jwt_required()
@@ -222,16 +222,16 @@ def delete_job(job_id):
         
         job = Job.query.filter_by(id=job_id, user_id=user_id).first()
         if not job:
-            return error_response("职位不存在", 404)
+            return error_response("Job does not exist", 404)
         
         db.session.delete(job)
         db.session.commit()
         
-        return success_response(message="职位删除成功")
+        return success_response(message="Job deleted successfully")
         
     except Exception as e:
-        current_app.logger.error(f"删除职位失败: {str(e)}")
-        return error_response("删除职位失败", 500)
+        current_app.logger.error(f"Failed to delete job: {str(e)}")
+        return error_response("Failed to delete job", 500)
 
 @jobs_bp.route('/analyze-url', methods=['POST'])
 @jwt_required()
@@ -249,7 +249,7 @@ def analyze_job_url():
         result = parser.parse_job_url(data['url'])
         
         if not result['success']:
-            return error_response(f"URL解析失败: {result['error']}", 400)
+            return error_response(f"URL parsing failed: {result['error']}", 400)
         
         job_data = result['data']
         
@@ -280,10 +280,10 @@ def analyze_job_url():
         }, "URL分析完成，职位已创建", 201)
         
     except MarshmallowValidationError as e:
-        return error_response("数据验证失败", 422, details=e.messages)
+        return error_response("Data validation failed", 422, details=e.messages)
     except Exception as e:
-        current_app.logger.error(f"URL分析失败: {str(e)}")
-        return error_response("URL分析失败", 500)
+        current_app.logger.error(f"Failed to analyze URL: {str(e)}")
+        return error_response("Failed to analyze URL", 500)
 
 @jobs_bp.route('/parse-text', methods=['POST'])
 @jwt_required()
@@ -305,7 +305,7 @@ def parse_job_text():
         )
         
         if not result['success']:
-            return error_response(f"文本解析失败: {result['error']}", 400)
+            return error_response(f"Text parsing failed: {result['error']}", 400)
         
         job_data = result['data']
         
@@ -335,10 +335,10 @@ def parse_job_text():
         }, "文本解析完成，职位已创建", 201)
         
     except MarshmallowValidationError as e:
-        return error_response("数据验证失败", 422, details=e.messages)
+        return error_response("Data validation failed", 422, details=e.messages)
     except Exception as e:
-        current_app.logger.error(f"文本解析失败: {str(e)}")
-        return error_response("文本解析失败", 500)
+        current_app.logger.error(f"Failed to parse text: {str(e)}")
+        return error_response("Failed to parse text", 500)
 
 
 @jobs_bp.route('/ocr-extract', methods=['POST'])
@@ -350,15 +350,15 @@ def extract_text_from_image():
         
         # 检查是否有上传的文件
         if 'image' not in request.files:
-            return error_response("请上传图片文件", 400)
+            return error_response("Please upload an image file", 400)
         
         file = request.files['image']
         if file.filename == '':
-            return error_response("请选择要上传的图片", 400)
+            return error_response("Please select an image to upload", 400)
         
         # 验证文件类型
         if not _allowed_image_file(file.filename):
-            return error_response("不支持的图片格式，支持: jpg, jpeg, png, bmp, tiff, webp", 400)
+            return error_response("Unsupported image format. Supported formats: jpg, jpeg, png, bmp, tiff, webp", 400)
         
         # 确保上传目录存在
         upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
@@ -385,7 +385,7 @@ def extract_text_from_image():
                 'text': result['text'],
                 'original_text': result.get('original_text', ''),
                 'language': result.get('language', 'unknown'),
-                'message': 'OCR文字识别成功'
+                'message': 'OCR text recognition successful'
             })
             
         finally:
@@ -394,11 +394,11 @@ def extract_text_from_image():
                 if os.path.exists(file_path):
                     os.remove(file_path)
             except Exception as e:
-                current_app.logger.warning(f"清理临时文件失败: {e}")
+                current_app.logger.warning(f"Failed to clean up temporary file: {e}")
                 
     except Exception as e:
-        current_app.logger.error(f"OCR文字识别失败: {str(e)}")
-        return error_response("图片文字识别失败", 500)
+        current_app.logger.error(f"OCR text recognition failed: {str(e)}")
+        return error_response("Image text recognition failed", 500)
 
 
 def _allowed_image_file(filename):
@@ -461,8 +461,8 @@ def get_job_templates():
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取职位模板失败: {str(e)}")
-        return error_response("获取职位模板失败", 500)
+        current_app.logger.error(f"Failed to get job templates: {str(e)}")
+        return error_response("Failed to get job templates", 500)
 
 @jobs_bp.route('/<int:job_id>/match-resume', methods=['POST'])
 @jwt_required()
@@ -476,18 +476,18 @@ def match_job_with_resume(job_id):
         # 获取职位
         job = Job.query.filter_by(id=job_id, user_id=user_id).first()
         if not job:
-            return error_response("职位不存在", 404)
+            return error_response("Job does not exist", 404)
         
         # 获取简历
         if resume_id:
             resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
             if not resume:
-                return error_response("简历不存在", 404)
+                return error_response("Resume does not exist", 404)
         else:
             # 使用用户最新的简历
             resume = Resume.query.filter_by(user_id=user_id).order_by(Resume.created_at.desc()).first()
             if not resume:
-                return error_response("未找到简历", 404)
+                return error_response("Resume not found", 404)
         
         # 计算匹配度
         match_result = _calculate_job_resume_match(job, resume)
@@ -501,11 +501,11 @@ def match_job_with_resume(job_id):
             'job': job.to_dict(),
             'resume': resume.to_dict(),
             'match_result': match_result
-        }, "匹配分析完成")
+        }, "Matching analysis completed")
         
     except Exception as e:
-        current_app.logger.error(f"职位简历匹配失败: {str(e)}")
-        return error_response("匹配分析失败", 500)
+        current_app.logger.error(f"Failed to match job with resume: {str(e)}")
+        return error_response("Matching analysis failed", 500)
 
 @jobs_bp.route('/stats', methods=['GET'])
 @jwt_required()
@@ -536,8 +536,8 @@ def get_job_stats():
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取职位统计失败: {str(e)}")
-        return error_response("获取统计失败", 500)
+        current_app.logger.error(f"Failed to get job statistics: {str(e)}")
+        return error_response("Failed to get statistics", 500)
 
 def _calculate_job_resume_match(job: Job, resume: Resume) -> dict:
     """计算职位与简历的匹配度"""
@@ -591,10 +591,10 @@ def _calculate_job_resume_match(job: Job, resume: Resume) -> dict:
         
         # 生成建议
         if details['skill_gaps']:
-            details['recommendations'].append(f"建议学习以下技能: {', '.join(list(details['skill_gaps'])[:3])}")
+            details['recommendations'].append(f"Recommend learning the following skills: {', '.join(list(details['skill_gaps'])[:3])}")
         
         if not details['experience_match']:
-            details['recommendations'].append("考虑积累更多相关工作经验")
+            details['recommendations'].append("Consider gaining more relevant work experience")
         
         return {
             'score': round(score * 100, 2),  # 转换为百分比
@@ -602,8 +602,8 @@ def _calculate_job_resume_match(job: Job, resume: Resume) -> dict:
         }
         
     except Exception as e:
-        current_app.logger.error(f"匹配计算失败: {str(e)}")
+        current_app.logger.error(f"Failed to calculate match: {str(e)}")
         return {
             'score': 0.0,
-            'details': {'error': '匹配计算失败'}
+            'details': {'error': 'Failed to calculate match'}
         } 

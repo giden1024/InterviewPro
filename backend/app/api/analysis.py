@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def test_route():
     """测试路由"""
     print("🔍 [DEBUG] 测试路由被调用!")
-    return {"message": "测试路由工作正常", "success": True}
+    return {"message": "Test route works properly", "success": True}
 
 @analysis.route('/test-no-auth/<session_id>', methods=['GET'])
 def test_no_auth(session_id):

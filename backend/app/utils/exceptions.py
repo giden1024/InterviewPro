@@ -59,7 +59,7 @@ def handle_errors(app):
             'success': False,
             'error': {
                 'code': 'NOT_FOUND',
-                'message': '资源不存在'
+                'message': 'Resource not found'
             }
         }), 404
     
@@ -69,7 +69,7 @@ def handle_errors(app):
             'success': False,
             'error': {
                 'code': 'INTERNAL_ERROR',
-                'message': '服务器内部错误'
+                'message': 'Internal server error'
             }
         }), 500
     
@@ -79,7 +79,7 @@ def handle_errors(app):
             'success': False,
             'error': {
                 'code': 'VALIDATION_ERROR',
-                'message': '请求参数验证失败',
+                'message': 'Request parameter validation failed',
                 'details': getattr(error, 'data', {}).get('messages', {})
             }
         }), 422 
