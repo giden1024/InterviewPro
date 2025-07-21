@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存清理 - MIME类型错误修复</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h1 class="text-3xl font-bold text-center mb-6 text-red-600">🔧 MIME类型错误修复</h1>
+                
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                    <p class="font-bold">检测到的错误:</p>
+                    <p class="text-sm mt-1">Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "application/octet-stream"</p>
+                </div>
+
+                <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-6">
+                    <p class="font-bold">问题原因:</p>
+                    <p class="text-sm mt-1">浏览器缓存了之前Python静态服务器的错误响应。现在Vite开发服务器正在正常运行，但需要清除缓存。</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <h2 class="text-xl font-semibold">🚀 自动修复方案</h2>
+                    
+                    <button onclick="clearCacheAndReload()" 
+                            class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded font-bold">
+                        🔄 清除缓存并重新加载
+                    </button>
+                    
+                    <button onclick="forceReloadMainPage()" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded font-bold">
+                        🏠 强制重新加载首页
+                    </button>
+                    
+                    <button onclick="openInIncognito()" 
+                            class="w-full bg-purple-500 hover:bg-purple-600 text-white py-3 px-4 rounded font-bold">
+                        🔒 复制链接（在无痕模式中打开）
+                    </button>
+                </div>
+
+                <div class="bg-gray-100 p-4 rounded mb-6">
+                    <h3 class="font-semibold mb-2">📋 手动修复步骤（如果自动修复无效）:</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm">
+                        <li>按 <kbd class="bg-gray-300 px-2 py-1 rounded">Cmd/Ctrl + Shift + R</kbd> 强制刷新</li>
+                        <li>或按 <kbd class="bg-gray-300 px-2 py-1 rounded">F12</kbd> 打开开发者工具 → Network 标签 → 右键 → Clear Browser Cache</li>
+                        <li>或在地址栏中输入 <code class="bg-gray-300 px-1">chrome://settings/clearBrowserData</code></li>
+                        <li>选择"缓存的图片和文件"并清除</li>
+                    </ol>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-green-100 p-4 rounded">
+                        <h3 class="font-semibold text-green-700 mb-2">✅ 服务器状态正常</h3>
+                        <ul class="text-sm text-green-600">
+                            <li>• Vite开发服务器运行中</li>
+                            <li>• MIME类型配置正确</li>
+                            <li>• Content-Type: text/javascript</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-yellow-100 p-4 rounded">
+                        <h3 class="font-semibold text-yellow-700 mb-2">⚠️ 需要清理缓存</h3>
+                        <ul class="text-sm text-yellow-600">
+                            <li>• 浏览器缓存旧响应</li>
+                            <li>• Python服务器残留</li>
+                            <li>• 需要强制刷新</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="status" class="mt-4 p-3 rounded hidden">
+                    <!-- 状态信息将在这里显示 -->
+                </div>
+
+                <div class="text-center mt-6">
+                    <p class="text-sm text-gray-600">如果问题仍然存在，请尝试在无痕模式中访问页面</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `mt-4 p-3 rounded ${
+                type === 'success' ? 'bg-green-100 text-green-700' : 
+                type === 'error' ? 'bg-red-100 text-red-700' : 
+                'bg-blue-100 text-blue-700'
+            }`;
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden');
+        }
+
+        function clearCacheAndReload() {
+            showStatus('正在清除缓存并重新加载...', 'info');
+            
+            // 清除各种缓存
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // 清除本地存储
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (e) {
+                console.log('清除存储时出错:', e);
+            }
+            
+            setTimeout(() => {
+                // 强制重新加载页面，绕过缓存
+                window.location.href = 'http://localhost:3000/?t=' + Date.now();
+            }, 500);
+        }
+
+        function forceReloadMainPage() {
+            showStatus('正在强制重新加载首页...', 'info');
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000/?bust=' + Date.now();
+            }, 500);
+        }
+
+        function openInIncognito() {
+            const url = 'http://localhost:3000/';
+            navigator.clipboard.writeText(url).then(() => {
+                showStatus('链接已复制到剪贴板！请在无痕模式中粘贴访问。', 'success');
+            }).catch(() => {
+                showStatus('请手动复制链接: ' + url, 'info');
+            });
+            
+            // 尝试打开新窗口（可能被浏览器阻止）
+            try {
+                window.open(url, '_blank');
+            } catch (e) {
+                console.log('无法自动打开窗口，请手动访问');
+            }
+        }
+
+        // 页面加载时显示当前状态
+        window.addEventListener('load', () => {
+            fetch('http://localhost:3000/src/main.tsx')
+                .then(response => {
+                    if (response.ok && response.headers.get('content-type').includes('javascript')) {
+                        showStatus('✅ Vite服务器响应正常，可以尝试清除缓存', 'success');
+                    } else {
+                        showStatus('❌ 服务器响应异常，请检查Vite是否正在运行', 'error');
+                    }
+                })
+                .catch(error => {
+                    showStatus('❌ 无法连接到Vite服务器，请确认服务是否启动', 'error');
+                });
+        });
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                clearCacheAndReload();
+            }
+        });
+    </script>
+</body>
+</html> 

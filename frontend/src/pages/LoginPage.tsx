@@ -32,15 +32,21 @@ const LoginPage: React.FC = () => {
       let friendlyErrorMessage = '';
       const errorMsg = error instanceof Error ? error.message : 'Login failed, please try again';
       
-      if (errorMsg.includes('用户不存在') || errorMsg.includes('用户名不存在')) {
+      if (errorMsg.includes('用户不存在') || errorMsg.includes('用户名不存在') || 
+          errorMsg.includes('User not found') || errorMsg.includes('user does not exist')) {
         friendlyErrorMessage = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
-      } else if (errorMsg.includes('密码错误') || errorMsg.includes('密码不正确')) {
+      } else if (errorMsg.includes('密码错误') || errorMsg.includes('密码不正确') || 
+                 errorMsg.includes('Incorrect password') || errorMsg.includes('Invalid password') ||
+                 errorMsg.includes('password is incorrect')) {
         friendlyErrorMessage = '密码错误，请重新输入正确密码';
-      } else if (errorMsg.includes('用户账号已被禁用') || errorMsg.includes('账号被禁用')) {
+      } else if (errorMsg.includes('用户账号已被禁用') || errorMsg.includes('账号被禁用') ||
+                 errorMsg.includes('account is disabled') || errorMsg.includes('user is disabled')) {
         friendlyErrorMessage = '您的账户已被禁用，请联系客服处理';
-      } else if (errorMsg.includes('网络') || errorMsg.includes('Network')) {
+      } else if (errorMsg.includes('网络') || errorMsg.includes('Network') ||
+                 errorMsg.includes('fetch')) {
         friendlyErrorMessage = '网络连接异常，请检查网络连接后重试';
-      } else if (errorMsg.includes('服务器') || errorMsg.includes('Server')) {
+      } else if (errorMsg.includes('服务器') || errorMsg.includes('Server') ||
+                 errorMsg.includes('Internal Server Error')) {
         friendlyErrorMessage = '服务器暂时不可用，请稍后重试';
       } else {
         friendlyErrorMessage = errorMsg || '登录失败，请重试';

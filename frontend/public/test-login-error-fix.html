@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误信息修复验证</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-center mb-6">🔧 登录错误信息修复验证</h1>
+            
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+                <p class="font-bold">✅ 修复内容：</p>
+                <ul class="text-sm mt-2 space-y-1">
+                    <li>• 401错误现在返回具体错误信息</li>
+                    <li>• 支持中英文错误信息匹配</li>
+                    <li>• 避免在登录页面无限跳转</li>
+                </ul>
+            </div>
+
+            <div class="space-y-4">
+                <h2 class="text-lg font-semibold">测试场景：</h2>
+                
+                <button onclick="testWrongPassword()" 
+                        class="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded">
+                    🔒 测试错误密码（应显示：密码错误）
+                </button>
+                
+                <button onclick="testWrongEmail()" 
+                        class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded">
+                    📧 测试不存在邮箱（应显示：邮箱未注册）
+                </button>
+                
+                <button onclick="testCorrectCredentials()" 
+                        class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded">
+                    ✅测试正确凭据（应登录成功）
+                </button>
+            </div>
+
+            <div id="result" class="mt-6 p-4 rounded hidden">
+                <!-- 测试结果将显示在这里 -->
+            </div>
+
+            <div id="logs" class="mt-6 bg-gray-100 p-4 rounded text-xs overflow-x-auto max-h-60 overflow-y-auto">
+                <h3 class="font-bold mb-2">调试日志：</h3>
+                <div id="logContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'text-red-600' : 
+                             type === 'success' ? 'text-green-600' : 
+                             type === 'warn' ? 'text-yellow-600' : 
+                             'text-blue-600';
+            
+            logContent.innerHTML += `<div class="${colorClass}">[${timestamp}] ${message}</div>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function showResult(message, isSuccess = false) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `mt-6 p-4 rounded ${
+                isSuccess ? 'bg-green-100 border border-green-400 text-green-700' : 
+                'bg-red-100 border border-red-400 text-red-700'
+            }`;
+            resultDiv.innerHTML = `<p class="font-bold">${isSuccess ? '✅ 成功:' : '❌ 错误:'}</p><p class="text-sm mt-1">${message}</p>`;
+            resultDiv.classList.remove('hidden');
+        }
+
+        async function testLoginRequest(email, password, expectedError) {
+            log(`开始测试登录：${email}`);
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                log(`API响应状态：${response.status}`);
+                log(`API响应数据：${JSON.stringify(data, null, 2)}`, 'info');
+
+                if (!response.ok) {
+                    // 模拟前端错误处理逻辑
+                    let errorMessage = '';
+                    
+                    if (data.error && data.error.message) {
+                        errorMessage = data.error.message;
+                    } else if (data.message) {
+                        errorMessage = data.message;
+                    } else {
+                        errorMessage = '未知错误';
+                    }
+
+                    log(`提取的错误信息：${errorMessage}`, 'warn');
+
+                    // 模拟前端友好错误信息转换
+                    let friendlyErrorMessage = '';
+                    
+                    if (errorMessage.includes('用户不存在') || errorMessage.includes('用户名不存在') || 
+                        errorMessage.includes('User not found') || errorMessage.includes('user does not exist')) {
+                        friendlyErrorMessage = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
+                    } else if (errorMessage.includes('密码错误') || errorMessage.includes('密码不正确') || 
+                               errorMessage.includes('Incorrect password') || errorMessage.includes('Invalid password') ||
+                               errorMessage.includes('password is incorrect')) {
+                        friendlyErrorMessage = '密码错误，请重新输入正确密码';
+                    } else {
+                        friendlyErrorMessage = errorMessage;
+                    }
+
+                    log(`友好错误信息：${friendlyErrorMessage}`, 'error');
+                    showResult(friendlyErrorMessage, false);
+                    
+                    // 验证是否符合预期
+                    if (expectedError && friendlyErrorMessage.includes(expectedError)) {
+                        log(`✅ 测试通过：错误信息符合预期`, 'success');
+                    } else if (expectedError) {
+                        log(`❌ 测试失败：期望包含"${expectedError}"，实际得到"${friendlyErrorMessage}"`, 'error');
+                    }
+                } else {
+                    log('登录成功！', 'success');
+                    showResult(`登录成功！用户：${data.data.user.email}`, true);
+                }
+            } catch (error) {
+                log(`网络请求失败：${error.message}`, 'error');
+                showResult(`网络请求失败：${error.message}`, false);
+            }
+        }
+
+        function testWrongPassword() {
+            log('=== 开始测试错误密码场景 ===', 'warn');
+            testLoginRequest('test@example.com', 'wrongpassword', '密码错误');
+        }
+
+        function testWrongEmail() {
+            log('=== 开始测试不存在邮箱场景 ===', 'warn');
+            testLoginRequest('nonexistent@example.com', 'anypassword', '邮箱尚未注册');
+        }
+
+        function testCorrectCredentials() {
+            log('=== 开始测试正确凭据场景 ===', 'warn');
+            testLoginRequest('test@example.com', '123456', null);
+        }
+
+        // 页面加载时显示初始信息
+        window.addEventListener('load', () => {
+            log('页面加载完成，准备测试登录错误信息修复效果', 'info');
+        });
+    </script>
+</body>
+</html> 

@@ -15,6 +15,7 @@ export interface ApiResponse<T = any> {
   error?: {
     code: string;
     message: string;
+    details?: any;
   };
 }
 
@@ -55,19 +56,60 @@ class ApiClient {
 
   // 处理响应
   private async handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-      if (response.status === 401) {
-        this.clearToken();
-        // 使用authUtils处理401错误
-        authUtils.handle401Error();
-        throw new Error('Unauthorized');
-      }
-      
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
+    let responseData: any;
+    
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      // 如果无法解析JSON，创建默认错误响应
+      responseData = {
+        success: false,
+        error: {
+          code: 'PARSE_ERROR',
+          message: `服务器响应格式错误 (HTTP ${response.status})`
+        }
+      };
     }
 
-    return response.json();
+    if (!response.ok) {
+      // 从后端响应中提取错误信息（包括401错误）
+      let errorMessage = '';
+      
+      if (responseData.error && responseData.error.message) {
+        // 标准的后端错误格式：{ success: false, error: { code: "", message: "" } }
+        errorMessage = responseData.error.message;
+      } else if (responseData.message) {
+        // 兼容旧格式：{ success: false, message: "" }
+        errorMessage = responseData.message;
+      } else if (typeof responseData === 'string') {
+        // 纯字符串错误
+        errorMessage = responseData;
+      } else {
+        // 默认错误信息
+        errorMessage = `请求失败 (HTTP ${response.status})`;
+      }
+      
+      // 处理401未授权错误（但仍然要抛出具体的错误信息）
+      if (response.status === 401) {
+        this.clearToken();
+        // 只有在非登录页面时才自动跳转
+        if (!window.location.pathname.includes('/login')) {
+          authUtils.handle401Error();
+        }
+        // 抛出具体的错误信息而不是通用的'Unauthorized'
+        throw new Error(errorMessage);
+      }
+      
+      // 创建错误对象并抛出
+      const error = new Error(errorMessage);
+      // 将原始响应数据附加到错误对象上，供调用方使用
+      (error as any).response = responseData;
+      (error as any).status = response.status;
+      
+      throw error;
+    }
+
+    return responseData;
   }
 
   // POST请求
