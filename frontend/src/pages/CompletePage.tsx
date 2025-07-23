@@ -42,10 +42,10 @@ const CompletePage: React.FC = () => {
     navigate('/home');
   };
 
-  // View interview records
-  const viewInterviewHistory = () => {
-    navigate('/profile', { state: { activeTab: 'interviews' } });
-  };
+  // View interview records (function disabled as buttons are hidden)
+  // const viewInterviewHistory = () => {
+  //   navigate('/profile', { state: { activeTab: 'interviews' } });
+  // };
 
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -106,12 +106,13 @@ const CompletePage: React.FC = () => {
                   >
                     Return Home
                   </button>
-                  <button
+                  {/* View Interview Records button hidden as requested */}
+                  {/* <button
                     onClick={() => navigate('/profile', { state: { activeTab: 'interviews' } })}
                     className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                   >
                     View Interview Records
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>
@@ -210,12 +211,13 @@ const CompletePage: React.FC = () => {
               <span>Return Home</span>
             </button>
 
-            <button
+            {/* View History button hidden as requested */}
+            {/* <button
               onClick={viewInterviewHistory}
               className="px-6 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
             >
               View History
-            </button>
+            </button> */}
             
             <button
               onClick={startNewInterview}

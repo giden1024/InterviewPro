@@ -142,9 +142,6 @@ pip install -r backend/requirements.txt
 # 初始化数据库
 cd backend
 python init_db.py
-
-# 启动后端服务
-python run_simple.py
 ```
 
 3. **前端设置**
@@ -153,15 +150,109 @@ cd frontend
 
 # 安装依赖
 npm install
-
-# 启动开发服务器
-npm run dev
 ```
 
-4. **访问应用**
+## 📋 服务启动指南
+
+### 方式一: 完整服务启动 (推荐)
+
+#### 1. 启动后端服务
+```bash
+cd backend
+python run_complete.py
+```
+- 端口: http://localhost:5001
+- 健康检查: http://localhost:5001/health
+- 包含完整的API服务和WebSocket支持
+
+#### 2. 启动前端服务
+```bash
+cd frontend
+npm run dev
+```
+- 端口: http://localhost:3000
+- 自动热重载开发环境
+
+#### 3. 启动Browser Tools MCP (可选)
+```bash
+# 如果需要浏览器工具支持
+npm exec @agentdeskai/browser-tools-mcp@1.2.0
+```
+- 提供浏览器自动化和调试工具
+- 支持页面截图、日志监控等功能
+
+### 方式二: 一键启动脚本 (推荐新用户)
+
+使用已创建的启动脚本 `start_services.sh`：
+
+```bash
+# 给脚本添加执行权限
+chmod +x start_services.sh
+
+# 执行启动脚本
+./start_services.sh
+```
+
+或者手动创建启动脚本 `start_services.sh`:
+```bash
+#!/bin/bash
+
+# 启动后端服务
+echo "🚀 启动后端服务..."
+cd backend && python run_complete.py &
+BACKEND_PID=$!
+
+# 等待后端启动
+sleep 3
+
+# 启动前端服务
+echo "🚀 启动前端服务..."
+cd ../frontend && npm run dev &
+FRONTEND_PID=$!
+
+# 启动Browser Tools MCP
+echo "🚀 启动Browser Tools MCP..."
+npm exec @agentdeskai/browser-tools-mcp@1.2.0 &
+MCP_PID=$!
+
+echo "✅ 所有服务已启动"
+echo "🌐 前端访问: http://localhost:3000"
+echo "🔧 后端API: http://localhost:5001"
+echo "❤️ 健康检查: http://localhost:5001/health"
+
+# 等待用户输入退出
+read -p "按回车键停止所有服务..."
+
+# 停止所有服务
+kill $BACKEND_PID $FRONTEND_PID $MCP_PID
+echo "🛑 所有服务已停止"
+```
+
+### 服务验证
+
+#### 后端服务检查
+```bash
+# 健康检查
+curl http://localhost:5001/health
+
+# API测试
+curl -X GET http://localhost:5001/api/v1/auth/test
+```
+
+#### 前端服务检查
+```bash
+# 访问首页
+curl http://localhost:3000
+
+# 检查构建状态
+curl http://localhost:3000/vite.svg
+```
+
+### 4. 访问应用**
 - 前端: http://localhost:3000
 - 后端API: http://localhost:5001
 - 健康检查: http://localhost:5001/health
+- Browser Tools: 自动配置
 
 ### 使用Docker启动
 

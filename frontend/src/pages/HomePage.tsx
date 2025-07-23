@@ -452,6 +452,8 @@ const HomePage: React.FC = () => {
             </button>
           </div>
           
+          {/* Hidden Add button - commented out as requested */}
+          {/* 
           <button
             className="px-6 py-3 bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] text-white rounded-full font-medium hover:shadow-lg transition-all"
           >
@@ -462,6 +464,7 @@ const HomePage: React.FC = () => {
               Add
             </div>
           </button>
+          */}
         </div>
 
         {/* Error Display */}
