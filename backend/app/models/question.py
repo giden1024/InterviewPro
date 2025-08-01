@@ -77,6 +77,10 @@ class InterviewSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     resume_id = db.Column(db.Integer, db.ForeignKey('resumes.id'), nullable=False)
     
+    # 添加关系定义，支持级联删除
+    questions = db.relationship('Question', backref='interview_session', cascade='all, delete-orphan', lazy='dynamic')
+    answers = db.relationship('Answer', backref='interview_session', cascade='all, delete-orphan', lazy='dynamic')
+    
     # 会话信息
     session_id = db.Column(db.String(100), unique=True, nullable=False)  # UUID
     title = db.Column(db.String(200), nullable=False)
@@ -123,9 +127,7 @@ class InterviewSession(db.Model):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
 
-# 在InterviewSession定义后添加关系
-InterviewSession.questions = db.relationship('Question', backref='session', lazy='dynamic')
-InterviewSession.answers = db.relationship('Answer', backref='session', lazy='dynamic')
+# 关系定义已在InterviewSession类中定义，无需重复添加
 
 class Answer(db.Model):
     """用户答案模型"""

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserInfo } from '../hooks/useUserInfo';
 import { useHomePage } from '../hooks/useHomePage';
-import { useInterviewRecord } from '../hooks/useInterviewRecord';
+import { useInterviewRecord, InterviewRecord } from '../hooks/useInterviewRecord';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import { jobService, Job } from '../services/jobService';
 import { questionService, Question } from '../services/questionService';
 import { interviewService, InterviewSession } from '../services/interviewService';
 import { resumeService, Resume } from '../services/resumeService';
+import { formatUserDisplayId } from '../utils/userUtils';
 import JobSelectionModal from '../components/JobSelectionModal';
 import logoImg from '../assets/logo02.png';
 
@@ -73,6 +74,13 @@ const HomePage: React.FC = () => {
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [interviewType, setInterviewType] = useState<'mock' | 'formal'>('mock');
 
+  // Interview review states
+  const [selectedInterviewRecord, setSelectedInterviewRecord] = useState<InterviewRecord | null>(null);
+  const [showInterviewDetail, setShowInterviewDetail] = useState(false);
+  const [showFullDetails, setShowFullDetails] = useState(false);
+  const [interviewFullData, setInterviewFullData] = useState<any>(null);
+  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
   // Fetch data when page loads
   useEffect(() => {
     fetchUserInfo();
@@ -123,8 +131,44 @@ const HomePage: React.FC = () => {
   };
 
   // Select job
-  const handleSelectJob = (job: Job) => {
-    navigate('/jobs', { state: { selectedJob: job } });
+  const handleSelectJob = async (job: Job) => {
+    try {
+      let resumeId = job.resume_id;
+      
+      // 如果job没有关联简历，获取用户的第一个已处理简历
+      if (!resumeId) {
+        console.log('Job has no associated resume, fetching user resumes...');
+        const resumesResponse = await resumeService.getResumes({ per_page: 50 });
+        const allResumes = (resumesResponse as any)?.data?.resumes || resumesResponse?.resumes || [];
+        const processedResumes = allResumes.filter((resume: Resume) => 
+          resume.status === 'completed' || resume.status === 'processed'
+        );
+        
+        if (processedResumes.length === 0) {
+          alert('没有可用的已处理简历，请先上传简历并等待处理完成');
+          navigate('/resume');
+          return;
+        }
+        
+        resumeId = processedResumes[0].id;
+        console.log('Using resume:', resumeId);
+      }
+      
+      navigate('/complete', { 
+        state: { 
+          jobTitle: job.title,
+          jobDescription: job.description,
+          jobId: job.id.toString(),
+          company: job.company,
+          resumeId: resumeId, // 确保有有效的resumeId
+          experienceLevel: job.experience_level,
+          selectedJob: job
+        } 
+      });
+    } catch (error) {
+      console.error('Error selecting job:', error);
+      alert('获取职位信息失败，请重试');
+    }
   };
 
   // Start mock interview - open job selection modal
@@ -234,6 +278,52 @@ const HomePage: React.FC = () => {
     }
   };
 
+  // Handle interview review
+  const handleReviewInterview = (record: InterviewRecord) => {
+    setSelectedInterviewRecord(record);
+    setShowInterviewDetail(true);
+  };
+
+  const handleCloseInterviewDetail = () => {
+    setShowInterviewDetail(false);
+    setSelectedInterviewRecord(null);
+    setShowFullDetails(false);
+    setInterviewFullData(null);
+  };
+
+  // Handle view full details
+  const handleViewFullDetails = async () => {
+    if (!selectedInterviewRecord) return;
+    
+    try {
+      setLoadingFullDetails(true);
+      
+      console.log('Fetching details for session:', selectedInterviewRecord.session.session_id);
+      
+      // 获取面试详情和答案
+      const [interviewData, answersData] = await Promise.all([
+        interviewService.getInterview(selectedInterviewRecord.session.session_id),
+        interviewService.getInterviewAnswers(selectedInterviewRecord.session.session_id)
+      ]);
+      
+      console.log('Interview data:', interviewData);
+      console.log('Answers data:', answersData);
+      
+      setInterviewFullData({
+        ...interviewData,
+        answers: answersData
+      });
+      setShowFullDetails(true);
+      
+    } catch (error: any) {
+      console.error('获取面试详情失败:', error);
+      console.error('Error details:', error);
+      alert(`获取面试详情失败: ${error.message || '请重试'}`);
+    } finally {
+      setLoadingFullDetails(false);
+    }
+  };
+
   // Redirect to login page if user is not logged in
   useEffect(() => {
     if (!userLoading && !user && !userError) {
@@ -339,7 +429,7 @@ const HomePage: React.FC = () => {
                 {user?.username || user?.email || 'Guest'}
               </div>
               <div className="text-xs text-[#333333]">
-                {user ? `ID:${user.id}` : 'Not logged in'}
+                {user ? formatUserDisplayId(user.id) : 'Not logged in'}
               </div>
             </div>
             <div className="bg-white px-3 py-1 rounded-full text-xs text-[#3D3D3D] shadow-sm">
@@ -743,7 +833,10 @@ const HomePage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <div className="flex items-center gap-2">
-                                <button className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-xs font-medium">
+                                <button 
+                                  onClick={() => handleReviewInterview(record)}
+                                  className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-xs font-medium"
+                                >
                                   Review
                                 </button>
                                 <button 
@@ -844,6 +937,272 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Interview Detail Modal */}
+      {showInterviewDetail && selectedInterviewRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Interview Review</h2>
+              <button 
+                onClick={handleCloseInterviewDetail}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Interview Overview */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Interview Overview</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Title:</span>
+                    <p className="font-medium">{selectedInterviewRecord.title}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Type:</span>
+                    <p className="font-medium">{selectedInterviewRecord.type}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Date:</span>
+                    <p className="font-medium">{selectedInterviewRecord.date}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Duration:</span>
+                    <p className="font-medium">{selectedInterviewRecord.duration}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Status:</span>
+                    <p className="font-medium">{selectedInterviewRecord.status}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Session ID:</span>
+                    <p className="font-medium text-xs">{selectedInterviewRecord.session.session_id}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interview Statistics */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Interview Statistics</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">{selectedInterviewRecord.session.total_questions}</p>
+                    <p className="text-sm text-gray-600">Total Questions</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{selectedInterviewRecord.session.completed_questions || 0}</p>
+                    <p className="text-sm text-gray-600">Completed</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-orange-600">{selectedInterviewRecord.session.total_score || 'N/A'}</p>
+                    <p className="text-sm text-gray-600">Score</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interview Details */}
+              <div className="bg-white border rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-3">Interview Details</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Interview Type:</span> {selectedInterviewRecord.session.interview_type}</p>
+                  <p><span className="font-medium">Started At:</span> {selectedInterviewRecord.session.started_at ? new Date(selectedInterviewRecord.session.started_at).toLocaleString() : 'Not started'}</p>
+                  <p><span className="font-medium">Completed At:</span> {selectedInterviewRecord.session.completed_at ? new Date(selectedInterviewRecord.session.completed_at).toLocaleString() : 'Not completed'}</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3">
+                <button 
+                  onClick={handleCloseInterviewDetail}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={handleViewFullDetails}
+                  disabled={loadingFullDetails}
+                  className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loadingFullDetails ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    'View Full Details'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Interview Details Modal */}
+      {showFullDetails && interviewFullData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-6xl max-h-[90vh] overflow-y-auto w-full mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Complete Interview Review</h2>
+              <button 
+                onClick={() => setShowFullDetails(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Interview Summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+                <h3 className="text-xl font-semibold mb-4 text-blue-800">Interview Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-blue-600">{interviewFullData.total_questions}</p>
+                    <p className="text-sm text-gray-600">Total Questions</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-600">{interviewFullData.answers?.length || 0}</p>
+                    <p className="text-sm text-gray-600">Answered</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-orange-600">
+                      {interviewFullData.answers?.length ? 
+                        Math.round((interviewFullData.answers.reduce((sum: number, ans: any) => sum + (ans.score || 0), 0) / interviewFullData.answers.length)) 
+                        : 'N/A'
+                      }
+                    </p>
+                    <p className="text-sm text-gray-600">Avg Score</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-purple-600">
+                      {Math.round(((interviewFullData.answers?.length || 0) / interviewFullData.total_questions) * 100)}%
+                    </p>
+                    <p className="text-sm text-gray-600">Completion</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Questions and Answers */}
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold text-gray-800">Questions & Answers</h3>
+                
+                {interviewFullData.questions?.map((question: any, index: number) => {
+                  const answer = interviewFullData.answers?.find((ans: any) => ans.question_id === question.id);
+                  
+                  return (
+                    <div key={question.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                      {/* Question Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                              Question {index + 1}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              question.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                              question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {question.difficulty}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {question.question_type}
+                            </span>
+                          </div>
+                          <h4 className="text-lg font-semibold text-gray-800 mb-2">
+                            {question.question_text}
+                          </h4>
+                        </div>
+                        {answer?.score && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-blue-600">{Math.round(answer.score)}</div>
+                            <div className="text-xs text-gray-500">Score</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Answer Section */}
+                      {answer ? (
+                        <div className="space-y-4">
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                            <h5 className="font-medium text-gray-700 mb-2">Your Answer:</h5>
+                            <p className="text-gray-800 leading-relaxed">{answer.answer_text}</p>
+                            <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
+                              <span>Answered at: {new Date(answer.answered_at).toLocaleString()}</span>
+                              {answer.response_time && (
+                                <span>Response time: {Math.round(answer.response_time)}s</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AI Feedback */}
+                          {answer.ai_feedback && (
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                              <h5 className="font-medium text-blue-800 mb-2">AI Feedback:</h5>
+                              {answer.ai_feedback.strengths && (
+                                <div className="mb-3">
+                                  <p className="text-sm font-medium text-green-700 mb-1">Strengths:</p>
+                                  <ul className="text-sm text-green-600 list-disc list-inside space-y-1">
+                                    {answer.ai_feedback.strengths.map((strength: string, idx: number) => (
+                                      <li key={idx}>{strength}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {answer.ai_feedback.improvements && (
+                                <div className="mb-3">
+                                  <p className="text-sm font-medium text-orange-700 mb-1">Areas for Improvement:</p>
+                                  <ul className="text-sm text-orange-600 list-disc list-inside space-y-1">
+                                    {answer.ai_feedback.improvements.map((improvement: string, idx: number) => (
+                                      <li key={idx}>{improvement}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {answer.ai_feedback.suggestions && (
+                                <div>
+                                  <p className="text-sm font-medium text-blue-700 mb-1">Suggestions:</p>
+                                  <ul className="text-sm text-blue-600 list-disc list-inside space-y-1">
+                                    {answer.ai_feedback.suggestions.map((suggestion: string, idx: number) => (
+                                      <li key={idx}>{suggestion}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 p-4 rounded-lg text-center">
+                          <p className="text-gray-500 italic">This question was not answered</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button 
+                  onClick={() => setShowFullDetails(false)}
+                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Job Selection Modal */}
       <JobSelectionModal

@@ -323,11 +323,32 @@ class InterviewService:
     
     def delete_interview_session(self, user_id: int, session_id: str) -> bool:
         """删除面试会话"""
+        from app.models.question import Answer
+        
         session = self.get_interview_session(user_id, session_id)
         
         try:
-            # 删除相关的问题和答案（通过级联删除）
-            db.session.delete(session)
+            from sqlalchemy import text
+            
+            # 使用原生SQL删除，完全避免SQLAlchemy的级联更新问题
+            # 1. 删除相关答案
+            db.session.execute(
+                text("DELETE FROM answers WHERE session_id = :session_id AND user_id = :user_id"),
+                {'session_id': session.id, 'user_id': user_id}
+            )
+            
+            # 2. 删除相关问题
+            db.session.execute(
+                text("DELETE FROM questions WHERE session_id = :session_id AND user_id = :user_id"),
+                {'session_id': session.id, 'user_id': user_id}
+            )
+            
+            # 3. 删除面试会话
+            db.session.execute(
+                text("DELETE FROM interview_sessions WHERE id = :session_id AND user_id = :user_id"),
+                {'session_id': session.id, 'user_id': user_id}
+            )
+            
             db.session.commit()
             
             logger.info(f"用户 {user_id} 删除面试会话 {session_id}")
@@ -454,4 +475,50 @@ class InterviewService:
         }
         type_name = type_names.get(interview_type, "面试")
         
-        return f"{name} - {type_name} ({datetime.now().strftime('%Y-%m-%d')})" 
+        return f"{name} - {type_name} ({datetime.now().strftime('%Y-%m-%d')})"
+    
+    def get_interview_answers(self, user_id: int, session_id: str) -> List[Dict[str, Any]]:
+        """获取面试会话的所有答案"""
+        from app.models.question import Answer, Question
+        
+        try:
+            # 获取面试会话
+            session = self.get_interview_session(user_id, session_id)
+            
+            # 获取该会话的所有答案，并通过JOIN获取问题信息
+            answers_with_questions = db.session.query(Answer, Question).join(
+                Question, Answer.question_id == Question.id
+            ).filter(
+                Answer.session_id == session.id,
+                Answer.user_id == user_id
+            ).order_by(Question.created_at).all()
+            
+            result = []
+            for answer, question in answers_with_questions:
+                answer_dict = {
+                    'id': answer.id,
+                    'question_id': answer.question_id,
+                    'answer_text': answer.answer_text,
+                    'score': answer.score,
+                    'response_time': answer.response_time,
+                    'answered_at': answer.answered_at.isoformat() if answer.answered_at else None,
+                    'ai_feedback': answer.ai_feedback or {}
+                }
+                
+                # 添加问题信息
+                if question:
+                    answer_dict['question'] = {
+                        'id': question.id,
+                        'question_text': question.question_text,
+                        'question_type': question.question_type.value if question.question_type else None,
+                        'difficulty': question.difficulty.value if question.difficulty else None
+                    }
+                
+                result.append(answer_dict)
+            
+            logger.info(f"获取到 {len(result)} 个答案，用户 {user_id}，会话 {session_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"获取面试答案失败: {e}")
+            raise 

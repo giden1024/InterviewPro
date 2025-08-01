@@ -18,6 +18,137 @@ resumes_bp = Blueprint('resumes', __name__)
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'txt'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
+def analyze_resume_content(resume):
+    """
+    基于简历实际内容进行分析
+    """
+    analysis_result = {
+        'score': 0,
+        'match_score': 0,
+        'overall_score': 0,
+        'suggestions': [],
+        'strengths': [],
+        'areas_for_improvement': []
+    }
+    
+    score = 0
+    max_score = 100
+    
+    # 1. 基本信息完整性分析 (25分)
+    basic_info_score = 0
+    if resume.name:
+        basic_info_score += 8
+        analysis_result['strengths'].append('包含姓名信息')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少姓名信息')
+        analysis_result['suggestions'].append('建议添加完整的姓名信息')
+    
+    if resume.email:
+        basic_info_score += 8
+        analysis_result['strengths'].append('包含邮箱联系方式')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少邮箱信息')
+        analysis_result['suggestions'].append('建议添加有效的邮箱地址')
+    
+    if resume.phone:
+        basic_info_score += 9
+        analysis_result['strengths'].append('包含电话联系方式')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少电话信息')
+        analysis_result['suggestions'].append('建议添加电话号码')
+    
+    score += basic_info_score
+    
+    # 2. 技能信息分析 (25分)
+    skills_score = 0
+    if resume.skills and len(resume.skills) > 0:
+        skill_count = len(resume.skills)
+        if skill_count >= 8:
+            skills_score = 25
+            analysis_result['strengths'].append(f'技能丰富，包含{skill_count}项技能')
+        elif skill_count >= 5:
+            skills_score = 20
+            analysis_result['strengths'].append(f'技能较全面，包含{skill_count}项技能')
+        elif skill_count >= 3:
+            skills_score = 15
+            analysis_result['strengths'].append(f'包含基本技能，共{skill_count}项')
+            analysis_result['suggestions'].append('建议添加更多相关技能')
+        else:
+            skills_score = 10
+            analysis_result['areas_for_improvement'].append('技能信息较少')
+            analysis_result['suggestions'].append('建议补充更多专业技能')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少技能信息')
+        analysis_result['suggestions'].append('建议添加专业技能和工具使用经验')
+    
+    score += skills_score
+    
+    # 3. 工作经历分析 (25分)
+    experience_score = 0
+    if resume.experience and len(resume.experience) > 0:
+        exp_count = len(resume.experience)
+        if exp_count >= 3:
+            experience_score = 25
+            analysis_result['strengths'].append(f'工作经验丰富，包含{exp_count}段经历')
+        elif exp_count >= 2:
+            experience_score = 20
+            analysis_result['strengths'].append(f'有相关工作经验，包含{exp_count}段经历')
+        else:
+            experience_score = 15
+            analysis_result['strengths'].append('有工作经验')
+            analysis_result['suggestions'].append('建议详细描述工作职责和成就')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少工作经历信息')
+        analysis_result['suggestions'].append('建议添加实习或工作经验')
+    
+    score += experience_score
+    
+    # 4. 教育背景分析 (15分)
+    education_score = 0
+    if resume.education and len(resume.education) > 0:
+        education_score = 15
+        analysis_result['strengths'].append('包含教育背景信息')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少教育背景信息')
+        analysis_result['suggestions'].append('建议添加学历和专业信息')
+    
+    score += education_score
+    
+    # 5. 项目经验分析 (10分)
+    projects_score = 0
+    if resume.projects and len(resume.projects) > 0:
+        project_count = len(resume.projects)
+        if project_count >= 3:
+            projects_score = 10
+            analysis_result['strengths'].append(f'项目经验丰富，包含{project_count}个项目')
+        elif project_count >= 1:
+            projects_score = 7
+            analysis_result['strengths'].append(f'有项目经验，包含{project_count}个项目')
+    else:
+        analysis_result['areas_for_improvement'].append('缺少项目经验')
+        analysis_result['suggestions'].append('建议添加相关项目经历和技术实践')
+    
+    score += projects_score
+    
+    # 计算最终分数
+    final_score = min(score, max_score)
+    analysis_result['score'] = final_score
+    analysis_result['match_score'] = final_score
+    analysis_result['overall_score'] = final_score
+    
+    # 根据分数给出总体评价
+    if final_score >= 85:
+        analysis_result['strengths'].append('简历整体质量优秀')
+    elif final_score >= 70:
+        analysis_result['strengths'].append('简历整体质量良好')
+        analysis_result['suggestions'].append('继续完善细节信息')
+    elif final_score >= 50:
+        analysis_result['suggestions'].append('建议进一步完善简历内容')
+    else:
+        analysis_result['suggestions'].append('简历需要大幅改进，建议补充关键信息')
+    
+    return analysis_result
+
 def allowed_file(filename):
     """检查文件格式是否支持"""
     return '.' in filename and \
@@ -424,23 +555,8 @@ def analyze_resume(resume_id):
         
         # 进行简历分析
         try:
-            # 简单的分析结果，后续可以集成AI分析
-            analysis_result = {
-                'score': 85.0,
-                'suggestions': [
-                    '建议添加更多技术技能',
-                    '工作经历描述可以更详细',
-                    '建议添加项目经验'
-                ],
-                'strengths': [
-                    '技能匹配度高',
-                    '工作经验丰富'
-                ],
-                'areas_for_improvement': [
-                    '教育背景信息可以更完整',
-                    '联系方式需要完善'
-                ]
-            }
+            # 基于简历实际内容进行分析
+            analysis_result = analyze_resume_content(resume)
             
             return success_response({
                 'resume_id': resume_id,

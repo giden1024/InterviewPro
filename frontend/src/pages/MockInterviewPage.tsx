@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { questionService, Question, InterviewSession } from '../services/questionService';
 import { resumeService, Resume } from '../services/resumeService';
 import { interviewService } from '../services/interviewService';
@@ -61,6 +61,7 @@ declare var SpeechRecognition: {
 
 const MockInterviewPage: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { handleApiError } = useAuthRedirect();
   const [loading, setLoading] = useState(true);
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -95,6 +96,9 @@ const MockInterviewPage: React.FC = () => {
 
   // 新增状态：语音合成相关
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // 新增状态：当前问题开始时间
+  const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState<string>('');
 
   // 获取当前问题
   const currentQuestion = questions[currentQuestionIndex];
@@ -374,6 +378,30 @@ const MockInterviewPage: React.FC = () => {
       }
     };
   }, []);
+
+  // 处理退出面试
+  const handleLeaveInterview = () => {
+    const confirmLeave = window.confirm(
+      '确定要离开面试吗？\n\n当前的面试进度和答案将会保存，您可以稍后继续。'
+    );
+    
+    if (confirmLeave) {
+      // 停止语音识别
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      
+      // 停止语音合成
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setIsSpeaking(false);
+      
+      // 返回主页
+      navigate('/home');
+    }
+  };
 
   const handleSubmitAnswer = async () => {
     if (!currentAnswer.trim() || !currentQuestion || !interviewSession) return;
@@ -773,15 +801,25 @@ const MockInterviewPage: React.FC = () => {
     }
   }, []);
 
-  // 监听当前问题变化，自动朗读
+  // 监听当前问题变化，设置时间和自动朗读
   useEffect(() => {
-    if (currentQuestion && currentQuestion.question_text) {
-      // 延迟一下再朗读，确保页面已经渲染完成
-      const timer = setTimeout(() => {
-        speakText(currentQuestion.question_text);
-      }, 500);
+    if (currentQuestion) {
+      // 设置当前问题开始时间
+      setCurrentQuestionStartTime(new Date().toLocaleTimeString('en-US', { 
+        hour12: false,
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+      }));
       
-      return () => clearTimeout(timer);
+      // 延迟一下再朗读，确保页面已经渲染完成
+      if (currentQuestion.question_text) {
+        const timer = setTimeout(() => {
+          speakText(currentQuestion.question_text);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
     }
   }, [currentQuestion, speakText]);
 
@@ -860,17 +898,10 @@ const MockInterviewPage: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className="w-8 h-8 bg-white border border-dashed border-[#EEEEEE] rounded-md flex items-center justify-center">
-            <svg className="w-5 h-5 text-[#393939]" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-          </button>
-          <button className="w-8 h-8 bg-white border border-dashed border-[#EEEEEE] rounded-md flex items-center justify-center">
-            <svg className="w-5 h-5 text-[#393939]" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-          </button>
-          <button className="px-4 py-2 bg-white border border-dashed border-[#EEEEEE] rounded-full text-[#3D3D3D] text-sm flex items-center space-x-2">
+          <button 
+            onClick={handleLeaveInterview}
+            className="px-4 py-2 bg-white border border-dashed border-[#EEEEEE] rounded-full text-[#3D3D3D] text-sm flex items-center space-x-2 hover:bg-gray-50 transition-colors"
+          >
             <svg className="w-4 h-4 text-[#F16868]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
@@ -912,7 +943,7 @@ const MockInterviewPage: React.FC = () => {
               <svg className="w-6 h-6 text-[#6FBDFF]" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span>01:23</span>
+              <span>{currentQuestionStartTime || '00:00:00'}</span>
             </div>
             
             <div className="bg-white border border-dashed border-[#EEEEEE] rounded-lg p-4">

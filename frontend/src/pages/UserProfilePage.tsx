@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserInfo } from '../hooks/useUserInfo';
+import { formatUserDisplayId } from '../utils/userUtils';
 import { UserInfo } from '../components/UserInfo';
 
 const UserProfilePage: React.FC = () => {
@@ -99,7 +100,7 @@ const UserProfilePage: React.FC = () => {
                 </h2>
                 <p className="text-[#3D3D3D]">{user.email}</p>
                 <p className="text-sm text-[#68C6F1]">
-                  User ID: {user.id}
+                  {formatUserDisplayId(user.id)}
                 </p>
               </div>
             </div>

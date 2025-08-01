@@ -464,4 +464,27 @@ def match_historical_question():
     except MarshmallowValidationError as e:
         raise APIError('Data validation failed', 422, e.messages)
     except Exception as e:
-        raise APIError(f'Failed to match question: {str(e)}', 500) 
+        raise APIError(f'Failed to match question: {str(e)}', 500)
+
+@interviews_bp.route('/<session_id>/answers', methods=['GET'])
+@jwt_required()
+def get_interview_answers(session_id):
+    """获取面试会话的所有答案"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # 获取面试答案
+        answers = interview_service.get_interview_answers(user_id, session_id)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'answers': answers,
+                'total': len(answers)
+            }
+        })
+        
+    except NotFoundError as e:
+        raise APIError(str(e), 404)
+    except Exception as e:
+        raise APIError(f'Failed to get interview answers: {str(e)}', 500) 

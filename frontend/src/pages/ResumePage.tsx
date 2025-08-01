@@ -124,7 +124,12 @@ const ResumePage: React.FC = () => {
         include_suggestions: true,
         include_score: true
       });
-      setAnalysis(analysisResult);
+      
+      // 提取实际的分析数据
+      const analysisData = (analysisResult as any).analysis || (analysisResult as any).data || analysisResult;
+      console.log('Analysis result:', analysisResult);
+      console.log('Setting analysis data:', analysisData);
+      setAnalysis(analysisData);
     } catch (err) {
       console.error('Failed to analyze resume:', err);
       setError('Failed to analyze resume');
@@ -233,6 +238,7 @@ const ResumePage: React.FC = () => {
             title: jobTitle,
             company: company || '',
             description: jobDescription || '',
+            resume_id: currentResumeId, // ✅ 关键修复：添加简历关联
             requirements: [],
             responsibilities: [],
             experience_level: selectedLevel,
@@ -530,19 +536,7 @@ const ResumePage: React.FC = () => {
               >
                 {resumeText.length}/3000
               </span>
-              {resumeText.length > 0 && (
-                <button
-                  onClick={handleTextResume}
-                  disabled={uploading}
-                  className="px-4 py-2 rounded-lg transition-colors"
-                  style={{ 
-                    background: 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)',
-                    color: '#383838'
-                  }}
-                >
-                  {uploading ? 'Processing...' : 'Create Resume'}
-                </button>
-              )}
+
             </div>
           </div>
         </div>
@@ -560,7 +554,7 @@ const ResumePage: React.FC = () => {
                     : 'text-gray-700'
                 }`}
                 style={{ 
-                  backgroundColor: selectedLevel === level ? 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)' : '#E4F5FF',
+                  background: selectedLevel === level ? 'linear-gradient(181deg, #9CFAFF 0%, #A3E4FF 19%, #6BBAFF 95%)' : '#E4F5FF',
                   fontFamily: 'Poppins',
                   fontSize: '15px',
                   lineHeight: '141%'
@@ -641,21 +635,7 @@ const ResumePage: React.FC = () => {
                   </div>
                 </div>
 
-                {analysis.suggestions && analysis.suggestions.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-2">Optimization Suggestions</h4>
-                    <ul className="space-y-2">
-                      {analysis.suggestions.slice(0, 3).map((suggestion: string, index: number) => (
-                        <li key={index} className="flex items-start space-x-2">
-                          <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-sm text-gray-700">{suggestion}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+
               </div>
             )}
           </div>

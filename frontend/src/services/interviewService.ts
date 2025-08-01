@@ -292,7 +292,10 @@ class InterviewService {
   async getInterviewAnswers(sessionId: string): Promise<Answer[]> {
     try {
       const response: any = await apiClient.get(`/interviews/${sessionId}/answers`);
-      return response.data.answers;
+      console.log('API Response:', response);
+      // 处理后端返回的数据结构
+      const answers = response.data?.answers || response.answers || [];
+      return answers;
     } catch (error) {
       console.error('获取面试答案失败:', error);
       throw error;
