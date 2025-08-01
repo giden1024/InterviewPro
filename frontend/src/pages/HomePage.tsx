@@ -145,7 +145,7 @@ const HomePage: React.FC = () => {
         );
         
         if (processedResumes.length === 0) {
-          alert('没有可用的已处理简历，请先上传简历并等待处理完成');
+          alert('No processed resume available. Please upload a resume and wait for processing to complete.');
           navigate('/resume');
           return;
         }
@@ -167,7 +167,7 @@ const HomePage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error selecting job:', error);
-      alert('获取职位信息失败，请重试');
+      alert('Failed to get job information. Please try again.');
     }
   };
 
@@ -316,9 +316,9 @@ const HomePage: React.FC = () => {
       setShowFullDetails(true);
       
     } catch (error: any) {
-      console.error('获取面试详情失败:', error);
-      console.error('Error details:', error);
-      alert(`获取面试详情失败: ${error.message || '请重试'}`);
+              console.error('Failed to get interview details:', error);
+        console.error('Error details:', error);
+        alert(`Failed to get interview details: ${error.message || 'Please try again'}`);
     } finally {
       setLoadingFullDetails(false);
     }

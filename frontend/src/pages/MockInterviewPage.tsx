@@ -313,7 +313,7 @@ const MockInterviewPage: React.FC = () => {
         // 检查是否是 token 相关错误
         if (error.message?.includes('token') || error.message?.includes('authentication')) {
           setError('Authentication failed. Please login again.');
-          console.error('🔐 Token认证失败，请重新登录');
+          console.error('🔐 Token authentication failed, please login again');
         } else {
           handleApiError(error);
           setError(error.message || 'Failed to initialize interview, please try again later');

@@ -48,10 +48,10 @@ class InterviewService:
             # 验证简历是否存在且属于用户
             resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
             if not resume:
-                raise NotFoundError("简历不存在或无权限访问")
+                raise NotFoundError("Resume not found or access denied")
             
             if resume.status.value != 'processed':
-                raise ValidationError("简历尚未解析完成，无法生成面试问题")
+                raise ValidationError("Resume parsing not completed, unable to generate interview questions")
             
             # 设置默认分布
             if difficulty_distribution is None:
@@ -79,16 +79,16 @@ class InterviewService:
             db.session.add(session)
             db.session.commit()
             
-            logger.info(f"成功创建面试会话 {session_id}，等待问题生成")
+            logger.info(f"Successfully created interview session {session_id}, waiting for question generation")
             return session
             
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"数据库操作失败: {e}")
-            raise ValidationError("创建面试会话失败")
+            logger.error(f"Database operation failed: {e}")
+            raise ValidationError("Failed to create interview session")
         except Exception as e:
             db.session.rollback()
-            logger.error(f"创建面试会话失败: {e}")
+            logger.error(f"Failed to create interview session: {e}")
             raise
     
     def get_interview_session(self, user_id: int, session_id: str) -> InterviewSession:
@@ -109,7 +109,7 @@ class InterviewService:
             ).first()
         
         if not session:
-            raise NotFoundError("面试会话不存在或无权限访问")
+            raise NotFoundError("Interview session not found or access denied")
         
         return session
     
@@ -162,13 +162,13 @@ class InterviewService:
         session = self.get_interview_session(user_id, session_id)
         
         if session.status != 'created':
-            raise ValidationError("面试会话已开始或已完成")
+            raise ValidationError("Interview session already started or completed")
         
         session.status = 'in_progress'
         session.started_at = datetime.utcnow()
         db.session.commit()
         
-        logger.info(f"用户 {user_id} 开始面试会话 {session_id}")
+        logger.info(f"User {user_id} started interview session {session_id}")
         return session
     
     def get_next_question(
@@ -180,7 +180,7 @@ class InterviewService:
         session = self.get_interview_session(user_id, session_id)
         
         if session.status not in ['in_progress']:
-            raise ValidationError("面试会话未开始或已结束")
+            raise ValidationError("Interview session not started or already ended")
         
         questions = self.get_session_questions(user_id, session_id)
         
@@ -224,7 +224,7 @@ class InterviewService:
             logger.info(f"🔍 [SERVICE DEBUG] Session auto-started from {session.status}")
         elif session.status != 'in_progress':
             logger.error(f"❌ [SERVICE DEBUG] Invalid session status: {session.status}")
-            raise ValidationError("面试会话未开始或已结束")
+            raise ValidationError("Interview session not started or already ended")
         
         # 修改：更宽松的问题查找策略
         # 首先尝试严格匹配
@@ -256,7 +256,7 @@ class InterviewService:
         
         if not question:
             logger.error(f"❌ [SERVICE DEBUG] Final validation failed")
-            raise ValidationError("问题不存在、无权限访问或不属于当前面试会话")
+            raise ValidationError("Question not found, access denied, or does not belong to current interview session")
         
         logger.info(f"🔍 [SERVICE DEBUG] Using question: id={question.id}")
         
@@ -295,17 +295,17 @@ class InterviewService:
                 'answer_id': answer.id,
                 'question_id': question_id,
                 'submitted_at': answer.created_at.isoformat() if hasattr(answer, 'created_at') else datetime.utcnow().isoformat(),
-                'message': '答案提交成功'
+                'message': 'Answer submitted successfully'
             }
             
         except SQLAlchemyError as e:
             db.session.rollback()
             logger.error(f"❌ [SERVICE DEBUG] Database error: {e}")
-            raise ValidationError(f"保存答案失败: {str(e)}")
+            raise ValidationError(f"Failed to save answer: {str(e)}")
         except Exception as e:
             db.session.rollback()
             logger.error(f"❌ [SERVICE DEBUG] Unexpected error: {e}")
-            raise ValidationError(f"提交答案时发生错误: {str(e)}")
+            raise ValidationError(f"Error occurred while submitting answer: {str(e)}")
     
     def end_interview_session(self, user_id: int, session_id: str) -> InterviewSession:
         """结束面试会话"""
@@ -318,7 +318,7 @@ class InterviewService:
         session.completed_at = datetime.utcnow()
         db.session.commit()
         
-        logger.info(f"用户 {user_id} 结束面试会话 {session_id}")
+        logger.info(f"User {user_id} ended interview session {session_id}")
         return session
     
     def delete_interview_session(self, user_id: int, session_id: str) -> bool:
@@ -351,13 +351,13 @@ class InterviewService:
             
             db.session.commit()
             
-            logger.info(f"用户 {user_id} 删除面试会话 {session_id}")
+            logger.info(f"User {user_id} deleted interview session {session_id}")
             return True
             
         except SQLAlchemyError as e:
             db.session.rollback()
-            logger.error(f"删除面试会话失败: {e}")
-            raise ValidationError("删除面试会话失败")
+            logger.error(f"Failed to delete interview session: {e}")
+            raise ValidationError("Failed to delete interview session")
     
     def get_interview_statistics(self, user_id: int) -> Dict[str, Any]:
         """获取用户面试统计信息"""
@@ -396,7 +396,7 @@ class InterviewService:
         session = self.get_interview_session(user_id, session_id)
         
         if session.status != 'created':
-            raise ValidationError("只能为未开始的面试会话重新生成问题")
+            raise ValidationError("Can only regenerate questions for unstarted interview sessions")
         
         # 删除现有问题
         Question.query.filter_by(resume_id=session.resume_id, user_id=user_id).delete()
@@ -466,14 +466,14 @@ class InterviewService:
     
     def _generate_session_title(self, resume: Resume, interview_type: InterviewType) -> str:
         """生成会话标题"""
-        name = resume.name or "候选人"
+        name = resume.name or "Candidate"
         type_names = {
-            InterviewType.TECHNICAL: "技术面试",
-            InterviewType.HR: "HR面试",
-            InterviewType.COMPREHENSIVE: "综合面试",
-            InterviewType.MOCK: "模拟面试"
+            InterviewType.TECHNICAL: "Technical Interview",
+            InterviewType.HR: "HR Interview",
+            InterviewType.COMPREHENSIVE: "Comprehensive Interview",
+            InterviewType.MOCK: "Mock Interview"
         }
-        type_name = type_names.get(interview_type, "面试")
+        type_name = type_names.get(interview_type, "Interview")
         
         return f"{name} - {type_name} ({datetime.now().strftime('%Y-%m-%d')})"
     
@@ -516,9 +516,9 @@ class InterviewService:
                 
                 result.append(answer_dict)
             
-            logger.info(f"获取到 {len(result)} 个答案，用户 {user_id}，会话 {session_id}")
+            logger.info(f"Retrieved {len(result)} answers, user {user_id}, session {session_id}")
             return result
             
         except Exception as e:
-            logger.error(f"获取面试答案失败: {e}")
+            logger.error(f"Failed to retrieve interview answers: {e}")
             raise 

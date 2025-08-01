@@ -1,0 +1,23 @@
+张三
+邮箱：zhangsan@example.com
+电话：13800138000
+
+教育背景：
+- 计算机科学学士，清华大学，2020-2024
+
+工作经历：
+- 初级开发工程师，ABC公司，2024-至今
+- 负责前端开发，使用React和TypeScript
+- 参与了3个重要项目的开发
+
+技能：
+React, Vue, JavaScript, Python, Java, MySQL, Git, Docker
+
+项目经验：
+1. 电商平台前端开发
+   - 使用React开发用户界面
+   - 实现了购物车和支付功能
+   
+2. 数据可视化系统
+   - 使用D3.js和Chart.js
+   - 处理大量数据展示 

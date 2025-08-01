@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { interviewService } from '../services/interviewService';
 import { questionService } from '../services/questionService';
+import { Job } from '../services/jobService';
 
 interface LocationState {
   jobTitle?: string;
@@ -14,6 +15,7 @@ interface LocationState {
   completed?: boolean;
   questionsGenerated?: boolean;
   error?: string;
+  selectedJob?: Job;
 }
 
 const CompletePage: React.FC = () => {

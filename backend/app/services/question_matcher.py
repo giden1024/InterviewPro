@@ -10,194 +10,181 @@ from app.utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
+"""Question matching service"""
+
 class QuestionMatcher:
-    """问题匹配服务"""
-    
     def __init__(self):
-        self.similarity_threshold = 0.6  # 相似度阈值
-        self.min_query_length = 10  # 最小查询长度
-    
-    def find_similar_questions(
-        self, 
-        user_id: int, 
-        query_text: str, 
-        limit: int = 5
-    ) -> List[Dict[str, Any]]:
+        self.similarity_threshold = 0.6  # Similarity threshold
+        self.min_query_length = 10  # Minimum query length
+        
+    def find_similar_questions(self, user_id: int, query_text: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        在用户的历史Formal Interview中查找相似问题
+        Find similar questions in user's historical Formal Interview
         
         Args:
-            user_id: 用户ID
-            query_text: 查询文本（语音识别结果）
-            limit: 返回结果数量限制
+            user_id: User ID
+            query_text: Query text (speech recognition result)
+            limit: Return result count limit
             
         Returns:
-            匹配的问题和答案列表
+            List of matched questions and answers
         """
         try:
-            # 预处理查询文本
+            # Preprocess query text
             processed_query = self._preprocess_text(query_text)
             
             if len(processed_query) < self.min_query_length:
-                logger.info(f"查询文本太短，跳过匹配: {processed_query}")
+                logger.info(f"Query text too short, skip matching: {processed_query}")
                 return []
             
-            # 获取用户所有Formal Interview的问题和答案
-            historical_data = self._get_user_formal_interview_data(user_id)
+            # Get all Formal Interview questions and answers for user
+            qa_data = self._get_user_formal_interview_data(user_id)
             
-            if not historical_data:
-                logger.info(f"用户 {user_id} 没有Formal Interview历史数据")
+            if not qa_data:
+                logger.info(f"User {user_id} has no Formal Interview history data")
                 return []
             
-            # 计算相似度并排序
+            # Calculate similarity and sort
             matches = []
-            for item in historical_data:
-                similarity = self._calculate_similarity(processed_query, item['question_text'])
+            for item in qa_data:
+                question_text = item['question_text']
+                similarity = self._calculate_similarity(processed_query, question_text)
                 
                 if similarity >= self.similarity_threshold:
                     matches.append({
                         'question_id': item['question_id'],
-                        'question_text': item['question_text'],
-                        'expected_answer': item['expected_answer'],
-                        'user_answer': item['user_answer'],
-                        'session_title': item['session_title'],
+                        'question_text': question_text,
+                        'answer_text': item['answer_text'],
+                        'similarity': similarity,
+                        'session_id': item['session_id'],
                         'answered_at': item['answered_at'],
-                        'similarity_score': similarity,
-                        'question_type': item['question_type'],
-                        'difficulty': item['difficulty']
+                        'score': item.get('score'),
+                        'ai_feedback': item.get('ai_feedback')
                     })
             
-            # 按相似度降序排序
-            matches.sort(key=lambda x: x['similarity_score'], reverse=True)
+            # Sort by similarity in descending order
+            matches.sort(key=lambda x: x['similarity'], reverse=True)
             
-            logger.info(f"为用户 {user_id} 找到 {len(matches)} 个匹配问题")
+            logger.info(f"Found {len(matches)} matching questions for user {user_id}")
             return matches[:limit]
             
         except Exception as e:
-            logger.error(f"问题匹配失败: {e}")
+            logger.error(f"Question matching failed: {e}")
             return []
     
     def _get_user_formal_interview_data(self, user_id: int) -> List[Dict[str, Any]]:
-        """获取用户所有Formal Interview的问题和答案数据"""
-        query = db.session.query(
-            Question.id.label('question_id'),
-            Question.question_text,
-            Question.expected_answer,
-            Question.question_type,
-            Question.difficulty,
-            Answer.answer_text.label('user_answer'),
-            Answer.answered_at,
-            InterviewSession.title.label('session_title'),
-            InterviewSession.session_id
-        ).join(
-            InterviewSession, Question.session_id == InterviewSession.id
-        ).outerjoin(
-            Answer, and_(
-                Answer.question_id == Question.id,
-                Answer.user_id == user_id
+        """Get all Formal Interview question and answer data for user"""
+        try:
+            from app.models.question import Question, Answer, InterviewSession
+            from app.models.question import InterviewType
+            
+            # Query all completed formal interview sessions and their questions/answers
+            query = db.session.query(
+                Question.id.label('question_id'),
+                Question.question_text,
+                Answer.answer_text,
+                Answer.score,
+                Answer.ai_feedback,
+                Answer.answered_at,
+                InterviewSession.session_id
+            ).join(
+                Answer, Question.id == Answer.question_id
+            ).join(
+                InterviewSession, Question.session_id == InterviewSession.id
+            ).filter(
+                InterviewSession.user_id == user_id,
+                InterviewSession.interview_type == InterviewType.TECHNICAL,  # Only match formal interviews
+                InterviewSession.status == 'completed'  # Only match completed interviews
+            ).order_by(
+                Answer.answered_at.desc()
             )
-        ).filter(
-            and_(
-                Question.user_id == user_id,
-                InterviewSession.interview_type == InterviewType.TECHNICAL,  # 只匹配正式面试
-                InterviewSession.status == 'completed'  # 只匹配已完成的面试
-            )
-        ).order_by(Answer.answered_at.desc())
-        
-        results = []
-        for row in query.all():
-            results.append({
+            
+            results = query.all()
+            
+            return [{
                 'question_id': row.question_id,
                 'question_text': row.question_text,
-                'expected_answer': row.expected_answer or '',
-                'user_answer': row.user_answer or '',
-                'session_title': row.session_title,
+                'answer_text': row.answer_text,
+                'score': row.score,
+                'ai_feedback': row.ai_feedback,
                 'answered_at': row.answered_at.isoformat() if row.answered_at else None,
-                'question_type': row.question_type.value if row.question_type else '',
-                'difficulty': row.difficulty.value if row.difficulty else ''
-            })
-        
-        return results
+                'session_id': row.session_id
+            } for row in results]
+            
+        except Exception as e:
+            logger.error(f"Failed to get user formal interview data: {e}")
+            return []
     
     def _preprocess_text(self, text: str) -> str:
-        """预处理文本"""
+        """Preprocess text"""
         if not text:
             return ""
         
-        # 转换为小写
+        # Convert to lowercase
         text = text.lower()
         
-        # 移除多余的空白字符
+        # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text).strip()
         
-        # 移除标点符号（保留字母、数字、空格）
-        text = re.sub(r'[^\w\s]', '', text)
+        # Remove punctuation (keep letters, numbers, spaces)
+        text = re.sub(r'[^\w\s]', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
         
         return text
     
     def _calculate_similarity(self, text1: str, text2: str) -> float:
-        """计算两个文本的相似度"""
+        """Calculate similarity between two texts"""
         if not text1 or not text2:
             return 0.0
         
-        # 预处理两个文本
+        # Preprocess both texts
         processed_text1 = self._preprocess_text(text1)
         processed_text2 = self._preprocess_text(text2)
         
-        # 使用SequenceMatcher计算相似度
-        similarity = SequenceMatcher(None, processed_text1, processed_text2).ratio()
+        # Use SequenceMatcher to calculate similarity
+        matcher = SequenceMatcher(None, processed_text1, processed_text2)
+        sequence_similarity = matcher.ratio()
         
-        # 额外的关键词匹配加分
-        keywords1 = set(processed_text1.split())
-        keywords2 = set(processed_text2.split())
+        # Additional keyword matching bonus
+        words1 = set(processed_text1.split())
+        words2 = set(processed_text2.split())
         
-        if keywords1 and keywords2:
-            keyword_overlap = len(keywords1.intersection(keywords2)) / len(keywords1.union(keywords2))
-            # 综合考虑序列相似度和关键词重叠度
-            similarity = (similarity * 0.7) + (keyword_overlap * 0.3)
+        if words1 and words2:
+            keyword_overlap = len(words1.intersection(words2)) / len(words1.union(words2))
+        else:
+            keyword_overlap = 0.0
         
-        return round(similarity, 3)
+        # Comprehensive consideration of sequence similarity and keyword overlap
+        final_similarity = 0.7 * sequence_similarity + 0.3 * keyword_overlap
+        
+        return min(1.0, final_similarity)
     
-    def extract_question_from_speech(self, speech_text: str) -> Optional[str]:
-        """从语音识别文本中提取问题"""
+    def extract_question_from_speech(self, speech_text: str) -> str:
+        """Extract question from speech recognition text"""
         if not speech_text:
-            return None
+            return ""
         
-        # 简单的问题提取逻辑
-        # 可以根据需要增强，比如使用NLP技术
+        # Simple question extraction logic
+        # Can be enhanced as needed, such as using NLP techniques
         
-        # 寻找问号结尾的句子
-        sentences = re.split(r'[.!?]', speech_text)
-        questions = [s.strip() for s in sentences if '?' in s or self._looks_like_question(s)]
-        
-        if questions:
-            # 返回最长的问题（通常更完整）
-            return max(questions, key=len).strip()
-        
-        # 如果没有明显的问题标识，检查是否包含疑问词
-        if self._contains_question_words(speech_text):
-            return speech_text.strip()
-        
-        return None
-    
-    def _looks_like_question(self, text: str) -> bool:
-        """判断文本是否看起来像问题"""
+        # Look for sentences ending with question marks
         question_patterns = [
-            r'\b(what|how|why|when|where|who|which|can|could|would|should|do|does|did|is|are|was|were)\b',
-            r'\b(tell me|describe|explain|give me)\b',
-            r'\b(experience|background|strength|weakness|challenge)\b'
+            r'[^.!?]*\?[^.!?]*',  # Contains question mark
+            r'[^.!?]*(?:what|how|why|when|where|which|who)[^.!?]*',  # Contains question words
         ]
         
-        text_lower = text.lower()
-        return any(re.search(pattern, text_lower) for pattern in question_patterns)
-    
-    def _contains_question_words(self, text: str) -> bool:
-        """检查文本是否包含疑问词"""
-        question_words = [
-            'what', 'how', 'why', 'when', 'where', 'who', 'which',
-            'can', 'could', 'would', 'should', 'do', 'does', 'did',
-            'is', 'are', 'was', 'were', 'tell me', 'describe', 'explain'
-        ]
+        for pattern in question_patterns:
+            matches = re.findall(pattern, speech_text, re.IGNORECASE)
+            if matches:
+                # Return the longest question (usually more complete)
+                return max(matches, key=len).strip()
         
-        text_lower = text.lower()
-        return any(word in text_lower for word in question_words) 
+        # If no obvious question identifiers, check if it contains question words
+        question_words = ['what', 'how', 'why', 'when', 'where', 'which', 'who', 'can', 'could', 'would', 'should']
+        speech_lower = speech_text.lower()
+        
+        for word in question_words:
+            if word in speech_lower:
+                return speech_text.strip()
+        
+        return speech_text.strip() 

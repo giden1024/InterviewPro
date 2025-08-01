@@ -34,118 +34,118 @@ def analyze_resume_content(resume):
     score = 0
     max_score = 100
     
-    # 1. 基本信息完整性分析 (25分)
+    # 1. Basic information completeness analysis (25 points)
     basic_info_score = 0
-    if resume.name:
+    if resume.name and resume.name.strip():
         basic_info_score += 8
-        analysis_result['strengths'].append('包含姓名信息')
+        analysis_result['strengths'].append('Contains name information')
     else:
-        analysis_result['areas_for_improvement'].append('缺少姓名信息')
-        analysis_result['suggestions'].append('建议添加完整的姓名信息')
+        analysis_result['areas_for_improvement'].append('Missing name information')
+        analysis_result['suggestions'].append('Recommend adding complete name information')
     
-    if resume.email:
+    if resume.email and resume.email.strip():
         basic_info_score += 8
-        analysis_result['strengths'].append('包含邮箱联系方式')
+        analysis_result['strengths'].append('Contains email contact information')
     else:
-        analysis_result['areas_for_improvement'].append('缺少邮箱信息')
-        analysis_result['suggestions'].append('建议添加有效的邮箱地址')
+        analysis_result['areas_for_improvement'].append('Missing email information')
+        analysis_result['suggestions'].append('Recommend adding a valid email address')
     
-    if resume.phone:
+    if resume.phone and resume.phone.strip():
         basic_info_score += 9
-        analysis_result['strengths'].append('包含电话联系方式')
+        analysis_result['strengths'].append('Contains phone contact information')
     else:
-        analysis_result['areas_for_improvement'].append('缺少电话信息')
-        analysis_result['suggestions'].append('建议添加电话号码')
+        analysis_result['areas_for_improvement'].append('Missing phone information')
+        analysis_result['suggestions'].append('Recommend adding phone number')
     
     score += basic_info_score
     
-    # 2. 技能信息分析 (25分)
+    # 2. Skills information analysis (25 points)
     skills_score = 0
-    if resume.skills and len(resume.skills) > 0:
-        skill_count = len(resume.skills)
-        if skill_count >= 8:
-            skills_score = 25
-            analysis_result['strengths'].append(f'技能丰富，包含{skill_count}项技能')
-        elif skill_count >= 5:
-            skills_score = 20
-            analysis_result['strengths'].append(f'技能较全面，包含{skill_count}项技能')
-        elif skill_count >= 3:
-            skills_score = 15
-            analysis_result['strengths'].append(f'包含基本技能，共{skill_count}项')
-            analysis_result['suggestions'].append('建议添加更多相关技能')
-        else:
-            skills_score = 10
-            analysis_result['areas_for_improvement'].append('技能信息较少')
-            analysis_result['suggestions'].append('建议补充更多专业技能')
+    skill_count = len(resume.skills) if resume.skills else 0
+    
+    if skill_count >= 10:
+        skills_score = 25
+        analysis_result['strengths'].append(f'Rich skills, contains {skill_count} skills')
+    elif skill_count >= 6:
+        skills_score = 20
+        analysis_result['strengths'].append(f'Comprehensive skills, contains {skill_count} skills')
+    elif skill_count >= 3:
+        skills_score = 15
+        analysis_result['strengths'].append(f'Contains basic skills, total {skill_count} items')
+        analysis_result['suggestions'].append('Recommend adding more relevant skills')
+    elif skill_count >= 1:
+        skills_score = 10
+        analysis_result['areas_for_improvement'].append('Limited skill information')
+        analysis_result['suggestions'].append('Recommend adding more professional skills')
     else:
-        analysis_result['areas_for_improvement'].append('缺少技能信息')
-        analysis_result['suggestions'].append('建议添加专业技能和工具使用经验')
+        analysis_result['areas_for_improvement'].append('Missing skill information')
+        analysis_result['suggestions'].append('Recommend adding professional skills and tool usage experience')
     
     score += skills_score
     
-    # 3. 工作经历分析 (25分)
+    # 3. Work experience analysis (25 points)
     experience_score = 0
-    if resume.experience and len(resume.experience) > 0:
-        exp_count = len(resume.experience)
-        if exp_count >= 3:
-            experience_score = 25
-            analysis_result['strengths'].append(f'工作经验丰富，包含{exp_count}段经历')
-        elif exp_count >= 2:
-            experience_score = 20
-            analysis_result['strengths'].append(f'有相关工作经验，包含{exp_count}段经历')
-        else:
-            experience_score = 15
-            analysis_result['strengths'].append('有工作经验')
-            analysis_result['suggestions'].append('建议详细描述工作职责和成就')
+    exp_count = len(resume.experience) if resume.experience else 0
+    
+    if exp_count >= 3:
+        experience_score = 25
+        analysis_result['strengths'].append(f'Rich work experience, contains {exp_count} experiences')
+    elif exp_count >= 2:
+        experience_score = 20
+        analysis_result['strengths'].append(f'Has relevant work experience, contains {exp_count} experiences')
+    elif exp_count >= 1:
+        experience_score = 15
+        analysis_result['strengths'].append('Has work experience')
+        analysis_result['suggestions'].append('Recommend detailing job responsibilities and achievements')
     else:
-        analysis_result['areas_for_improvement'].append('缺少工作经历信息')
-        analysis_result['suggestions'].append('建议添加实习或工作经验')
+        analysis_result['areas_for_improvement'].append('Missing work experience information')
+        analysis_result['suggestions'].append('Recommend adding internship or work experience')
     
     score += experience_score
     
-    # 4. 教育背景分析 (15分)
+    # 4. Educational background analysis (15 points)
     education_score = 0
     if resume.education and len(resume.education) > 0:
         education_score = 15
-        analysis_result['strengths'].append('包含教育背景信息')
+        analysis_result['strengths'].append('Contains educational background information')
     else:
-        analysis_result['areas_for_improvement'].append('缺少教育背景信息')
-        analysis_result['suggestions'].append('建议添加学历和专业信息')
+        analysis_result['areas_for_improvement'].append('Missing educational background information')
+        analysis_result['suggestions'].append('Recommend adding education and major information')
     
     score += education_score
     
-    # 5. 项目经验分析 (10分)
-    projects_score = 0
-    if resume.projects and len(resume.projects) > 0:
-        project_count = len(resume.projects)
-        if project_count >= 3:
-            projects_score = 10
-            analysis_result['strengths'].append(f'项目经验丰富，包含{project_count}个项目')
-        elif project_count >= 1:
-            projects_score = 7
-            analysis_result['strengths'].append(f'有项目经验，包含{project_count}个项目')
+    # 5. Project experience analysis (10 points)
+    project_score = 0
+    project_count = len(resume.projects) if resume.projects else 0
+    
+    if project_count >= 3:
+        project_score = 10
+        analysis_result['strengths'].append(f'Rich project experience, contains {project_count} projects')
+    elif project_count >= 1:
+        project_score = 8
+        analysis_result['strengths'].append(f'Has project experience, contains {project_count} projects')
     else:
-        analysis_result['areas_for_improvement'].append('缺少项目经验')
-        analysis_result['suggestions'].append('建议添加相关项目经历和技术实践')
+        analysis_result['areas_for_improvement'].append('Missing project experience')
+        analysis_result['suggestions'].append('Recommend adding relevant project experience and technical practice')
     
-    score += projects_score
+    score += project_score
     
-    # 计算最终分数
-    final_score = min(score, max_score)
+    # Calculate final score
+    final_score = basic_info_score + skills_score + experience_score + education_score + project_score
     analysis_result['score'] = final_score
     analysis_result['match_score'] = final_score
     analysis_result['overall_score'] = final_score
     
-    # 根据分数给出总体评价
-    if final_score >= 85:
-        analysis_result['strengths'].append('简历整体质量优秀')
-    elif final_score >= 70:
-        analysis_result['strengths'].append('简历整体质量良好')
-        analysis_result['suggestions'].append('继续完善细节信息')
-    elif final_score >= 50:
-        analysis_result['suggestions'].append('建议进一步完善简历内容')
+    # Give overall evaluation based on score
+    if final_score >= 80:
+        analysis_result['strengths'].append('Overall resume quality is excellent')
+    elif final_score >= 60:
+        analysis_result['strengths'].append('Overall resume quality is good')
+        analysis_result['suggestions'].append('Continue to improve detailed information')
+    elif final_score >= 40:
+        analysis_result['suggestions'].append('Recommend further improving resume content')
     else:
-        analysis_result['suggestions'].append('简历需要大幅改进，建议补充关键信息')
+        analysis_result['suggestions'].append('Resume needs significant improvement, recommend adding key information')
     
     return analysis_result
 
@@ -191,8 +191,8 @@ def get_resumes():
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取简历列表失败: {str(e)}")
-        return error_response("获取简历列表失败", 500)
+        current_app.logger.error(f"Failed to get resume list: {str(e)}")
+        return error_response("Failed to get resume list", 500)
 
 @resumes_bp.route('', methods=['POST'])
 @jwt_required()
@@ -203,18 +203,18 @@ def upload_resume():
         
         # 检查请求中是否有文件
         if 'file' not in request.files:
-            return error_response("请选择要上传的文件", 400)
+            return error_response("Please select a file to upload", 400)
         
         file = request.files['file']
         
         # 检查文件是否为空
         if file.filename == '':
-            return error_response("请选择要上传的文件", 400)
+            return error_response("Please select a file to upload", 400)
         
         # 检查文件格式
         if not allowed_file(file.filename):
             return error_response(
-                f"不支持的文件格式，请上传 {', '.join(ALLOWED_EXTENSIONS)} 格式的文件", 
+                f"Unsupported file format, please upload {', '.join(ALLOWED_EXTENSIONS)} format files", 
                 400
             )
         
@@ -224,7 +224,7 @@ def upload_resume():
         file.seek(0)  # 重置到文件开头
         
         if file_size > MAX_FILE_SIZE:
-            return error_response(f"文件太大，最大支持 {MAX_FILE_SIZE // 1024 // 1024}MB", 400)
+            return error_response(f"File too large, maximum supported {MAX_FILE_SIZE // 1024 // 1024}MB", 400)
         
         # 生成安全的文件名
         original_filename = secure_filename(file.filename)
@@ -288,21 +288,21 @@ def upload_resume():
             db.session.commit()
             
         except Exception as parse_error:
-            current_app.logger.error(f"简历解析失败: {str(parse_error)}")
+            current_app.logger.error(f"Resume parsing failed: {str(parse_error)}")
             resume.status = ResumeStatus.FAILED
             resume.error_message = str(parse_error)
             db.session.commit()
         
         return success_response({
             'resume': resume.to_dict(),
-            'message': '简历上传成功，正在解析中...'
+            'message': 'Resume uploaded successfully, parsing in progress...'
         }, 201)
         
     except RequestEntityTooLarge:
-        return error_response(f"文件太大，最大支持 {MAX_FILE_SIZE // 1024 // 1024}MB", 413)
+        return error_response(f"File too large, maximum supported {MAX_FILE_SIZE // 1024 // 1024}MB", 413)
     except Exception as e:
-        current_app.logger.error(f"简历上传失败: {str(e)}")
-        return error_response("简历上传失败", 500)
+        current_app.logger.error(f"Resume upload failed: {str(e)}")
+        return error_response("Resume upload failed", 500)
 
 @resumes_bp.route('/<int:resume_id>', methods=['GET'])
 @jwt_required()
@@ -313,13 +313,13 @@ def get_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         return success_response({'resume': resume.to_dict()})
         
     except Exception as e:
-        current_app.logger.error(f"获取简历详情失败: {str(e)}")
-        return error_response("获取简历详情失败", 500)
+        current_app.logger.error(f"Failed to get resume details: {str(e)}")
+        return error_response("Failed to get resume details", 500)
 
 @resumes_bp.route('/<int:resume_id>', methods=['DELETE'])
 @jwt_required()
@@ -330,24 +330,24 @@ def delete_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         # 删除文件
         try:
             if os.path.exists(resume.file_path):
                 os.remove(resume.file_path)
         except Exception as e:
-            current_app.logger.warning(f"删除文件失败: {str(e)}")
+            current_app.logger.warning(f"Failed to delete file: {str(e)}")
         
         # 删除数据库记录
         db.session.delete(resume)
         db.session.commit()
         
-        return success_response({'message': '简历删除成功'})
+        return success_response({'message': 'Resume deleted successfully'})
         
     except Exception as e:
-        current_app.logger.error(f"删除简历失败: {str(e)}")
-        return error_response("删除简历失败", 500)
+        current_app.logger.error(f"Failed to delete resume: {str(e)}")
+        return error_response("Failed to delete resume", 500)
 
 @resumes_bp.route('/<int:resume_id>/reparse', methods=['POST'])
 @jwt_required()
@@ -358,10 +358,10 @@ def reparse_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         if not os.path.exists(resume.file_path):
-            return error_response("简历文件不存在", 404)
+            return error_response("Resume file does not exist", 404)
         
         # 重新解析
         resume.status = ResumeStatus.PROCESSING
@@ -397,12 +397,12 @@ def reparse_resume(resume_id):
         
         return success_response({
             'resume': resume.to_dict(),
-            'message': '重新解析完成'
+            'message': 'Reparse completed'
         })
         
     except Exception as e:
-        current_app.logger.error(f"重新解析简历失败: {str(e)}")
-        return error_response("重新解析简历失败", 500)
+        current_app.logger.error(f"Failed to reparse resume: {str(e)}")
+        return error_response("Failed to reparse resume", 500)
 
 @resumes_bp.route('/stats', methods=['GET'])
 @jwt_required()
@@ -432,8 +432,8 @@ def get_resume_stats():
         })
         
     except Exception as e:
-        current_app.logger.error(f"获取简历统计失败: {str(e)}")
-        return error_response("获取简历统计失败", 500)
+        current_app.logger.error(f"Failed to get resume stats: {str(e)}")
+        return error_response("Failed to get resume stats", 500)
 
 @resumes_bp.route('/<int:resume_id>/download', methods=['GET'])
 @jwt_required()
@@ -444,10 +444,10 @@ def download_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         if not os.path.exists(resume.file_path):
-            return error_response("简历文件不存在", 404)
+            return error_response("Resume file does not exist", 404)
         
         return send_file(
             resume.file_path,
@@ -457,8 +457,8 @@ def download_resume(resume_id):
         )
         
     except Exception as e:
-        current_app.logger.error(f"下载简历失败: {str(e)}")
-        return error_response("下载简历失败", 500)
+        current_app.logger.error(f"Failed to download resume: {str(e)}")
+        return error_response("Failed to download resume", 500)
 
 @resumes_bp.route('/<int:resume_id>/preview', methods=['GET'])
 @jwt_required()
@@ -469,10 +469,10 @@ def preview_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         if resume.status != ResumeStatus.PROCESSED:
-            return error_response("简历尚未处理完成，无法预览", 400)
+            return error_response("Resume not yet processed, cannot preview", 400)
         
         # 格式化简历内容用于预览
         preview_data = {
@@ -493,8 +493,8 @@ def preview_resume(resume_id):
         })
         
     except Exception as e:
-        current_app.logger.error(f"预览简历失败: {str(e)}")
-        return error_response("预览简历失败", 500)
+        current_app.logger.error(f"Failed to preview resume: {str(e)}")
+        return error_response("Failed to preview resume", 500)
 
 @resumes_bp.route('/<int:resume_id>/analyze', methods=['POST'])
 @jwt_required()
@@ -505,13 +505,13 @@ def analyze_resume(resume_id):
         
         resume = Resume.query.filter_by(id=resume_id, user_id=user_id).first()
         if not resume:
-            return error_response("简历不存在", 404)
+            return error_response("Resume does not exist", 404)
         
         # 如果简历状态不是已处理，尝试重新处理
         if resume.status != ResumeStatus.PROCESSED:
             # 如果简历还在处理中，等待一下或重新处理
             if resume.status == ResumeStatus.PROCESSING:
-                return error_response("简历正在处理中，请稍后再试", 202)
+                return error_response("Resume is being processed, please try again later", 202)
             elif resume.status in [ResumeStatus.UPLOADED, ResumeStatus.FAILED]:
                 # 尝试重新解析简历
                 try:
@@ -545,13 +545,13 @@ def analyze_resume(resume_id):
                         resume.status = ResumeStatus.FAILED
                         resume.error_message = result['error']
                         db.session.commit()
-                        return error_response(f"简历解析失败: {result['error']}", 400)
+                        return error_response(f"Resume parsing failed: {result['error']}", 400)
                         
                 except Exception as e:
                     resume.status = ResumeStatus.FAILED
                     resume.error_message = str(e)
                     db.session.commit()
-                    return error_response(f"简历重新解析失败: {str(e)}", 500)
+                    return error_response(f"Failed to reparse resume: {str(e)}", 500)
         
         # 进行简历分析
         try:
@@ -565,12 +565,12 @@ def analyze_resume(resume_id):
             })
             
         except Exception as e:
-            current_app.logger.error(f"简历分析失败: {str(e)}")
-            return error_response(f"简历分析失败: {str(e)}", 500)
+            current_app.logger.error(f"Failed to analyze resume: {str(e)}")
+            return error_response(f"Failed to analyze resume: {str(e)}", 500)
         
     except Exception as e:
-        current_app.logger.error(f"分析简历API失败: {str(e)}")
-        return error_response("分析简历失败", 500)
+        current_app.logger.error(f"Analysis resume API failed: {str(e)}")
+        return error_response("Analysis resume failed", 500)
 
 @resumes_bp.route('/search', methods=['POST'])
 @jwt_required()
@@ -627,8 +627,8 @@ def search_resumes():
         })
         
     except Exception as e:
-        current_app.logger.error(f"搜索简历失败: {str(e)}")
-        return error_response("搜索简历失败", 500)
+        current_app.logger.error(f"Failed to search resumes: {str(e)}")
+        return error_response("Failed to search resumes", 500)
 
 @resumes_bp.route('/batch', methods=['POST'])
 @jwt_required()
@@ -642,10 +642,10 @@ def batch_operations():
         operation = data.get('operation')
         
         if not resume_ids or not operation:
-            return error_response("请提供简历ID列表和操作类型", 400)
+            return error_response("Please provide a list of resume IDs and operation type", 400)
         
         if operation not in ['delete', 'reparse']:
-            return error_response("不支持的操作类型", 400)
+            return error_response("Unsupported operation type", 400)
         
         # 验证所有简历都属于当前用户
         resumes = Resume.query.filter(
@@ -654,7 +654,7 @@ def batch_operations():
         ).all()
         
         if len(resumes) != len(resume_ids):
-            return error_response("部分简历不存在或无权限", 400)
+            return error_response("Some resumes do not exist or do not have permission", 400)
         
         results = []
         
@@ -678,7 +678,7 @@ def batch_operations():
             for resume in resumes:
                 try:
                     if not os.path.exists(resume.file_path):
-                        results.append({'id': resume.id, 'success': False, 'error': '文件不存在'})
+                        results.append({'id': resume.id, 'success': False, 'error': 'File does not exist'})
                         continue
                     
                     resume.status = ResumeStatus.PROCESSING
@@ -722,8 +722,8 @@ def batch_operations():
         })
         
     except Exception as e:
-        current_app.logger.error(f"批量操作失败: {str(e)}")
-        return error_response("批量操作失败", 500)
+        current_app.logger.error(f"Batch operation failed: {str(e)}")
+        return error_response("Batch operation failed", 500)
 
 @resumes_bp.route('/export', methods=['POST'])
 @jwt_required()
@@ -737,7 +737,7 @@ def export_resumes():
         resume_ids = data.get('resume_ids', [])
         
         if export_format not in ['json', 'csv']:
-            return error_response("不支持的导出格式", 400)
+            return error_response("Unsupported export format", 400)
         
         # 获取简历数据
         query = Resume.query.filter_by(user_id=user_id)
@@ -767,8 +767,8 @@ def export_resumes():
             
             # CSV头部
             writer.writerow([
-                'ID', '姓名', '邮箱', '电话', '文件名', '状态', '上传时间',
-                '技能数量', '工作经历数量', '教育背景数量'
+                'ID', 'Name', 'Email', 'Phone', 'Filename', 'Status', 'Upload Time',
+                'Skill Count', 'Experience Count', 'Education Count'
             ])
             
             # 写入数据
@@ -795,5 +795,5 @@ def export_resumes():
             )
         
     except Exception as e:
-        current_app.logger.error(f"导出简历失败: {str(e)}")
-        return error_response("导出简历失败", 500) 
+        current_app.logger.error(f"Failed to export resumes: {str(e)}")
+        return error_response("Failed to export resumes", 500) 

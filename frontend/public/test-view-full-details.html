@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test View Full Details</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test View Full Details API</h1>
+    
+    <div id="status"></div>
+    <div id="logs"></div>
+    
+    <button onclick="testGetInterview()">Test Get Interview</button>
+    <button onclick="testGetAnswers()">Test Get Answers</button>
+    <button onclick="testBothAPIs()">Test Both APIs</button>
+    
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        const SESSION_ID = 'f60029dd-c5f2-4872-b022-bfb5b944b872';
+        
+        // 获取token
+        const token = localStorage.getItem('access_token') || 
+                     localStorage.getItem('auth_token') ||
+                     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTczNTczMDA5MywianRpIjoiZjkyMzQzZTQtMGZlNy00YzE2LTgyZjEtZGIzNzQ3ZmVjN2M3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3MzU3MzAwOTMsImV4cCI6MTczNTgxNjQ5M30.U_0r8wfYVlLLqPJmK4sWN_VmVHLEXRPZQa9Qr3mPQhI';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            logs.appendChild(div);
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = type;
+            status.textContent = message;
+        }
+        
+        async function makeRequest(url, options = {}) {
+            try {
+                log(`Making request to: ${url}`);
+                
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                const responseText = await response.text();
+                log(`Response body: ${responseText}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+                
+                return JSON.parse(responseText);
+            } catch (error) {
+                log(`Request failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        async function testGetInterview() {
+            updateStatus('Testing Get Interview API...');
+            try {
+                const result = await makeRequest(`${API_BASE}/interviews/${SESSION_ID}`);
+                log(`Get Interview Success: ${JSON.stringify(result, null, 2)}`, 'success');
+                updateStatus('Get Interview API works!', 'success');
+                return result;
+            } catch (error) {
+                updateStatus(`Get Interview failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testGetAnswers() {
+            updateStatus('Testing Get Answers API...');
+            try {
+                const result = await makeRequest(`${API_BASE}/interviews/${SESSION_ID}/answers`);
+                log(`Get Answers Success: ${JSON.stringify(result, null, 2)}`, 'success');
+                updateStatus('Get Answers API works!', 'success');
+                return result;
+            } catch (error) {
+                updateStatus(`Get Answers failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testBothAPIs() {
+            updateStatus('Testing both APIs...');
+            try {
+                log('Starting parallel API calls...');
+                
+                const [interviewData, answersData] = await Promise.all([
+                    makeRequest(`${API_BASE}/interviews/${SESSION_ID}`),
+                    makeRequest(`${API_BASE}/interviews/${SESSION_ID}/answers`)
+                ]);
+                
+                log('Both APIs succeeded!', 'success');
+                log(`Interview data: ${JSON.stringify(interviewData, null, 2)}`, 'success');
+                log(`Answers data: ${JSON.stringify(answersData, null, 2)}`, 'success');
+                
+                // 模拟前端处理逻辑
+                const fullData = {
+                    ...interviewData,
+                    answers: answersData.data?.answers || answersData.answers || []
+                };
+                
+                log(`Combined data: ${JSON.stringify(fullData, null, 2)}`, 'success');
+                updateStatus('Both APIs work! Check logs for details.', 'success');
+                
+                return fullData;
+            } catch (error) {
+                updateStatus(`Combined test failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        // 页面加载时显示当前token
+        document.addEventListener('DOMContentLoaded', () => {
+            log(`Using token: ${token ? token.substring(0, 50) + '...' : 'No token found'}`);
+            log(`Session ID: ${SESSION_ID}`);
+        });
+    </script>
+</body>
+</html> 

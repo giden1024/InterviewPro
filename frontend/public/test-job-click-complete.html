@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job点击跳转Complete页面测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .success { border-left: 4px solid #4CAF50; background-color: #f8fff8; }
+        .info { border-left: 4px solid #2196F3; background-color: #f8f9ff; }
+        .warning { border-left: 4px solid #FF9800; background-color: #fff8f0; }
+        .test-button {
+            background: #2196F3;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .test-button:hover {
+            background: #1976D2;
+        }
+        .code {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #666; }
+        h3 { color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Job点击跳转Complete页面功能测试</h1>
+        
+        <div class="test-section info">
+            <h2>📋 测试说明</h2>
+            <p>本测试用于验证HomePage左侧job list中点击job后是否正确跳转到/complete页面并传递job信息。</p>
+            
+            <h3>修改内容：</h3>
+            <div class="code">
+// HomePage.tsx - handleSelectJob函数修改
+const handleSelectJob = (job: Job) => {
+  navigate('/complete', { 
+    state: { 
+      jobTitle: job.title,
+      jobDescription: job.description,
+      jobId: job.id.toString(),
+      company: job.company,
+      resumeId: job.resume_id,
+      experienceLevel: job.experience_level,
+      selectedJob: job
+    } 
+  });
+};
+            </div>
+        </div>
+
+        <div class="test-section success">
+            <h2>✅ 修改状态</h2>
+            <p><strong>HomePage.tsx:</strong> ✅ handleSelectJob函数已修改，跳转目标从/jobs改为/complete</p>
+            <p><strong>CompletePage.tsx:</strong> ✅ 已添加Job类型import和selectedJob字段到LocationState接口</p>
+            <p><strong>前端服务:</strong> ✅ 正在运行在 http://localhost:3000</p>
+            <p><strong>后端服务:</strong> ✅ 正在运行在 http://localhost:5001</p>
+        </div>
+
+        <div class="test-section warning">
+            <h2>🧪 测试步骤</h2>
+            <ol>
+                <li>点击下方按钮访问HomePage</li>
+                <li>登录系统（如果需要）</li>
+                <li>在左侧job list中点击任意一个job</li>
+                <li>验证是否跳转到/complete页面</li>
+                <li>检查页面是否显示job信息（标题、公司等）</li>
+            </ol>
+        </div>
+
+        <div class="test-section info">
+            <h2>🔗 测试链接</h2>
+            <a href="http://localhost:3000/home" class="test-button" target="_blank">
+                🏠 访问 HomePage
+            </a>
+            <a href="http://localhost:3000/complete" class="test-button" target="_blank">
+                ✅ 访问 CompletePage
+            </a>
+            <a href="http://localhost:3000/login" class="test-button" target="_blank">
+                🔐 登录页面
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 预期结果</h2>
+            <p><strong>点击job后应该：</strong></p>
+            <ul>
+                <li>✅ 跳转到 http://localhost:3000/complete 页面</li>
+                <li>✅ 页面显示job标题、公司名称</li>
+                <li>✅ 如果有经验级别，应该显示"XX 级别"</li>
+                <li>✅ 页面显示"简历上传成功"的成功提示</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 测试记录</h2>
+            <p>测试时间: <span id="testTime"></span></p>
+            <p>浏览器: <span id="browserInfo"></span></p>
+            <p>测试状态: <span id="testStatus">待测试</span></p>
+            
+            <button onclick="updateTestStatus()" class="test-button">
+                📝 更新测试状态
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 显示当前时间
+        document.getElementById('testTime').textContent = new Date().toLocaleString('zh-CN');
+        
+        // 显示浏览器信息
+        document.getElementById('browserInfo').textContent = navigator.userAgent.split(' ').slice(-2).join(' ');
+        
+        function updateTestStatus() {
+            const status = document.getElementById('testStatus');
+            const currentTime = new Date().toLocaleString('zh-CN');
+            status.textContent = `已测试 - ${currentTime}`;
+            status.style.color = '#4CAF50';
+            status.style.fontWeight = 'bold';
+        }
+
+        // 检查是否从job点击跳转过来
+        if (document.referrer.includes('/home')) {
+            document.getElementById('testStatus').textContent = '检测到从HomePage跳转';
+            document.getElementById('testStatus').style.color = '#2196F3';
+        }
+    </script>
+</body>
+</html> 

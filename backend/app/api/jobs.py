@@ -256,7 +256,7 @@ def analyze_job_url():
         # 创建职位记录
         job = Job(
             user_id=user_id,
-            title=job_data['title'] or '未指定职位',
+            title=job_data['title'] or 'Unspecified Position',
             company=job_data['company'],
             description=job_data['description'],
             requirements=job_data['requirements'],
@@ -277,7 +277,7 @@ def analyze_job_url():
         return success_response({
             'job': job.to_dict(),
             'parsing_result': result
-        }, "URL分析完成，职位已创建", 201)
+        }, "URL analysis completed, job created", 201)
         
     except MarshmallowValidationError as e:
         return error_response("Data validation failed", 422, details=e.messages)
@@ -312,7 +312,7 @@ def parse_job_text():
         # 创建职位记录
         job = Job(
             user_id=user_id,
-            title=job_data['title'] or '未指定职位',
+            title=job_data['title'] or 'Unspecified Position',
             company=job_data['company'],
             description=job_data['description'],
             requirements=job_data['requirements'],
@@ -332,7 +332,7 @@ def parse_job_text():
         return success_response({
             'job': job.to_dict(),
             'parsing_result': result
-        }, "文本解析完成，职位已创建", 201)
+        }, "Text parsing completed, job created", 201)
         
     except MarshmallowValidationError as e:
         return error_response("Data validation failed", 422, details=e.messages)
