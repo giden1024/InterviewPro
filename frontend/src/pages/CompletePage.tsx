@@ -33,14 +33,14 @@ const CompletePage: React.FC = () => {
     status: string;
   } | null>(null);
 
-  // 处理面试选择
+  // Handle interview selection
   const handleStartInterview = async (interviewType: 'mock' | 'formal') => {
     if (!state.resumeId) {
-      setError('简历信息缺失，请重新上传简历');
+      setError('Resume information missing, please re-upload your resume');
       return;
     }
 
-    // 设置对应按钮的loading状态
+    // Set loading state for corresponding button
     if (interviewType === 'mock') {
       setIsLoadingMock(true);
     } else {
@@ -50,7 +50,7 @@ const CompletePage: React.FC = () => {
     setError(null);
 
     try {
-      // 创建面试会话
+      // Create interview session
       const session = await interviewService.createInterview({
         resume_id: state.resumeId,
         interview_type: interviewType === 'mock' ? 'mock' : 'comprehensive',
@@ -58,7 +58,7 @@ const CompletePage: React.FC = () => {
         custom_title: `${state.jobTitle || 'Interview'} - ${interviewType === 'mock' ? 'Mock' : 'Formal'} Interview`
       });
 
-      // 生成面试问题
+      // Generate interview questions
       const questionData = {
         resume_id: state.resumeId,
         session_id: session.session_id,
@@ -66,12 +66,12 @@ const CompletePage: React.FC = () => {
         total_questions: interviewType === 'mock' ? 8 : 15
       };
 
-      // 使用同步生成问题接口
+      // Use synchronous question generation API
       const result = await questionService.generateQuestions(questionData);
       
-      // 直接处理结果，同步接口直接返回问题数据
+      // Handle result directly, synchronous API returns question data directly
       if (result.questions && result.questions.length > 0) {
-        // 问题生成成功，跳转到面试页面
+        // Questions generated successfully, navigate to interview page
         navigate(interviewType === 'mock' ? '/mock-interview' : '/interview', {
           state: { 
             sessionId: session.session_id,
@@ -81,19 +81,19 @@ const CompletePage: React.FC = () => {
           }
         });
       } else {
-        setError('问题生成失败，请重试');
+        setError('Question generation failed, please try again');
       }
     } catch (error: any) {
-      console.error('创建面试失败:', error);
-      setError(error.message || '创建面试失败，请重试');
+      console.error('Failed to create interview:', error);
+      setError(error.message || 'Failed to create interview, please try again');
     } finally {
-      // 清除loading状态
+      // Clear loading state
       setIsLoadingMock(false);
       setIsLoadingFormal(false);
     }
   };
 
-  // 返回主页
+  // Return to home page
   const goHome = () => {
     navigate('/home');
   };
@@ -102,7 +102,7 @@ const CompletePage: React.FC = () => {
     <div className="min-h-screen" style={{ backgroundColor: '#EEF9FF' }}>
       <div className="container mx-auto px-6 max-w-4xl py-12">
         
-        {/* 成功提示区域 */}
+        {/* Success notification area */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-8">
           <div className="text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -111,13 +111,13 @@ const CompletePage: React.FC = () => {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              ✅ 简历上传成功！
+              ✅ Resume Upload Successful!
             </h1>
             <p className="text-gray-600 text-lg mb-6">
-              您的简历已成功解析并保存到系统中。
+              Your resume has been successfully parsed and saved to the system.
             </p>
             
-            {/* 职位信息显示 */}
+            {/* Job information display */}
             {state.jobTitle && (
               <div className="inline-block bg-blue-50 px-6 py-3 rounded-xl border border-blue-200">
                 <div className="text-blue-800 font-medium text-lg">{state.jobTitle}</div>
@@ -125,14 +125,14 @@ const CompletePage: React.FC = () => {
                   <div className="text-blue-600 text-sm">{state.company}</div>
                 )}
                 {state.experienceLevel && (
-                  <div className="text-blue-600 text-sm">{state.experienceLevel} 级别</div>
+                  <div className="text-blue-600 text-sm">{state.experienceLevel} Level</div>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        {/* 错误提示 */}
+        {/* Error notification */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
             <div className="flex items-center space-x-3">
@@ -144,19 +144,19 @@ const CompletePage: React.FC = () => {
           </div>
         )}
 
-        {/* 任务进度显示 */}
+        {/* Task progress display */}
         {taskProgress && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
             <div className="flex items-center space-x-3 mb-4">
               <svg className="w-6 h-6 text-blue-600 animate-spin" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
               </svg>
-              <div className="text-blue-700 font-medium">正在生成面试问题...</div>
+              <div className="text-blue-700 font-medium">Generating interview questions...</div>
             </div>
             
             <div className="mb-3">
               <div className="flex justify-between text-sm text-blue-600 mb-1">
-                <span>进度</span>
+                <span>Progress</span>
                 <span>{taskProgress.current}%</span>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-2">
@@ -173,35 +173,35 @@ const CompletePage: React.FC = () => {
           </div>
         )}
 
-        {/* 面试选择区域 */}
+        {/* Interview selection area */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            选择面试类型
+            Choose Interview Type
           </h2>
           
           <div className="grid md:grid-cols-2 gap-6">
-            {/* 模拟面试选项 */}
+            {/* Mock interview option */}
             <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-colors">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl">🎯</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">模拟面试</h3>
-                <p className="text-gray-600 text-sm mb-4">快速练习，熟悉面试流程</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">Mock Interview</h3>
+                <p className="text-gray-600 text-sm mb-4">Quick practice to familiarize with the interview process</p>
               </div>
               
               <div className="space-y-2 mb-6">
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  8道精选题目
+                  8 curated questions
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  快速反馈和评分
+                  Quick feedback and scoring
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  适合初次体验
+                  Perfect for first-time experience
                 </div>
               </div>
               
@@ -210,32 +210,32 @@ const CompletePage: React.FC = () => {
                 disabled={isLoadingMock || isLoadingFormal}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoadingMock ? '创建中...' : '开始模拟面试'}
+                {isLoadingMock ? 'Creating...' : 'Start Mock Interview'}
               </button>
             </div>
 
-            {/* 正式面试选项 */}
+            {/* Formal interview option */}
             <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-green-300 transition-colors">
               <div className="text-center mb-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl">📋</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">正式面试</h3>
-                <p className="text-gray-600 text-sm mb-4">全面评估，深度分析</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">Formal Interview</h3>
+                <p className="text-gray-600 text-sm mb-4">Comprehensive assessment with in-depth analysis</p>
               </div>
               
               <div className="space-y-2 mb-6">
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  15道综合题目
+                  15 comprehensive questions
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  详细能力分析
+                  Detailed capability analysis
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  专业评估报告
+                  Professional assessment report
                 </div>
               </div>
               
@@ -244,26 +244,26 @@ const CompletePage: React.FC = () => {
                 disabled={isLoadingFormal || isLoadingMock}
                 className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoadingFormal ? '创建中...' : '开始正式面试'}
+                {isLoadingFormal ? 'Creating...' : 'Start Formal Interview'}
               </button>
             </div>
           </div>
         </div>
 
-        {/* 返回主页选项 */}
+        {/* Return to home option */}
         <div className="bg-white rounded-2xl shadow-sm p-8">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              或者稍后开始面试
+              Or start interview later
             </h3>
             <p className="text-gray-600 mb-6">
-              您可以随时在主页重新开始面试
+              You can restart the interview anytime from the home page
             </p>
             <button
               onClick={goHome}
               className="px-8 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
-              🏠 返回主页
+              🏠 Return to Home
             </button>
           </div>
         </div>
