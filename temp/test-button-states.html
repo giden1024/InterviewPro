@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>按钮状态测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .button {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .mock-btn {
+            background: #2196F3;
+            color: white;
+        }
+        .mock-btn:hover:not(:disabled) {
+            background: #1976D2;
+        }
+        .formal-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        .formal-btn:hover:not(:disabled) {
+            background: #388E3C;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 按钮状态测试</h1>
+        <p>测试CompletePage按钮的独立状态管理</p>
+
+        <div class="status info">
+            <strong>测试说明：</strong>
+            <ul>
+                <li>点击"开始模拟面试"按钮，只有该按钮显示"创建中..."</li>
+                <li>另一个按钮应该变为不可点击状态，但不显示"创建中..."</li>
+                <li>3秒后按钮状态恢复正常</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button id="mockBtn" class="button mock-btn" onclick="startMockInterview()">
+                开始模拟面试
+            </button>
+            <button id="formalBtn" class="button formal-btn" onclick="startFormalInterview()">
+                开始正式面试
+            </button>
+        </div>
+
+        <div id="status"></div>
+        <div id="log" class="log"></div>
+
+        <div style="margin-top: 20px;">
+            <button onclick="resetButtons()" style="background: #ff9800; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+                重置按钮状态
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let isLoadingMock = false;
+        let isLoadingFormal = false;
+
+        function updateButtonStates() {
+            const mockBtn = document.getElementById('mockBtn');
+            const formalBtn = document.getElementById('formalBtn');
+            
+            // 更新模拟面试按钮
+            mockBtn.disabled = isLoadingMock || isLoadingFormal;
+            mockBtn.textContent = isLoadingMock ? '创建中...' : '开始模拟面试';
+            
+            // 更新正式面试按钮
+            formalBtn.disabled = isLoadingFormal || isLoadingMock;
+            formalBtn.textContent = isLoadingFormal ? '创建中...' : '开始正式面试';
+            
+            // 记录状态
+            addLog(`模拟面试按钮: ${isLoadingMock ? '创建中' : '正常'} (${mockBtn.disabled ? '禁用' : '启用'})`);
+            addLog(`正式面试按钮: ${isLoadingFormal ? '创建中' : '正常'} (${formalBtn.disabled ? '禁用' : '启用'})`);
+        }
+
+        function startMockInterview() {
+            addLog('🚀 点击了"开始模拟面试"按钮');
+            isLoadingMock = true;
+            updateButtonStates();
+            
+            // 模拟3秒后完成
+            setTimeout(() => {
+                addLog('✅ 模拟面试创建完成');
+                isLoadingMock = false;
+                updateButtonStates();
+            }, 3000);
+        }
+
+        function startFormalInterview() {
+            addLog('🚀 点击了"开始正式面试"按钮');
+            isLoadingFormal = true;
+            updateButtonStates();
+            
+            // 模拟3秒后完成
+            setTimeout(() => {
+                addLog('✅ 正式面试创建完成');
+                isLoadingFormal = false;
+                updateButtonStates();
+            }, 3000);
+        }
+
+        function resetButtons() {
+            addLog('🔄 重置按钮状态');
+            isLoadingMock = false;
+            isLoadingFormal = false;
+            updateButtonStates();
+        }
+
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            addLog('页面加载完成，按钮状态正常');
+            updateButtonStates();
+        };
+    </script>
+</body>
+</html> 

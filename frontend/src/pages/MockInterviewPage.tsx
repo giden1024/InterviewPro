@@ -114,9 +114,22 @@ const MockInterviewPage: React.FC = () => {
           sessionId?: string;
           selectedJob?: Job;
           resumeId?: number;
+          questions?: Question[]; // 添加questions字段
         } | null;
 
-        if (stateData?.selectedJob && stateData?.resumeId) {
+        // 优先检查questions数据（从CompletePage传递过来）
+        if (stateData?.questions && stateData?.sessionId) {
+          console.log('✅ 使用已传递的问题数据:', stateData.sessionId);
+          console.log(`📋 问题数量: ${stateData.questions.length}`);
+          
+          // 直接使用已传递的问题数据，避免重复API调用
+          setQuestions(stateData.questions);
+          
+          // 只获取会话信息，不重新获取问题
+          const sessionData = await questionService.getSessionQuestions(stateData.sessionId);
+          setInterviewSession(sessionData.session);
+          console.log('✅ 使用已传递的问题数据，避免重复生成');
+        } else         if (stateData?.selectedJob && stateData?.resumeId) {
           // 使用从HomePage传递的数据
           setSelectedJob(stateData.selectedJob);
           console.log('Using selected position:', stateData.selectedJob.title);
@@ -127,54 +140,76 @@ const MockInterviewPage: React.FC = () => {
           setUserResume(resumeData);
           console.log('Getting resume details:', resumeData.filename);
 
-          // 首先创建面试会话
-          const interviewData = await interviewService.createInterview({
-            resume_id: stateData.resumeId,
-            interview_type: 'mock',
-            total_questions: 8,
-            difficulty_distribution: {
-              'easy': 2,
-              'medium': 4,
-              'hard': 2
-            },
-            type_distribution: {
-              'behavioral': 3,
-              'technical': 2,
-              'situational': 2,
-              'experience': 1
-            },
-            custom_title: `${stateData.selectedJob.title} @ ${stateData.selectedJob.company} Mock Interview`
-          });
+                    // 检查是否已经有会话ID和问题数据（从CompletePage传递过来）
+          let questionData;
+          let sessionData;
+          if (stateData.sessionId && stateData.questions) {
+            console.log('✅ 使用已存在的会话ID和问题数据:', stateData.sessionId);
+            
+            // 直接使用已传递的问题数据，避免重复API调用
+            setQuestions(stateData.questions);
+            
+            // 获取会话信息（不包含问题，避免重复）
+            sessionData = await questionService.getSessionQuestions(stateData.sessionId);
+            setInterviewSession(sessionData.session);
+            console.log(`✅ 使用已传递的问题数据，共 ${stateData.questions.length} 个`);
+          } else if (stateData.sessionId) {
+            console.log('✅ 使用已存在的会话ID，但需要获取问题:', stateData.sessionId);
+            
+            // 只有会话ID，需要获取问题
+            questionData = await questionService.getSessionQuestions(stateData.sessionId);
+            setQuestions(questionData.questions);
+            setInterviewSession(questionData.session);
+            console.log(`✅ 获取到的问题，共 ${questionData.questions.length} 个`);
+          } else {
+            // 只有在没有会话ID时才创建新的面试会话
+            console.log('🆕 创建新的面试会话...');
+            const interviewData = await interviewService.createInterview({
+              resume_id: stateData.resumeId,
+              interview_type: 'mock',
+              total_questions: 8,
+              difficulty_distribution: {
+                'easy': 2,
+                'medium': 4,
+                'hard': 2
+              },
+              type_distribution: {
+                'behavioral': 3,
+                'technical': 2,
+                'situational': 2,
+                'experience': 1
+              },
+              custom_title: `${stateData.selectedJob.title} @ ${stateData.selectedJob.company} Mock Interview`
+            });
 
-          console.log('✅ 创建面试会话成功:', interviewData.session_id);
+            console.log('✅ 创建面试会话成功:', interviewData.session_id);
 
-          // 然后基于会话ID生成问题
-          const questionData = await questionService.generateQuestions({
-            resume_id: stateData.resumeId,
-            session_id: interviewData.session_id
-          });
-
-          console.log('✅ 生成问题成功，会话信息:', questionData.session.session_id);
-
-          setQuestions(questionData.questions);
-          // ✅ 使用生成的会话但确保session_id正确
-          const correctedSession = {
-            ...questionData.session,
-            session_id: interviewData.session_id  // 确保使用正确的session_id
-          };
-          setInterviewSession(correctedSession);
-          console.log(`Successfully generated ${questionData.questions.length} questions`);
-          console.log('✅ 使用的会话ID:', correctedSession.session_id);
-
+            // 然后基于会话ID生成问题
+            questionData = await questionService.generateQuestions({
+              resume_id: stateData.resumeId,
+              session_id: interviewData.session_id
+            });
+            
+            setQuestions(questionData.questions);
+            setInterviewSession(questionData.session);
+            console.log(`Successfully generated ${questionData.questions.length} questions`);
+          }
+          
           // 启动面试会话（仅当状态为 'created' 时）
           try {
+            const sessionToUse = questionData?.session || sessionData?.session;
+            if (!sessionToUse) {
+              console.warn('⚠️ 无法获取会话信息，跳过启动步骤');
+              return;
+            }
+            
             // 检查会话状态，只有在 'created' 状态时才启动面试
-            if (correctedSession.status === 'created') {
+            if (sessionToUse.status === 'created') {
               console.log('🚀 会话状态为created，启动面试（默认逻辑）...');
-              await interviewService.startInterview(interviewData.session_id);
+              await interviewService.startInterview(sessionToUse.session_id);
               console.log('✅ Interview session started (default logic)');
             } else {
-              console.log('ℹ️ 会话已启动，跳过启动步骤（默认逻辑），当前状态:', correctedSession.status);
+              console.log('ℹ️ 会话已启动，跳过启动步骤（默认逻辑），当前状态:', sessionToUse.status);
             }
           } catch (error) {
             console.error('❌ Failed to start interview session (default logic):', error);
@@ -185,9 +220,13 @@ const MockInterviewPage: React.FC = () => {
           // 兼容旧的逻辑 - 自动获取最新简历
           console.log('No selected position and resume found, using default logic...');
           
-          // 设置测试token（使用393893095@qq.com用户的token）
-          const testToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1MDU2NTc5MywianRpIjoiY2ViMjQ0MWUtMTUzYi00MjI4LWI0NzktNmYwYTBhN2Q0NzZiIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NTA1NjU3OTMsImNzcmYiOiJlNGNjNWJhYS1lZDM1LTQ0MTItOTM0Yy1kNjdjMWRlMWY3NjEifQ.BWFeQ6PsbznBFnUYrFYC-2A6X2g5Vz23HFkLHcfSLbg';
-          localStorage.setItem('access_token', testToken);
+          // 检查当前token是否有效
+          const currentToken = localStorage.getItem('access_token');
+          if (!currentToken) {
+            throw new Error('No authentication token found. Please login again.');
+          }
+          
+          console.log('🔐 Using current authentication token');
 
           const resumesResponse = await resumeService.getResumes({ 
             page: 1, 
@@ -266,8 +305,15 @@ const MockInterviewPage: React.FC = () => {
         setLoading(false);
       } catch (error: any) {
         console.error('Failed to initialize interview:', error);
-        handleApiError(error);
-        setError(error.message || 'Failed to initialize interview, please try again later');
+        
+        // 检查是否是 token 相关错误
+        if (error.message?.includes('token') || error.message?.includes('authentication')) {
+          setError('Authentication failed. Please login again.');
+          console.error('🔐 Token认证失败，请重新登录');
+        } else {
+          handleApiError(error);
+          setError(error.message || 'Failed to initialize interview, please try again later');
+        }
         setLoading(false);
       }
     };
@@ -662,7 +708,7 @@ const MockInterviewPage: React.FC = () => {
     }
   }, [isGeneratingReference]); // ✅ 移除 aiReferenceAnswers 依赖以避免无限循环
 
-  // 当问题变化时自动生成AI参考答案
+  // 当问题变化时自动生成AI参考答案（优化版本）
   useEffect(() => {
     console.log('🔄 Question changed, checking if need to generate AI reference answer', { 
       currentQuestionIndex, 
@@ -672,26 +718,30 @@ const MockInterviewPage: React.FC = () => {
       isGenerating: isGeneratingReference
     });
     
-    if (currentQuestion && 
-        !aiReferenceAnswers[currentQuestion.id] && 
-        !isGeneratingReference) {
-      
-      console.log('🧹 Clearing error state');
-      setReferenceError(null);
-      
-      console.log('⏳ Preparing to generate new AI reference answer...');
-      setTimeout(() => {
-        console.log('🚀 Starting to generate AI reference answer for new question');
-        generateAIReference(currentQuestion);
-      }, 200);
+          // 优化：只在用户开始回答问题时才生成AI参考答案
+      if (currentQuestion && 
+          !aiReferenceAnswers[currentQuestion.id] && 
+          !isGeneratingReference &&
+          currentAnswer.trim().length > 10) { // 只有当用户输入足够内容时才生成
+        
+        console.log('🧹 Clearing error state');
+        setReferenceError(null);
+        
+        console.log('⏳ Preparing to generate new AI reference answer...');
+        // 增加延迟，避免频繁调用
+        setTimeout(() => {
+          console.log('🚀 Starting to generate AI reference answer for new question');
+          generateAIReference(currentQuestion);
+        }, 1000); // 增加到1秒延迟
     } else {
       console.log('⏭️ Skipping AI generation:', {
         hasQuestion: !!currentQuestion,
         hasAnswer: !!aiReferenceAnswers[currentQuestion?.id],
-        isGenerating: isGeneratingReference
+        isGenerating: isGeneratingReference,
+        hasUserInput: currentAnswer.trim().length > 10
       });
     }
-  }, [currentQuestionIndex, currentQuestion?.id]); // ✅ 移除 generateAIReference 依赖以避免无限循环
+  }, [currentQuestionIndex, currentQuestion?.id, currentAnswer]); // 添加currentAnswer依赖
 
   // 语音合成函数
   const speakText = useCallback((text: string) => {
@@ -992,6 +1042,12 @@ const MockInterviewPage: React.FC = () => {
                 <p className="text-sm text-gray-700 leading-relaxed">
                   {currentQuestion.expected_answer}
                 </p>
+                <button
+                  onClick={() => currentQuestion && generateAIReference(currentQuestion)}
+                  className="mt-3 px-4 py-2 bg-[#6FBDFF] hover:bg-[#5BADFF] text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Generate AI Reference Answer
+                </button>
               </div>
             )}
           </div>

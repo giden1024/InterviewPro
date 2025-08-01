@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Complete Page - View History Button Hidden</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #efe;
+            border-color: #cfc;
+            color: #3c3;
+        }
+        .info {
+            background-color: #eef;
+            border-color: #ccf;
+            color: #33c;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        .status {
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete Page - View History Button Hidden Test</h1>
+        
+        <div class="test-section info">
+            <h3>📋 Test Purpose</h3>
+            <p>This page tests that the "View History" button has been successfully hidden from the Complete page.</p>
+            <p><strong>Expected Result:</strong> No "View History" or "View Interview Records" buttons should be visible on the Complete page.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Test Steps</h3>
+            <ol>
+                <li>Click the button below to navigate to the Complete page</li>
+                <li>Check that NO "View History" button is visible</li>
+                <li>Check that NO "View Interview Records" button is visible</li>
+                <li>Verify only "Return Home" and "Start New Interview" buttons are present</li>
+            </ol>
+            <button onclick="testCompletePage()">Go to Complete Page for Testing</button>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ Expected UI Changes</h3>
+            <div class="status" style="background-color: #fff3cd; border: 1px solid #ffeaa7;">
+                <strong>Before:</strong> Complete page had "View History" and "View Interview Records" buttons
+            </div>
+            <div class="status" style="background-color: #d1edff; border: 1px solid #74b9ff;">
+                <strong>After:</strong> Complete page should only show "Return Home" and "Start New Interview" buttons
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Technical Changes Made</h3>
+            <ul>
+                <li>✅ Hidden main "View History" button in action buttons section</li>
+                <li>✅ Hidden "View Interview Records" button in error section</li>
+                <li>✅ Commented out unused viewInterviewHistory function</li>
+                <li>✅ Maintained all other functionality</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Verification Checklist</h3>
+            <div id="checklist">
+                <label><input type="checkbox" id="check1"> No "View History" button visible</label><br>
+                <label><input type="checkbox" id="check2"> No "View Interview Records" button visible</label><br>
+                <label><input type="checkbox" id="check3"> "Return Home" button still present</label><br>
+                <label><input type="checkbox" id="check4"> "Start New Interview" button still present</label><br>
+                <label><input type="checkbox" id="check5"> Page layout looks clean and complete</label><br>
+            </div>
+            <button onclick="validateTest()" style="margin-top: 15px;">Validate Test Results</button>
+            <div id="testResult" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function testCompletePage() {
+            // Simulate a complete interview state for testing
+            const testState = {
+                sessionId: 'test-session-123',
+                jobTitle: 'Frontend Developer',
+                jobId: 'test-job-1',
+                resumeId: 1,
+                completed: true,
+                totalQuestions: 8,
+                answeredQuestions: 8,
+                duration: 1800, // 30 minutes
+                questionsGenerated: true,
+                experienceLevel: 'Intermediate'
+            };
+
+            // Navigate to complete page with test state
+            window.location.href = '/complete';
+            
+            // Store test state in localStorage for the complete page to use
+            localStorage.setItem('testCompletePageState', JSON.stringify(testState));
+            
+            console.log('Navigating to Complete page with test state:', testState);
+        }
+
+        function validateTest() {
+            const checks = [
+                document.getElementById('check1').checked,
+                document.getElementById('check2').checked,
+                document.getElementById('check3').checked,
+                document.getElementById('check4').checked,
+                document.getElementById('check5').checked
+            ];
+            
+            const allPassed = checks.every(check => check);
+            const resultDiv = document.getElementById('testResult');
+            
+            if (allPassed) {
+                resultDiv.innerHTML = `
+                    <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; border: 1px solid #c3e6cb;">
+                        ✅ <strong>TEST PASSED!</strong> All view history buttons have been successfully hidden.
+                    </div>
+                `;
+            } else {
+                const failedCount = checks.filter(check => !check).length;
+                resultDiv.innerHTML = `
+                    <div style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; border: 1px solid #f5c6cb;">
+                        ❌ <strong>TEST INCOMPLETE!</strong> Please check all items before validating. (${failedCount} items unchecked)
+                    </div>
+                `;
+            }
+        }
+
+        // Log current test information
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔧 Complete Page View History Button Hide Test');
+            console.log('📋 This test verifies that view history buttons are properly hidden');
+            console.log('🎯 Target: http://localhost:3001/complete');
+        });
+    </script>
+</body>
+</html> 

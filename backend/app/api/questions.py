@@ -10,6 +10,7 @@ from app.models.resume import Resume
 from app.models.user import User
 from app.services.ai_question_generator import AIQuestionGenerator
 from app.utils.response import success_response, error_response
+# from app.tasks.question_tasks import generate_questions_async, generate_ai_reference_async
 
 questions_bp = Blueprint('questions', __name__)
 
@@ -25,6 +26,14 @@ class GenerateQuestionsSchema(Schema):
 
 class GetQuestionsSchema(Schema):
     session_id = fields.String(required=True)
+
+class CreateQuestionSchema(Schema):
+    question_text = fields.String(required=True, validate=validate.Length(min=1, max=2000))
+    question_type = fields.String(required=True, validate=validate.OneOf(['technical', 'behavioral', 'situational', 'general']))
+    difficulty = fields.String(required=True, validate=validate.OneOf(['easy', 'medium', 'hard']))
+    category = fields.String(allow_none=True, validate=validate.Length(max=100))
+    answer_text = fields.String(required=True, validate=validate.Length(min=1, max=5000))
+    tags = fields.List(fields.String(), allow_none=True)
 
 # API 端点实现
 @questions_bp.route('', methods=['GET'])
@@ -63,6 +72,104 @@ def get_questions():
         current_app.logger.error(f"Error retrieving questions: {e}")
         return error_response("Failed to retrieve questions", 500)
 
+@questions_bp.route('/create', methods=['POST'])
+@jwt_required()
+def create_question():
+    """手动创建问题"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 验证请求数据
+        schema = CreateQuestionSchema()
+        data = schema.load(request.get_json() or {})
+        
+        # 获取用户的最新简历
+        user = User.query.get(user_id)
+        if not user:
+            return error_response("User not found", 404)
+        
+        # 获取用户的最新简历
+        latest_resume = Resume.query.filter_by(user_id=user_id).order_by(Resume.uploaded_at.desc()).first()
+        if not latest_resume:
+            return error_response("No resume found. Please upload a resume first.", 400)
+        
+        # 创建或获取一个通用的面试会话
+        session_title = f"Manual Questions - {datetime.now().strftime('%Y-%m-%d')}"
+        session = InterviewSession.query.filter_by(
+            user_id=user_id,
+            resume_id=latest_resume.id,
+            title=session_title,
+            interview_type=InterviewType.COMPREHENSIVE
+        ).first()
+        
+        if not session:
+            # 创建新的面试会话
+            session_id = str(uuid.uuid4())
+            session = InterviewSession(
+                user_id=user_id,
+                resume_id=latest_resume.id,
+                session_id=session_id,
+                title=session_title,
+                interview_type=InterviewType.COMPREHENSIVE,
+                total_questions=0,  # 手动创建的问题不限制数量
+                status='ready'
+            )
+            db.session.add(session)
+            db.session.flush()  # 获取session.id
+        
+        # 创建问题
+        question = Question(
+            user_id=user_id,
+            resume_id=latest_resume.id,
+            session_id=session.id,
+            question_text=data['question_text'],
+            question_type=QuestionType(data['question_type']),
+            difficulty=QuestionDifficulty(data['difficulty']),
+            category=data.get('category', '通用'),
+            tags=data.get('tags', []),
+            expected_answer=data['answer_text'],  # 将用户输入的答案作为期望答案
+            evaluation_criteria={},
+            ai_context={}
+        )
+        
+        db.session.add(question)
+        
+        # 同时创建一个答案记录
+        answer = Answer(
+            user_id=user_id,
+            question_id=None,  # 将在flush后设置
+            session_id=session.id,
+            answer_text=data['answer_text'],
+            response_time=0,
+            score=None,
+            ai_feedback=None,
+            answered_at=datetime.utcnow()
+        )
+        
+        db.session.flush()  # 获取question.id
+        answer.question_id = question.id
+        db.session.add(answer)
+        
+        # 更新会话的问题数量
+        session.total_questions += 1
+        
+        db.session.commit()
+        
+        return success_response(
+            data={
+                'question': question.to_dict(),
+                'session': session.to_dict()
+            },
+            message="Question created successfully"
+        )
+        
+    except ValidationError as e:
+        return error_response("Validation failed", 422, e.messages)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating question: {e}")
+        return error_response("Failed to create question", 500)
+
 @questions_bp.route('/generate', methods=['POST'])
 @jwt_required()
 def generate_questions():
@@ -98,9 +205,9 @@ def generate_questions():
         if not interview_session:
             return error_response("Interview session not found", 404)
         
-        # 检查会话状态
-        if interview_session.status != 'created':
-            return error_response("Interview session is not in created state", 400)
+        # 检查会话状态 - 允许created、in_progress和ready状态
+        if interview_session.status not in ['created', 'in_progress', 'ready']:
+            return error_response("Interview session is not in valid state for question generation", 400)
         
         # 初始化AI问题生成器
         generator = AIQuestionGenerator()
@@ -108,6 +215,7 @@ def generate_questions():
         # 生成问题
         questions_data = generator.generate_questions_for_resume(
             resume=resume,
+            user_id=user_id,  # 添加用户ID参数
             interview_type=interview_session.interview_type,
             total_questions=interview_session.total_questions,
             difficulty_distribution=interview_session.difficulty_distribution,
@@ -156,6 +264,211 @@ def generate_questions():
         db.session.rollback()
         current_app.logger.error(f"Error generating questions: {e}")
         return error_response("Failed to generate questions", 500)
+
+@questions_bp.route('/generate-async', methods=['POST'])
+@jwt_required()
+def generate_questions_async_endpoint():
+    """同步生成面试问题（原异步接口改为同步）"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 验证请求数据
+        schema = GenerateQuestionsSchema()
+        try:
+            data = schema.load(request.json)
+        except ValidationError as err:
+            return error_response("Invalid request data", 400, details=err.messages)
+        
+        # 检查简历是否存在且属于当前用户
+        resume = Resume.query.filter_by(id=data['resume_id'], user_id=user_id).first()
+        if not resume:
+            return error_response("Resume not found", 404)
+        
+        if resume.status.value != 'processed':
+            return error_response("Resume is not processed yet", 400)
+        
+        # 查找现有的面试会话
+        session_id = data.get('session_id')
+        if not session_id:
+            return error_response("Session ID is required", 400)
+            
+        interview_session = InterviewSession.query.filter_by(
+            session_id=session_id,
+            user_id=user_id
+        ).first()
+        
+        if not interview_session:
+            return error_response("Interview session not found", 404)
+        
+        # 检查会话状态 - 允许created、in_progress和ready状态
+        if interview_session.status not in ['created', 'in_progress', 'ready']:
+            return error_response("Interview session is not in valid state for question generation", 400)
+        
+        # 准备简历数据
+        resume_data = {
+            'id': resume.id,
+            'user_id': resume.user_id,
+            'filename': resume.original_filename,
+            'content': resume.content,
+            'parsed_data': resume.parsed_data
+        }
+        
+        # 直接调用同步问题生成函数
+        from app.services.ai_question_generator import AIQuestionGenerator
+        from app.services.question_cache_service import QuestionCacheService
+        
+        try:
+            # 创建问题生成器
+            generator = AIQuestionGenerator()
+            cache_service = QuestionCacheService()
+            
+            # 检查缓存
+            cache_key = f"questions:{user_id}:{hash(resume.content)}"
+            cached_questions = cache_service.get_cached_questions(cache_key)
+            
+            if cached_questions:
+                current_app.logger.info(f"Using cached questions for user {user_id}")
+                questions = cached_questions
+            else:
+                current_app.logger.info(f"Generating new questions for user {user_id}")
+                # 生成问题
+                questions = generator.generate_questions(
+                    resume_data=resume_data,
+                    interview_type=interview_session.interview_type.value,
+                    total_questions=interview_session.total_questions,
+                    difficulty_distribution=interview_session.difficulty_distribution,
+                    type_distribution=interview_session.type_distribution
+                )
+                
+                # 缓存问题
+                cache_service.cache_questions(cache_key, questions)
+            
+            # 保存问题到数据库
+            saved_questions = []
+            for question_data in questions:
+                question = Question(
+                    resume_id=resume.id,
+                    user_id=user_id,
+                    session_id=interview_session.session_id,
+                    question_text=question_data['content'],
+                    question_type=question_data.get('type', 'general'),
+                    difficulty=question_data.get('difficulty', 'medium'),
+                    category=question_data.get('category', 'general')
+                )
+                db.session.add(question)
+                saved_questions.append(question)
+            
+            # 更新会话状态
+            interview_session.status = 'ready'
+            interview_session.questions_generated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            current_app.logger.info(f"Successfully generated {len(saved_questions)} questions for user {user_id}, session {session_id}")
+            
+            return success_response(
+                data={
+                    'session_id': session_id,
+                    'questions': questions,
+                    'total_questions': len(questions),
+                    'status': 'COMPLETED',
+                    'message': 'Questions generated successfully'
+                },
+                message="Questions generated successfully"
+            )
+            
+        except Exception as e:
+            current_app.logger.error(f"Error generating questions: {e}")
+            db.session.rollback()
+            return error_response("Failed to generate questions", 500)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in generate_questions_async_endpoint: {e}")
+        return error_response("Failed to generate questions", 500)
+
+@questions_bp.route('/task-status/<task_id>', methods=['GET'])
+@jwt_required()
+def get_task_status(task_id):
+    """获取异步任务状态"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 获取任务状态
+        task = current_app.celery.AsyncResult(task_id)
+        
+        if task.state == 'PENDING':
+            response = {
+                'task_id': task_id,
+                'state': task.state,
+                'status': 'Task is pending...'
+            }
+        elif task.state == 'PROGRESS':
+            response = {
+                'task_id': task_id,
+                'state': task.state,
+                'current': task.info.get('current', 0),
+                'total': task.info.get('total', 100),
+                'status': task.info.get('status', '')
+            }
+        elif task.state == 'SUCCESS':
+            result = task.result
+            if result.get('status') == 'SUCCESS':
+                # 保存生成的问题到数据库
+                questions_data = result.get('questions', [])
+                questions = []
+                
+                # 查找会话
+                session = InterviewSession.query.filter_by(user_id=user_id).order_by(InterviewSession.created_at.desc()).first()
+                if session:
+                    for q_data in questions_data:
+                        question = Question(
+                            resume_id=session.resume_id,
+                            user_id=user_id,
+                            session_id=session.id,
+                            question_text=q_data['question_text'],
+                            question_type=q_data['question_type'],
+                            difficulty=q_data['difficulty'],
+                            category=q_data.get('category', ''),
+                            tags=q_data.get('tags', []),
+                            expected_answer=q_data.get('expected_answer', ''),
+                            evaluation_criteria=q_data.get('evaluation_criteria', {}),
+                            ai_context=q_data.get('ai_context', {})
+                        )
+                        questions.append(question)
+                        db.session.add(question)
+                    
+                    # 更新会话状态
+                    session.status = 'ready'
+                    db.session.commit()
+                
+                response = {
+                    'task_id': task_id,
+                    'state': task.state,
+                    'status': 'Task completed successfully',
+                    'questions': [q.to_dict() for q in questions],
+                    'from_cache': result.get('from_cache', False),
+                    'generated_at': result.get('generated_at')
+                }
+            else:
+                response = {
+                    'task_id': task_id,
+                    'state': 'FAILURE',
+                    'status': 'Task failed',
+                    'error': result.get('error', 'Unknown error')
+                }
+        else:
+            response = {
+                'task_id': task_id,
+                'state': task.state,
+                'status': 'Task failed',
+                'error': str(task.info)
+            }
+        
+        return success_response(data=response)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting task status: {e}")
+        return error_response("Failed to get task status", 500)
 
 @questions_bp.route('/session/<session_id>', methods=['GET'])
 @jwt_required()
@@ -248,58 +561,104 @@ def get_questions_with_answers():
         user_id = int(get_jwt_identity())
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 10, type=int), 100)
-        has_answers = request.args.get('has_answers', 'true').lower() == 'true'
+        has_answers_param = request.args.get('has_answers')
         
-        # 构建查询：获取用户回答过的问题
-        query = db.session.query(Question, Answer).join(
-            Answer, Question.id == Answer.question_id
-        ).filter(
-            Question.user_id == user_id,
-            Answer.user_id == user_id
-        )
-        
-        # 如果只要有答案的问题
-        if has_answers:
-            query = query.filter(Answer.answer_text.isnot(None))
-        
-        # 按回答时间降序排列（最新回答的在前）
-        query = query.order_by(Answer.answered_at.desc())
-        
-        # 分页
-        total = query.count()
-        questions_with_answers = query.offset((page - 1) * per_page).limit(per_page).all()
-        
-        # 构建返回数据
-        result_questions = []
-        for question, answer in questions_with_answers:
-            question_data = {
-                'id': question.id,
-                'question_text': question.question_text,
-                'question_type': question.question_type.value,
-                'difficulty': question.difficulty.value,
-                'category': question.category or '通用',
-                'tags': question.tags or [],
-                'created_at': question.created_at.isoformat(),
-                'latest_answer': {
-                    'id': answer.id,
-                    'answer_text': answer.answer_text,
-                    'score': answer.score,
-                    'answered_at': answer.answered_at.isoformat()
+        # 如果has_answers参数为None或未提供，返回所有问题
+        if has_answers_param is None:
+            # 获取所有问题，包括没有答案的
+            questions_query = Question.query.filter_by(user_id=user_id).order_by(Question.created_at.desc())
+            total = questions_query.count()
+            questions = questions_query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            result_questions = []
+            for question in questions:
+                # 获取最新的答案（如果有的话）
+                latest_answer = None
+                if question.session_id:
+                    answer = Answer.query.filter_by(
+                        question_id=question.id,
+                        user_id=user_id
+                    ).order_by(Answer.answered_at.desc()).first()
+                    
+                    if answer:
+                        latest_answer = {
+                            'id': answer.id,
+                            'answer_text': answer.answer_text,
+                            'score': answer.score,
+                            'answered_at': answer.answered_at.isoformat()
+                        }
+                
+                question_data = {
+                    'id': question.id,
+                    'question_text': question.question_text,
+                    'question_type': question.question_type.value,
+                    'difficulty': question.difficulty.value,
+                    'category': question.category or '通用',
+                    'tags': question.tags or [],
+                    'created_at': question.created_at.isoformat(),
+                    'session_id': question.session_id,  # 添加session_id字段
+                    'latest_answer': latest_answer
                 }
-            }
+                
+                # 获取会话信息（面试类型）
+                if question.session_id:
+                    session = InterviewSession.query.get(question.session_id)
+                    if session:
+                        question_data['interview_type'] = session.interview_type.value
+                        question_data['session_title'] = session.title
+                
+                result_questions.append(question_data)
+        else:
+            # 原有的逻辑：只返回有答案的问题
+            has_answers = has_answers_param.lower() == 'true'
             
-            # 获取会话信息（面试类型）
-            if question.session_id:
-                session = InterviewSession.query.get(question.session_id)
-                if session:
-                    question_data['interview_type'] = session.interview_type.value
-                    question_data['session_title'] = session.title
+            # 构建查询：获取用户回答过的问题
+            query = db.session.query(Question, Answer).join(
+                Answer, Question.id == Answer.question_id
+            ).filter(
+                Question.user_id == user_id,
+                Answer.user_id == user_id
+            )
             
-            result_questions.append(question_data)
-        
-        # 如果没有真实数据，返回空列表而不是演示数据
-        if not result_questions:
-            current_app.logger.info(f"No answered questions found for user {user_id}")
+            # 如果只要有答案的问题
+            if has_answers:
+                query = query.filter(Answer.answer_text.isnot(None))
+            
+            # 按回答时间降序排列（最新回答的在前）
+            query = query.order_by(Answer.answered_at.desc())
+            
+            # 分页
+            total = query.count()
+            questions_with_answers = query.offset((page - 1) * per_page).limit(per_page).all()
+            
+            # 构建返回数据
+            result_questions = []
+            for question, answer in questions_with_answers:
+                question_data = {
+                    'id': question.id,
+                    'question_text': question.question_text,
+                    'question_type': question.question_type.value,
+                    'difficulty': question.difficulty.value,
+                    'category': question.category or '通用',
+                    'tags': question.tags or [],
+                    'created_at': question.created_at.isoformat(),
+                    'session_id': question.session_id,  # 添加session_id字段
+                    'latest_answer': {
+                        'id': answer.id,
+                        'answer_text': answer.answer_text,
+                        'score': answer.score,
+                        'answered_at': answer.answered_at.isoformat()
+                    }
+                }
+                
+                # 获取会话信息（面试类型）
+                if question.session_id:
+                    session = InterviewSession.query.get(question.session_id)
+                    if session:
+                        question_data['interview_type'] = session.interview_type.value
+                        question_data['session_title'] = session.title
+                
+                result_questions.append(question_data)
         
         return success_response(
             data={
@@ -313,7 +672,7 @@ def get_questions_with_answers():
                     'has_prev': page > 1
                 }
             },
-            message=f"Successfully retrieved {len(result_questions)} questions with answers"
+            message=f"Successfully retrieved {len(result_questions)} questions"
         )
         
     except Exception as e:
@@ -384,8 +743,32 @@ def get_question_detail(question_id):
                 'name': resume.name
             }
         
+        # 获取最新的答案（如果有的话）
+        latest_answer = None
+        current_app.logger.info(f"Question {question_id} session_id: {question.session_id}")
+        
+        if question.session_id:
+            answer = Answer.query.filter_by(
+                question_id=question.id,
+                user_id=user_id
+            ).order_by(Answer.answered_at.desc()).first()
+            
+            current_app.logger.info(f"Found answer: {answer}")
+            
+            if answer:
+                latest_answer = {
+                    'id': answer.id,
+                    'answer_text': answer.answer_text,
+                    'score': answer.score,
+                    'answered_at': answer.answered_at.isoformat()
+                }
+                current_app.logger.info(f"Latest answer: {latest_answer}")
+        
+        question_data['latest_answer'] = latest_answer
+        current_app.logger.info(f"Final question_data keys: {list(question_data.keys())}")
+        
         return success_response(
-            data=question_data,
+            data={'question': question_data},
             message="Question details retrieved successfully"
         )
         
@@ -423,6 +806,7 @@ def test_question_generator():
         generator = AIQuestionGenerator()
         questions_data = generator.generate_questions_for_resume(
             resume=test_resume,
+            user_id=user_id,  # 添加用户ID参数
             interview_type=InterviewType(data.get('interview_type', 'comprehensive')),
             total_questions=data.get('total_questions', 5)
         )
@@ -576,4 +960,118 @@ def batch_generate_ai_references():
         
     except Exception as e:
         current_app.logger.error(f"Error in batch generating AI references: {e}")
-        return error_response("Failed to batch generate AI references", 500) 
+        return error_response("Failed to batch generate AI references", 500)
+
+# 缓存管理API
+@questions_bp.route('/cache/stats', methods=['GET'])
+@jwt_required()
+def get_cache_stats():
+    """获取缓存统计信息"""
+    try:
+        from app.services.question_cache_service import QuestionCacheService
+        
+        cache_service = QuestionCacheService()
+        stats = cache_service.get_cache_stats()
+        
+        return success_response(
+            data=stats,
+            message="Cache statistics retrieved successfully"
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting cache stats: {e}")
+        return error_response("Failed to get cache statistics", 500)
+
+@questions_bp.route('/cache/clear', methods=['POST'])
+@jwt_required()
+def clear_cache():
+    """清除缓存"""
+    try:
+        user_id = int(get_jwt_identity())
+        data = request.json or {}
+        clear_all = data.get('clear_all', False)
+        
+        from app.services.question_cache_service import QuestionCacheService
+        
+        cache_service = QuestionCacheService()
+        
+        if clear_all:
+            # 管理员功能：清除所有缓存
+            # 这里可以添加管理员权限检查
+            success = cache_service.clear_cache()
+            message = "All cache cleared successfully"
+        else:
+            # 清除当前用户的缓存
+            success = cache_service.clear_user_cache(user_id)
+            message = f"User {user_id} cache cleared successfully"
+        
+        if success:
+            return success_response(
+                data={'cleared': True},
+                message=message
+            )
+        else:
+            return error_response("Failed to clear cache", 500)
+            
+    except Exception as e:
+        current_app.logger.error(f"Error clearing cache: {e}")
+        return error_response("Failed to clear cache", 500) 
+
+@questions_bp.route('/reference-cache/stats', methods=['GET'])
+@jwt_required()
+def get_reference_cache_stats():
+    """获取AI参考答案缓存统计信息"""
+    try:
+        from app.extensions import redis_client
+        if not redis_client:
+            return error_response("Redis not available", 503)
+        
+        # 获取所有参考答案缓存键
+        cache_keys = redis_client.keys("ref_answer:*")
+        
+        # 统计缓存信息
+        cache_stats = {
+            'total_cached_answers': len(cache_keys),
+            'cache_keys': cache_keys[:10],  # 只显示前10个键
+            'cache_size': len(cache_keys)
+        }
+        
+        # 计算缓存命中率（这里需要实际使用数据，暂时返回0）
+        cache_stats['estimated_hit_rate'] = 0.0
+        
+        return success_response(
+            data=cache_stats,
+            message="Reference answer cache statistics retrieved successfully"
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting reference cache stats: {e}")
+        return error_response("Failed to get cache statistics", 500)
+
+@questions_bp.route('/reference-cache/clear', methods=['POST'])
+@jwt_required()
+def clear_reference_cache():
+    """清除AI参考答案缓存"""
+    try:
+        from app.extensions import redis_client
+        if not redis_client:
+            return error_response("Redis not available", 503)
+        
+        # 删除所有参考答案缓存
+        cache_keys = redis_client.keys("ref_answer:*")
+        if cache_keys:
+            redis_client.delete(*cache_keys)
+            cleared_count = len(cache_keys)
+        else:
+            cleared_count = 0
+        
+        current_app.logger.info(f"Cleared {cleared_count} reference answer cache entries")
+        
+        return success_response(
+            data={'cleared_count': cleared_count},
+            message=f"Cleared {cleared_count} reference answer cache entries"
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error clearing reference cache: {e}")
+        return error_response("Failed to clear cache", 500) 

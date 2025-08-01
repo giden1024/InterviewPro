@@ -93,10 +93,20 @@ class InterviewService:
     
     def get_interview_session(self, user_id: int, session_id: str) -> InterviewSession:
         """获取面试会话"""
+        session = None
+        
+        # 首先尝试按UUID查找（session_id字段）
         session = InterviewSession.query.filter_by(
             session_id=session_id, 
             user_id=user_id
         ).first()
+        
+        # 如果没找到，且传入的是数字字符串，则按主键ID查找
+        if not session and session_id.isdigit():
+            session = InterviewSession.query.filter_by(
+                id=int(session_id),
+                user_id=user_id
+            ).first()
         
         if not session:
             raise NotFoundError("面试会话不存在或无权限访问")
@@ -206,12 +216,12 @@ class InterviewService:
             logger.error(f"❌ [SERVICE DEBUG] Failed to get session: {e}")
             raise
         
-        # 修正：允许ready状态的会话接收答案，并自动启动会话
-        if session.status == 'ready':
+        # 修正：允许ready和created状态的会话接收答案，并自动启动会话
+        if session.status in ['ready', 'created']:
             session.status = 'in_progress'
             session.started_at = datetime.utcnow()
             db.session.commit()
-            logger.info(f"🔍 [SERVICE DEBUG] Session auto-started")
+            logger.info(f"🔍 [SERVICE DEBUG] Session auto-started from {session.status}")
         elif session.status != 'in_progress':
             logger.error(f"❌ [SERVICE DEBUG] Invalid session status: {session.status}")
             raise ValidationError("面试会话未开始或已结束")
@@ -269,6 +279,7 @@ class InterviewService:
                 logger.info(f"🔍 [SERVICE DEBUG] Creating new answer")
                 # 创建新答案
                 answer = Answer(
+                    session_id=session.id,  # 添加session_id
                     question_id=question_id,
                     user_id=user_id,
                     answer_text=answer_text,
@@ -375,6 +386,7 @@ class InterviewService:
         # 重新生成问题
         questions_data = self.ai_generator.generate_questions_for_resume(
             resume=resume,
+            user_id=user_id,  # 添加用户ID参数
             interview_type=session.interview_type,
             total_questions=session.total_questions,
             difficulty_distribution=session.difficulty_distribution,

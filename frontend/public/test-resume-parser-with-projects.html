@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历解析器 - 包含项目经验</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .auth-section {
+            background-color: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .project-item {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .project-name {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        .project-type {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .project-technologies {
+            margin: 8px 0;
+        }
+        .tech-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .project-description {
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+        .loading {
+            text-align: center;
+            color: #007bff;
+        }
+        .stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .stats h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .stat-item {
+            margin: 5px 0;
+            color: #6c757d;
+        }
+        input[type="text"], input[type="password"] {
+            width: 200px;
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .auth-status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .auth-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .auth-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📂 简历解析器 - 完整版（包含项目经验）</h1>
+        <p>测试简历解析器的完整功能，包括项目经验提取。需要先登录才能使用。</p>
+
+        <div class="auth-section">
+            <h3>🔐 用户认证</h3>
+            <div>
+                <input type="text" id="username" placeholder="用户名" value="test_user">
+                <input type="password" id="password" placeholder="密码" value="test123">
+                <button onclick="login()">登录</button>
+                <button onclick="createTestUser()">创建测试用户</button>
+            </div>
+            <div id="authStatus" class="auth-status" style="display: none;"></div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>📤 拖拽简历文件到此处，或点击选择文件</p>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+            <button onclick="document.getElementById('fileInput').click()" id="uploadBtn" disabled>选择文件</button>
+        </div>
+
+        <div id="results" class="results">
+            <h3>解析结果</h3>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5002';
+        let authToken = null;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const results = document.getElementById('results');
+        const resultsContent = document.getElementById('resultsContent');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const authStatus = document.getElementById('authStatus');
+
+        // 文件拖拽处理
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (authToken) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            } else {
+                showAuthError('请先登录');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (authToken && e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            } else if (!authToken) {
+                showAuthError('请先登录');
+            }
+        });
+
+        function createTestUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            fetch(`${API_BASE}/api/v1/dev/create-test-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    email: `${username}@test.com`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAuthSuccess('测试用户创建成功');
+                } else {
+                    showAuthError(data.error || '创建用户失败');
+                }
+            })
+            .catch(error => {
+                showAuthError(`创建用户失败: ${error.message}`);
+            });
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            fetch(`${API_BASE}/api/v1/dev/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    authToken = data.access_token;
+                    showAuthSuccess(`登录成功! 用户: ${data.username}`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = '选择文件';
+                } else {
+                    showAuthError(data.error || '登录失败');
+                }
+            })
+            .catch(error => {
+                showAuthError(`登录失败: ${error.message}`);
+            });
+        }
+
+        function showAuthSuccess(message) {
+            authStatus.style.display = 'block';
+            authStatus.className = 'auth-status auth-success';
+            authStatus.textContent = message;
+        }
+
+        function showAuthError(message) {
+            authStatus.style.display = 'block';
+            authStatus.className = 'auth-status auth-error';
+            authStatus.textContent = message;
+        }
+
+        function handleFile(file) {
+            if (!authToken) {
+                showAuthError('请先登录');
+                return;
+            }
+
+            showLoading();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(`${API_BASE}/api/v1/resumes`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, file.name);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(`文件 ${file.name} 解析失败: ${error.message}`);
+            });
+        }
+
+        function showLoading() {
+            results.style.display = 'block';
+            results.className = 'results';
+            resultsContent.innerHTML = '<div class="loading">🔄 正在解析简历，请稍候...</div>';
+        }
+
+        function displayResults(data, filename) {
+            results.style.display = 'block';
+            
+            if (data.success && data.resume) {
+                results.className = 'results success';
+                const resume = data.resume;
+                const parsed = resume.parsed_content || {};
+                const projects = parsed.projects || [];
+                
+                let html = `
+                    <h4>✅ 解析成功 - ${filename}</h4>
+                    
+                    <div class="stats">
+                        <h4>📊 解析统计</h4>
+                        <div class="stat-item">📝 姓名: ${parsed.name || 'N/A'}</div>
+                        <div class="stat-item">📧 邮箱: ${parsed.email || 'N/A'}</div>
+                        <div class="stat-item">📞 电话: ${parsed.phone || 'N/A'}</div>
+                        <div class="stat-item">🛠️ 技能数量: ${(parsed.skills || []).length}</div>
+                        <div class="stat-item">💼 工作经历: ${(parsed.experience || []).length}</div>
+                        <div class="stat-item">🎓 教育背景: ${(parsed.education || []).length}</div>
+                        <div class="stat-item">🚀 项目经验: ${projects.length}</div>
+                        <div class="stat-item">📄 简历ID: ${resume.id}</div>
+                    </div>
+                `;
+
+                if (projects.length > 0) {
+                    html += `
+                        <h4>🚀 项目经验 (${projects.length} 个)</h4>
+                    `;
+                    
+                    projects.forEach((project, index) => {
+                        const technologies = project.technologies || [];
+                        const techTags = technologies.map(tech => 
+                            `<span class="tech-tag">${tech}</span>`
+                        ).join('');
+                        
+                        html += `
+                            <div class="project-item">
+                                <div class="project-name">
+                                    ${index + 1}. ${project.name || '未命名项目'}
+                                </div>
+                                <span class="project-type">${project.type || 'unknown'}</span>
+                                ${project.duration ? `<span style="margin-left: 10px; color: #6c757d;">⏰ ${project.duration}</span>` : ''}
+                                
+                                ${technologies.length > 0 ? `
+                                    <div class="project-technologies">
+                                        <strong>🛠️ 技术栈:</strong> ${techTags}
+                                    </div>
+                                ` : ''}
+                                
+                                ${project.description ? `
+                                    <div class="project-description">
+                                        <strong>📝 描述:</strong> ${project.description}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `
+                        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <h4>⚠️ 未找到项目经验</h4>
+                            <p>可能的原因：</p>
+                            <ul>
+                                <li>简历中没有专门的项目经验部分</li>
+                                <li>项目信息包含在工作经历中，但格式不标准</li>
+                                <li>项目描述使用了不常见的关键词</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // 显示其他字段摘要
+                if (parsed.skills && parsed.skills.length > 0) {
+                    html += `
+                        <div class="stats">
+                            <h4>🛠️ 技能</h4>
+                            <div>${parsed.skills.slice(0, 10).join(', ')}${parsed.skills.length > 10 ? '...' : ''}</div>
+                        </div>
+                    `;
+                }
+
+                resultsContent.innerHTML = html;
+            } else {
+                displayError(data.error || '解析失败');
+            }
+        }
+
+        function displayError(message) {
+            results.style.display = 'block';
+            results.className = 'results error';
+            resultsContent.innerHTML = `
+                <h4>❌ 解析失败</h4>
+                <p>${message}</p>
+                <p>请检查文件格式是否正确，支持的格式：PDF, DOC, DOCX, TXT</p>
+            `;
+        }
+
+        // 页面加载时检查认证状态
+        window.addEventListener('load', () => {
+            fetch(`${API_BASE}/health`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('服务器状态:', data);
+                })
+                .catch(error => {
+                    console.error('无法连接到服务器:', error);
+                    showAuthError('无法连接到服务器，请确保后端服务正在运行');
+                });
+        });
+    </script>
+</body>
+</html> 

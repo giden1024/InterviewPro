@@ -21,6 +21,9 @@ PyMySQL==1.1.0
 # 缓存
 redis==5.0.1
 
+# 异步任务队列
+celery==5.3.4
+
 # 安全
 Werkzeug==3.0.1
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误处理测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-center mb-6">登录错误处理测试</h1>
+            
+            <div class="space-y-4 mb-6">
+                <button onclick="testCorrectLogin()" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded">
+                    测试正确登录 (123456)
+                </button>
+                <button onclick="testWrongPassword()" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded">
+                    测试错误密码
+                </button>
+                <button onclick="testNonexistentUser()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded">
+                    测试不存在用户
+                </button>
+            </div>
+            
+            <div id="results" class="mt-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        
+        async function testLogin(email, password, testName) {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                resultsDiv.innerHTML = `<div class="p-4 bg-blue-50 rounded"><p class="text-blue-800">正在测试: ${testName}...</p></div>`;
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded">
+                            <h3 class="font-semibold text-green-800">${testName} - 成功</h3>
+                            <p class="text-green-700 mt-2">登录成功！用户: ${data.data.user.username}</p>
+                        </div>
+                    `;
+                } else {
+                    // 模拟前端错误处理逻辑
+                    let errorMessage = '';
+                    if (data.error && data.error.message) {
+                        errorMessage = data.error.message;
+                    } else if (data.message) {
+                        errorMessage = data.message;
+                    } else {
+                        errorMessage = '登录失败';
+                    }
+                    
+                    // 应用友好错误信息转换
+                    let friendlyErrorMessage = '';
+                    if (errorMessage.includes('用户不存在') || errorMessage.includes('用户名不存在') || 
+                        errorMessage.includes('User not found') || errorMessage.includes('user does not exist')) {
+                        friendlyErrorMessage = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
+                    } else if (errorMessage.includes('密码错误') || errorMessage.includes('密码不正确') || 
+                               errorMessage.includes('Incorrect password') || errorMessage.includes('Invalid password') ||
+                               errorMessage.includes('password is incorrect')) {
+                        friendlyErrorMessage = '密码错误，请重新输入正确密码';
+                    } else if (errorMessage.includes('用户账号已被禁用') || errorMessage.includes('账号被禁用') ||
+                               errorMessage.includes('account is disabled') || errorMessage.includes('user is disabled')) {
+                        friendlyErrorMessage = '您的账户已被禁用，请联系客服处理';
+                    } else {
+                        friendlyErrorMessage = errorMessage || '登录失败，请重试';
+                    }
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="p-4 bg-red-50 border border-red-200 rounded">
+                            <h3 class="font-semibold text-red-800">${testName} - 失败</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-600">原始错误: ${errorMessage}</p>
+                                <p class="text-red-700 font-medium mt-1">友好提示: ${friendlyErrorMessage}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="p-4 bg-red-50 border border-red-200 rounded">
+                        <h3 class="font-semibold text-red-800">${testName} - 网络错误</h3>
+                        <p class="text-red-700 mt-2">网络请求失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function testCorrectLogin() {
+            testLogin('test@example.com', '123456', '正确密码登录');
+        }
+        
+        function testWrongPassword() {
+            testLogin('test@example.com', 'wrong_password', '错误密码');
+        }
+        
+        function testNonexistentUser() {
+            testLogin('nonexistent@example.com', '123456', '不存在的用户');
+        }
+    </script>
+</body>
+</html> 

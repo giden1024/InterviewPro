@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历项目提取测试 - 简化版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .project-item {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .project-name {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        .project-type {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .tech-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .loading {
+            text-align: center;
+            color: #007bff;
+        }
+        .test-buttons {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 简历项目提取测试 - 简化版</h1>
+        <p>直接测试项目提取功能，无需认证。连接到测试服务器端口5002。</p>
+
+        <div class="test-buttons">
+            <h3>📁 快速测试</h3>
+            <p>使用预定义文件快速测试：</p>
+            <button onclick="testFile('app_cv.pdf')">测试 app_cv.pdf (25个项目)</button>
+            <button onclick="testFile('陈熙蕾.docx')">测试 陈熙蕾.docx (5个项目)</button>
+            <button onclick="testFile('resume.docx')">测试 resume.docx (8个项目)</button>
+            <button onclick="testFile('刘婧哲 Ven.docx')">测试 刘婧哲 Ven.docx (3个项目)</button>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>📤 或者拖拽/上传自己的简历文件</p>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+            <button onclick="document.getElementById('fileInput').click()">选择文件上传</button>
+        </div>
+
+        <div id="results" class="results">
+            <h3>解析结果</h3>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5002';
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const results = document.getElementById('results');
+        const resultsContent = document.getElementById('resultsContent');
+
+        // 文件拖拽处理
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        function testFile(filename) {
+            showLoading();
+            
+            fetch(`${API_BASE}/test-file/${encodeURIComponent(filename)}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, filename);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(`测试文件 ${filename} 失败: ${error.message}`);
+            });
+        }
+
+        function handleFileUpload(file) {
+            showLoading();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(`${API_BASE}/test-project-extraction`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, file.name);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(`文件 ${file.name} 上传失败: ${error.message}`);
+            });
+        }
+
+        function showLoading() {
+            results.style.display = 'block';
+            results.className = 'results';
+            resultsContent.innerHTML = '<div class="loading">🔄 正在解析简历，请稍候...</div>';
+        }
+
+        function displayResults(data, filename) {
+            results.style.display = 'block';
+            
+            if (data.success && data.parsed_data) {
+                results.className = 'results success';
+                const parsed = data.parsed_data;
+                const projects = parsed.projects || [];
+                
+                let html = `
+                    <h4>✅ 解析成功 - ${filename}</h4>
+                    
+                    <div class="stats">
+                        <h4>📊 解析统计</h4>
+                        <div>📝 姓名: ${parsed.name || 'N/A'}</div>
+                        <div>📧 邮箱: ${parsed.email || 'N/A'}</div>
+                        <div>📞 电话: ${parsed.phone || 'N/A'}</div>
+                        <div>🛠️ 技能数量: ${(parsed.skills || []).length}</div>
+                        <div>💼 工作经历: ${(parsed.experience || []).length}</div>
+                        <div>🎓 教育背景: ${(parsed.education || []).length}</div>
+                        <div>🚀 项目经验: <strong style="color: #007bff;">${projects.length}</strong></div>
+                    </div>
+                `;
+
+                if (projects.length > 0) {
+                    html += `
+                        <h4>🚀 项目经验详情 (${projects.length} 个)</h4>
+                    `;
+                    
+                    projects.forEach((project, index) => {
+                        const technologies = project.technologies || [];
+                        const techTags = technologies.map(tech => 
+                            `<span class="tech-tag">${tech}</span>`
+                        ).join('');
+                        
+                        html += `
+                            <div class="project-item">
+                                <div class="project-name">
+                                    ${index + 1}. ${project.name || '未命名项目'}
+                                </div>
+                                <span class="project-type">${project.type || 'unknown'}</span>
+                                ${project.duration ? `<span style="margin-left: 10px; color: #6c757d;">⏰ ${project.duration}</span>` : ''}
+                                
+                                ${technologies.length > 0 ? `
+                                    <div style="margin: 8px 0;">
+                                        <strong>🛠️ 技术栈:</strong> ${techTags}
+                                    </div>
+                                ` : ''}
+                                
+                                ${project.description ? `
+                                    <div style="color: #6c757d; font-size: 14px; margin-top: 8px;">
+                                        <strong>📝 描述:</strong> ${project.description.length > 200 ? project.description.substring(0, 200) + '...' : project.description}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `
+                        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <h4>⚠️ 未找到项目经验</h4>
+                            <p>该简历可能没有明确的项目经验部分，或者格式不标准。</p>
+                        </div>
+                    `;
+                }
+
+                resultsContent.innerHTML = html;
+            } else {
+                displayError(data.error || '解析失败');
+            }
+        }
+
+        function displayError(message) {
+            results.style.display = 'block';
+            results.className = 'results error';
+            resultsContent.innerHTML = `
+                <h4>❌ 解析失败</h4>
+                <p>${message}</p>
+                <p>请检查文件格式是否正确，支持的格式：PDF, DOC, DOCX, TXT</p>
+            `;
+        }
+
+        // 页面加载时检查服务器状态
+        window.addEventListener('load', () => {
+            fetch(`${API_BASE}/health`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('测试服务器状态:', data);
+                })
+                .catch(error => {
+                    console.error('无法连接到测试服务器:', error);
+                    displayError('无法连接到测试服务器(端口5002)，请确保测试服务正在运行');
+                });
+        });
+    </script>
+</body>
+</html> 

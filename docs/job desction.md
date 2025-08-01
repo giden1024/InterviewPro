@@ -1,0 +1,188 @@
+Product Manager
+[Job Title] Product Manager
+[Job Desction]
+Job Responsibilities
+1. Independently responsible for the full-link product design, function design, and strategy optimization of a vertical industry user for a recruitment app.
+2. Deeply explore the needs of vertical industry users, analyze user behavior, and cooperate with industry research teams to define the real needs and problems of users in job recruitment.
+3. Solve user needs and problems through various product methods, including but not limited to product path design, function design, and strategy iteration optimization, and be responsible for improving vertical user behavior data indicators.
+4. Curiosity-driven, able to proactively explore different types of users and industries in job recruitment scenarios and design product solutions that are compatible with existing product forms and meet more personalized needs. 
+Job Requirements
+1. Bachelor's degree or above, with more than one year of product work experience, experience with user-end products, social networking, and e-commerce preferred, having user growth and representative product features is a plus.
+2. A certain pursuit of product aesthetics, experience in product experience optimization (1-N) preferred.
+3. Divergent thinking and good summarization skills; excellent data thinking and good data review habits.
+4. Strong self-drive, good at communication and collaboration, strong sense of responsibility, and team spirit.
+
+
+
+Customer Service
+[Job Title] Customer Service
+[Job Desction]
+Job Responsibilities
+1. Independently responsible for potential high-risk user feedback and public opinion information from various channels, promptly identify and warn, collaborate with all parties to formulate and follow up solutions.
+2. Quickly make objective judgments on high-risk feedback and handle it flexibly and professionally to avoid risks while ensuring user satisfaction.
+3. Provide knowledge and skill support to customer service specialists based on team business needs, help frontline customer service handle difficult issues, and cooperate with service operations to feedback business gaps.
+4. Deeply understand business and products, and solve user feedback in a timely and professional manner from various dimensions.
+5. Good at summarizing and assisting the team in formulating mechanisms for identifying and handling high-risk user feedback. 
+Job Requirements
+1. Bachelor's degree or above, with experience in user service and customer service operations, local life industry experience is a plus.
+2. Flexible thinking, quick learning ability, good communication and negotiation skills, experience in handling public opinion and customer communication.
+3. User-centric, strong sense of service, responsible, reliable, and practical.
+4. Quickly locate problem causes, formulate flexible solutions, and ensure a good user service experience.
+
+Marketing
+[Job Title] Marketing Planner
+[Job Desction]
+Job Responsibilities
+1. Insight into target user needs, formulate overall brand positioning and medium- to long-term brand communication plans.
+2. Formulate effective annual promotion plans, lead planning and implementation of major marketing projects, enhance brand awareness, reputation, and user preference.
+3. Based on brand goals, flexibly use various resources, and integrate public relations, new media, ground promotion, and other resources to create creative communication solutions.
+4. Integrate high-quality resources and coordinate internal and external teams to complete various project plans, ensure the smooth implementation of major marketing projects and communication effects. 
+Job Requirements
+1. Bachelor's degree or above, with more than five years of work experience in marketing planning and brand promotion, rich experience in new media marketing, with successful planning cases preferred.
+2. Strong logical thinking, good at proposing effective marketing solutions based on market insights.
+3. Sensitive to marketing information, strong ability to integrate and plan resources, and strong project execution ability.
+4. Good communication, coordination, and expression skills, strong pressure resistance and sense of responsibility.
+
+
+[Job Title] Marketing Planner
+[Job Desction]
+Job Responsibilities
+1. Insight into target user needs, formulate overall brand positioning and medium- to long-term brand communication plans.
+2. Formulate effective annual promotion plans, lead planning and implementation of major marketing projects, enhance brand awareness, reputation, and user preference.
+3. Based on brand goals, flexibly use various resources, and integrate public relations, new media, ground promotion, and other resources to create creative communication solutions.
+4. Integrate high-quality resources and coordinate internal and external teams to complete various project plans, ensure the smooth implementation of major marketing projects and communication effects. 
+Job Requirements
+1. Bachelor's degree or above, with more than five years of work experience in marketing planning and brand promotion, rich experience in new media marketing, with successful planning cases preferred.
+2. Strong logical thinking, good at proposing effective marketing solutions based on market insights.
+3. Sensitive to marketing information, strong ability to integrate and plan resources, and strong project execution ability.
+4. Good communication, coordination, and expression skills, strong pressure resistance and sense of responsibility.
+
+
+[Job Title] Marketing Planner
+[Job Desction]
+Job Responsibilities
+1. Insight into target user needs, formulate overall brand positioning and medium- to long-term brand communication plans.
+2. Formulate effective annual promotion plans, lead planning and implementation of major marketing projects, enhance brand awareness, reputation, and user preference.
+3. Based on brand goals, flexibly use various resources, and integrate public relations, new media, ground promotion, and other resources to create creative communication solutions.
+4. Integrate high-quality resources and coordinate internal and external teams to complete various project plans, ensure the smooth implementation of major marketing projects and communication effects. 
+Job Requirements
+1. Bachelor's degree or above, with more than five years of work experience in marketing planning and brand promotion, rich experience in new media marketing, with successful planning cases preferred.
+2. Strong logical thinking, good at proposing effective marketing solutions based on market insights.
+3. Sensitive to marketing information, strong ability to integrate and plan resources, and strong project execution ability.
+4. Good communication, coordination, and expression skills, strong pressure resistance and sense of responsibility.
+
+
+[Job Title] Marketing Planner
+[Job Desction]
+Job Responsibilities
+1. Insight into target user needs, formulate overall brand positioning and medium- to long-term brand communication plans.
+2. Formulate effective annual promotion plans, lead planning and implementation of major marketing projects, enhance brand awareness, reputation, and user preference.
+3. Based on brand goals, flexibly use various resources, and integrate public relations, new media, ground promotion, and other resources to create creative communication solutions.
+4. Integrate high-quality resources and coordinate internal and external teams to complete various project plans, ensure the smooth implementation of major marketing projects and communication effects. 
+Job Requirements
+1. Bachelor's degree or above, with more than five years of work experience in marketing planning and brand promotion, rich experience in new media marketing, with successful planning cases preferred.
+2. Strong logical thinking, good at proposing effective marketing solutions based on market insights.
+3. Sensitive to marketing information, strong ability to integrate and plan resources, and strong project execution ability.
+4. Good communication, coordination, and expression skills, strong pressure resistance and sense of responsibility.
+
+Accountant
+[Job Title] Accountant
+[Job Desction]
+Job Responsibilities
+Collect various sales data and prepare related statistical reports.
+1. Responsible for preparing accounting vouchers, accounting, and financial statements.
+2. Responsible for accounting, financial budgeting, analysis, and supervision.
+3. Responsible for handling accounts receivable and payable with the company's business.
+4. Responsible for recording and auditing various expenses, preparing vouchers, and accounting.
+5. Regularly submit various financial reports as required by the company.
+6. Daily company affairs and other related work assigned by the leader.
+7. Monthly interface with external accountants for financial reports. 
+Job Requirements
+1. College degree or above, graduated from a finance-related major, with accounting-related certificates.
+2. Master basic financial professional knowledge and proficiently operate Excel, Word, and other office software.
+3. Maintain good professional ethics, keep confidential important company information, reports, and documents.
+4. Able to complete financial reports independently.
+5. No age limit, retirees are also welcome.
+
+Sales Specialist
+[Job Title] Sales Specialist
+[Job Desction]
+Job Responsibilities
+1. Communicate effectively with customers via phone based on company-provided effective data to understand customer needs and provide professional course sales services.
+2. Complete sales and payment work based on the company's product marketing strategy.
+3. Maintain good long-term cooperative relationships with existing customers through regular communication.
+4. Collect and summarize potential customer trends and timely understand market information.
+5. Actively complete other tasks assigned by the leader. Working hours: Monday to Friday
+8:00-17:30, weekends off, national holidays off (paid annual leave, extended Chinese New Year holiday). 
+Job Requirements
+1. Aged 18-35, high school diploma or above, excellent candidates can be considered for relaxation.
+2. Accept fresh graduates with paid training.
+3. Passionate about sales work, cheerful, resilient, quick-thinking, good adaptability, excellent verbal expression skills, team spirit, and challenges high salaries.
+4. Preferably with related work experience in online sales, sales, telemarketing, or customer service.
+
+
+
+Data Engineer
+[Job Title] Data Engineer
+[Job Desction]
+Job Responsibilities
+1. Design, develop, and maintain scalable data pipelines and ETL processes.
+2. Build and optimize data models for efficient data storage and retrieval.
+3. Implement data quality checks and monitoring systems to ensure data accuracy and integrity.
+4. Collaborate with data scientists and analysts to understand data requirements and provide efficient data solutions.
+5. Develop and maintain data warehouses and data lakes to support business intelligence and analytics.
+6. Implement and manage big data technologies to process and analyze large volumes of data.
+7. Optimize data systems for performance, scalability, and reliability.
+8. Stay up-to-date with emerging technologies and industry trends in data engineering.
+Job Requirements
+1. Bachelor's degree in Computer Science, Software Engineering, or related field.
+2. 3+ years of experience in data engineering or similar roles.
+3. Strong programming skills in languages such as Python, Java, or Scala.
+4. Proficiency in SQL and experience with relational databases (e.g., MySQL, PostgreSQL) and NoSQL databases (e.g., MongoDB, Cassandra).
+5. Experience with big data technologies such as Hadoop, Spark, and Hive.
+6. Knowledge of data warehousing concepts and experience with tools like Snowflake, Redshift, or BigQuery.
+7. Familiarity with cloud platforms (AWS, GCP, or Azure) and their data services.
+8. Experience with data visualization tools (e.g., Tableau, Power BI) is a plus.
+9. Strong problem-solving skills and ability to work in a fast-paced, collaborative environment.
+
+
+
+Operations Manager
+[Job Title] Operations Manager
+[Job Desction]
+Job Responsibilities
+1. Develop, implement, and optimize daily operational processes to improve efficiency and reduce costs.
+2. Establish and monitor KPIs (e.g., productivity, budget adherence) to ensure alignment with organizational goals.
+3. Lead cross-departmental collaboration to streamline workflows and resolve bottlenecks.
+4. Recruit, train, and manage staff, fostering a high-performance culture through mentorship and performance evaluations.
+5. Oversee employee safety, compliance with regulations (e.g., OSHA), and workplace standards.
+6. Manage operational budgets, financial forecasting, and cost-saving initiatives.
+7. Oversee inventory control, vendor negotiations, and procurement to ensure cost-effective resource allocation.
+
+Job Requirements
+1. Education: Bachelor’s degree in Business Administration, Operations Management, or a related field. Master’s degree preferred
+2. 3-5+ years in operations management, preferably in industries like manufacturing, tech, or construction
+3. Technical: Proficiency in ERP systems, data analysis tools, and Microsoft Office.
+4. Leadership: Strong decision-making, conflict resolution, and mentorship abilities.
+5. Communication: Excellent verbal/written communication for cross-functional and stakeholder engagement.
+6. Certifications (optional): Lean Six Sigma, PMP, or industry-specific credentials (e.g., EMT certification for healthcare roles).
+7. Attributes: Strategic thinker, adaptable to fast-paced environments, and detail-oriented
+
+
+User Operations
+[Job Title] User Operations Specialist/Manager
+[Job Desction]
+Job Responsibilities
+1. Drive user acquisition, activation, and retention strategies through localized campaigns (e.g., social media, SEO/SEM) in target markets such as Bangladesh/Pakistan, North America, or Germany.
+2. Analyze user behavior data (e.g., CTR, CAC, CLV) to refine growth tactics and improve retention rates.
+3. Build and manage online user communities (e.g., Facebook Groups, forums), resolve user issues promptly, and maintain relationships with VIP users/KOLs.
+4. Collect and analyze user feedback to inform product improvements and optimize user experience.
+5. Partner with product, engineering, and marketing teams to enhance onboarding processes and reduce churn.
+6. Develop localized content strategies and organize events to boost engagement (e.g., live streams, regional campaigns).
+7. Track KPIs (e.g., DAU, MRR, activation rates) and generate actionable insights for strategy adjustments.
+8. Conduct user research and A/B testing to validate operational initiatives.
+Job Requirements
+1. Bachelor’s degree in Marketing, Business, Communications, or related fields.
+2. 1-3+ years in user operations, community management, or digital marketing, preferably in tech, social media, or entertainment industries.
+3. Soft Skills: Strong communication, empathy, and cultural adaptability for global user engagement.
+4. Attributes: Proactive, detail-oriented, and passionate about mobile apps/social media trends

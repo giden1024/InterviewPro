@@ -249,71 +249,26 @@ const ResumePage: React.FC = () => {
         }
       }
 
-              // 3. Generate question list
-      setGenerating(true);
-      try {
-        // First create an interview session
-        const interviewSession = await interviewService.createInterview({
-          resume_id: currentResumeId,
-          interview_type: 'comprehensive',
-          total_questions: 8,
-          custom_title: `${jobTitle || 'Interview'} - ${selectedLevel} Level`
-        });
-
-        // Then generate questions for this session
-        const questionData = {
-          resume_id: currentResumeId,
-          session_id: interviewSession.session_id,
-          interview_type: 'comprehensive' as const,
-          total_questions: 8,
-          title: `${jobTitle || 'Interview'} - ${selectedLevel} Level`
-        };
-
-        const questionResult = await questionService.generateQuestions(questionData);
-        console.log('Questions generated successfully:', questionResult);
-
-        // 4. Navigate to Complete page, pass all data
-        navigate('/complete', { 
-          state: { 
-            jobTitle, 
-            jobDescription,
-            jobId: savedJobId,
-            company,
-            resumeId: currentResumeId,
-            resumeText,
-            experienceLevel: selectedLevel,
-            sessionId: questionResult.session.session_id,
-            totalQuestions: questionResult.questions.length,
-            completed: false,
-            questionsGenerated: true
-          } 
-        });
-
-      } catch (questionError) {
-        console.error('Failed to generate questions:', questionError);
-        // Even if question generation fails, continue navigation but don't pass question-related information
-        navigate('/complete', { 
-          state: { 
-            jobTitle, 
-            jobDescription,
-            jobId: savedJobId,
-            company,
-            resumeId: currentResumeId,
-            resumeText,
-            experienceLevel: selectedLevel,
-            completed: false,
-            questionsGenerated: false,
-            error: 'Question generation failed, but you can continue the interview process'
-          } 
-        });
-      }
+      // 3. Navigate to Complete page, pass data but don't create interview session
+      navigate('/complete', { 
+        state: { 
+          jobTitle, 
+          jobDescription,
+          jobId: savedJobId,
+          company,
+          resumeId: currentResumeId,
+          resumeText,
+          experienceLevel: selectedLevel,
+          completed: false,
+          questionsGenerated: false
+        } 
+      });
 
     } catch (error) {
       console.error('Processing failed:', error);
       setError(error instanceof Error ? error.message : 'Processing failed, please retry');
     } finally {
       setSaving(false);
-      setGenerating(false);
     }
   };
 

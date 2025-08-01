@@ -1,9 +1,10 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 
 from app.config import config
 from app.extensions import db, migrate, jwt, cors, socketio, limiter, init_redis
+from app.celery_app import make_celery
 
 # 加载环境变量
 load_dotenv()
@@ -19,6 +20,39 @@ def create_app(config_name=None):
     # 初始化扩展
     db.init_app(app)
     migrate.init_app(app, db)
+    
+    # 配置JWT错误处理
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'TOKEN_EXPIRED',
+                'message': 'Token has expired'
+            }
+        }), 401
+    
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'INVALID_TOKEN',
+                'message': 'Invalid token'
+            }
+        }), 422
+    
+    @jwt.unauthorized_loader
+    def missing_token_callback(error):
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'MISSING_TOKEN',
+                'message': 'Missing Authorization Header'
+            }
+        }), 401
+    
+    # 初始化JWT
     jwt.init_app(app)
     
     # 配置CORS - 支持前端开发端口
@@ -43,6 +77,10 @@ def create_app(config_name=None):
     
     limiter.init_app(app)
     init_redis(app)
+    
+    # 初始化Celery
+    celery = make_celery(app)
+    app.celery = celery
     
     # 注册蓝图
     register_blueprints(app)

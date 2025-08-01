@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test DOC File Upload Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #fee;
+            border-color: #fcc;
+            color: #c33;
+        }
+        .success {
+            background-color: #efe;
+            border-color: #cfc;
+            color: #3c3;
+        }
+        .info {
+            background-color: #eef;
+            border-color: #ccf;
+            color: #33c;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a8b;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 5px;
+        }
+        .response {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 DOC File Upload Fix Test</h1>
+        
+        <div class="test-section info">
+            <h3>📋 Test Purpose</h3>
+            <p>This page tests the improved .doc file handling after the resume parser fix.</p>
+            <p><strong>Expected:</strong> Clear English error message explaining .doc format limitations</p>
+        </div>
+
+        <div class="test-section">
+            <h3>📁 File Upload Test</h3>
+            <input type="file" id="fileInput" accept=".doc,.docx,.pdf,.txt">
+            <button onclick="uploadFile()">Upload & Analyze Resume</button>
+            <div id="uploadResult" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Test Specific DOC File</h3>
+            <p>Test the problematic .doc file that was uploaded earlier:</p>
+            <button onclick="testSpecificDocFile()">Test Existing DOC File</button>
+            <div id="docTestResult" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Error Log</h3>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <div id="errorLog" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let authToken = localStorage.getItem('token');
+
+        // Log function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('errorLog');
+            const colorMap = {
+                'error': '#c33',
+                'success': '#3c3',
+                'info': '#333'
+            };
+            logDiv.innerHTML += `<div style="color: ${colorMap[type]}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Clear logs
+        function clearLogs() {
+            document.getElementById('errorLog').innerHTML = '';
+        }
+
+        // Get auth token for testing
+        async function getAuthToken() {
+            if (authToken) return authToken;
+            
+            try {
+                // Try to register a test user or login
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: `test_${Date.now()}@example.com`,
+                        password: 'password123',
+                        username: `testuser_${Date.now()}`
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.data.token;
+                    localStorage.setItem('token', authToken);
+                    log('✅ Authenticated successfully', 'success');
+                } else {
+                    log('❌ Authentication failed, trying with existing token', 'error');
+                }
+            } catch (error) {
+                log(`❌ Authentication error: ${error.message}`, 'error');
+            }
+            
+            return authToken;
+        }
+
+        // Upload file function
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('uploadResult');
+            
+            if (!fileInput.files[0]) {
+                log('❌ Please select a file first', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            log(`📁 Uploading file: ${file.name} (${file.size} bytes)`, 'info');
+
+            const token = await getAuthToken();
+            if (!token) {
+                log('❌ No authentication token available', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Uploading...';
+
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const responseData = await response.json();
+                
+                if (response.ok) {
+                    log('✅ File uploaded successfully', 'success');
+                    resultDiv.textContent = JSON.stringify(responseData, null, 2);
+                    
+                    // Try to analyze the resume
+                    if (responseData.data && responseData.data.resume && responseData.data.resume.id) {
+                        await analyzeResume(responseData.data.resume.id);
+                    }
+                } else {
+                    log(`❌ Upload failed: ${responseData.message || 'Unknown error'}`, 'error');
+                    resultDiv.textContent = JSON.stringify(responseData, null, 2);
+                }
+            } catch (error) {
+                log(`❌ Upload error: ${error.message}`, 'error');
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Analyze resume function
+        async function analyzeResume(resumeId) {
+            log(`🔍 Analyzing resume ID: ${resumeId}`, 'info');
+
+            const token = await getAuthToken();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/resumes/${resumeId}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const responseData = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Resume analysis completed', 'success');
+                } else {
+                    log(`❌ Analysis failed: ${responseData.message || 'Unknown error'}`, 'error');
+                    // This is where we should see the improved error message
+                    if (responseData.message && responseData.message.includes('convert')) {
+                        log('🎯 Found improved .doc error message!', 'success');
+                    }
+                }
+                
+                document.getElementById('uploadResult').textContent += '\n\nAnalysis Result:\n' + JSON.stringify(responseData, null, 2);
+            } catch (error) {
+                log(`❌ Analysis error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test specific DOC file
+        async function testSpecificDocFile() {
+            const resultDiv = document.getElementById('docTestResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Testing...';
+
+            log('🔍 Testing specific .doc file parsing directly', 'info');
+
+            const token = await getAuthToken();
+            if (!token) {
+                log('❌ No authentication token available', 'error');
+                return;
+            }
+
+            try {
+                // Try to re-analyze the existing DOC file
+                const response = await fetch(`${API_BASE}/resumes/1/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const responseData = await response.json();
+                
+                if (response.ok) {
+                    log('✅ DOC file analysis completed unexpectedly', 'info');
+                } else {
+                    log(`❌ DOC analysis failed as expected: ${responseData.message}`, 'error');
+                    
+                    // Check if we got the improved error message
+                    if (responseData.message && (
+                        responseData.message.includes('convert') || 
+                        responseData.message.includes('docx format') ||
+                        responseData.message.includes('Microsoft Word')
+                    )) {
+                        log('🎯 SUCCESS: Got improved English error message for .doc file!', 'success');
+                        resultDiv.className = 'response success';
+                    } else {
+                        log('❌ Did not get expected improved error message', 'error');
+                        resultDiv.className = 'response error';
+                    }
+                }
+                
+                resultDiv.textContent = JSON.stringify(responseData, null, 2);
+            } catch (error) {
+                log(`❌ Test error: ${error.message}`, 'error');
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('🚀 DOC File Upload Fix Test initialized', 'info');
+            log('📋 Ready to test improved .doc file error handling', 'info');
+            
+            // Try to get auth token on load
+            await getAuthToken();
+        });
+    </script>
+</body>
+</html> 

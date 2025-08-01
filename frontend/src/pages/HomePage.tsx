@@ -26,9 +26,11 @@ const HomePage: React.FC = () => {
     questionsWithAnswers, 
     isLoading: questionsLoading, 
     error: questionsError,
+    isGeneratingQuestions,
     handleQuestionEdit,
     handleQuestionDelete,
-    loadQuestionsWithAnswers
+    loadQuestionsWithAnswers,
+    generateNewQuestions
   } = useHomePage();
   
   // Interview record management
@@ -75,6 +77,7 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     fetchUserInfo();
     loadDashboardData();
+    // loadQuestionsWithAnswers() 由 useHomePage hook 自动调用
   }, []);
 
   // Load dashboard data
@@ -484,10 +487,27 @@ const HomePage: React.FC = () => {
                   Question Bank ({questionsWithAnswers.length})
                 </h2>
                 <button 
-                  onClick={() => navigate('/questions/generate')}
-                  className="px-4 py-2 bg-[#68C6F1] text-white rounded-lg hover:bg-[#5AB5E0] transition-colors text-sm"
+                  onClick={generateNewQuestions}
+                  disabled={isGeneratingQuestions}
+                  className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                    isGeneratingQuestions 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-[#68C6F1] text-white hover:bg-[#5AB5E0]'
+                  }`}
                 >
-                  Generate New Questions
+                  {isGeneratingQuestions ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Generate New Questions
+                    </>
+                  )}
                 </button>
               </div>
               
@@ -528,7 +548,7 @@ const HomePage: React.FC = () => {
                         </div>
                       ) : (
                         <div className="text-sm text-[#999] italic mb-4">
-                          No answer yet
+                          No answer yet - Click "Edit" to add your answer
                         </div>
                       )}
                       
@@ -565,6 +585,7 @@ const HomePage: React.FC = () => {
                           <button 
                             onClick={() => handleQuestionEdit(question.id)}
                             className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-[#666] hover:border-[#68C6F1] transition-colors"
+                            title="Edit question content and add your answer"
                           >
                             <div className="flex items-center">
                               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">

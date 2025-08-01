@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API性能分析报告 - /api/v1/questions/generate</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .summary-section {
+            background-color: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .analysis-section {
+            background-color: #f0fff4;
+            border-left: 4px solid #38a169;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .optimization-section {
+            background-color: #fffaf0;
+            border-left: 4px solid #ed8936;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .performance-chart {
+            background-color: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .phase-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f7fafc;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+        }
+        .phase-number {
+            background-color: #4299e1;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .phase-details {
+            flex: 1;
+        }
+        .phase-name {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        .phase-time {
+            color: #718096;
+            font-size: 14px;
+        }
+        .progress-bar {
+            width: 200px;
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-left: 20px;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4299e1;
+            transition: width 0.3s ease;
+        }
+        .critical {
+            background-color: #e53e3e !important;
+        }
+        .warning {
+            background-color: #ed8936 !important;
+        }
+        .success {
+            background-color: #38a169 !important;
+        }
+        .bottleneck {
+            background-color: #e53e3e;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .optimization-item {
+            background-color: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #38a169;
+        }
+        .optimization-title {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        .optimization-desc {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        .optimization-benefit {
+            background-color: #e6fffa;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #234e52;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 API性能分析报告</h1>
+            <p>接口：<code>/api/v1/questions/generate</code> - 耗时58秒分析</p>
+        </div>
+
+        <div class="summary-section">
+            <h2>📊 性能概览</h2>
+            <div class="bottleneck">
+                🚨 主要瓶颈：AI API调用耗时55秒，占总耗时的94.6%
+            </div>
+            <p><strong>总耗时：</strong> 58.13秒</p>
+            <p><strong>性能评级：</strong> B (一般) - 需要优化</p>
+            <p><strong>主要问题：</strong> DeepSeek AI API响应时间过长</p>
+        </div>
+
+        <div class="analysis-section">
+            <h2>📈 耗时分布分析</h2>
+            <div class="performance-chart">
+                <div class="phase-item">
+                    <div class="phase-number">1</div>
+                    <div class="phase-details">
+                        <div class="phase-name">AI API调用 - DeepSeek</div>
+                        <div class="phase-time">55.00秒 (94.6%) - 主要瓶颈</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill critical" style="width: 94.6%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">2</div>
+                    <div class="phase-details">
+                        <div class="phase-name">AI响应解析</div>
+                        <div class="phase-time">1.00秒 (1.7%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 1.7%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">3</div>
+                    <div class="phase-details">
+                        <div class="phase-name">数据库保存 - 问题数据</div>
+                        <div class="phase-time">0.80秒 (1.4%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 1.4%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">4</div>
+                    <div class="phase-details">
+                        <div class="phase-name">缓存检查</div>
+                        <div class="phase-time">0.51秒 (0.9%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.9%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">5</div>
+                    <div class="phase-details">
+                        <div class="phase-name">数据库查询 - 简历信息</div>
+                        <div class="phase-time">0.21秒 (0.4%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.4%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">6</div>
+                    <div class="phase-details">
+                        <div class="phase-name">数据库更新 - 会话状态</div>
+                        <div class="phase-time">0.21秒 (0.4%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.4%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">7</div>
+                    <div class="phase-details">
+                        <div class="phase-name">响应构建和返回</div>
+                        <div class="phase-time">0.20秒 (0.3%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.3%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">8</div>
+                    <div class="phase-details">
+                        <div class="phase-name">数据库查询 - 会话信息</div>
+                        <div class="phase-time">0.11秒 (0.2%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.2%"></div>
+                    </div>
+                </div>
+                
+                <div class="phase-item">
+                    <div class="phase-number">9</div>
+                    <div class="phase-details">
+                        <div class="phase-name">请求验证和解析</div>
+                        <div class="phase-time">0.11秒 (0.2%)</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0.2%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <h2>🔍 问题根源分析</h2>
+            
+            <h3>1. 主要瓶颈：AI API调用 (55秒)</h3>
+            <div class="code-block">
+# 问题代码位置：backend/app/services/ai_question_generator.py
+response = client.chat.completions.create(
+    model=self.model,  # "deepseek-chat"
+    messages=[
+        {"role": "system", "content": self._get_comprehensive_system_prompt()},
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.7,
+    max_tokens=4000  # 大量token导致响应时间长
+)
+            </div>
+            
+            <h4>耗时原因：</h4>
+            <ul>
+                <li><strong>模型响应慢：</strong> DeepSeek-V3模型生成4000个token需要较长时间</li>
+                <li><strong>Prompt过长：</strong> 包含完整的简历信息和复杂的生成要求</li>
+                <li><strong>网络延迟：</strong> 调用外部API的网络传输时间</li>
+                <li><strong>模型负载：</strong> DeepSeek服务器可能负载较高</li>
+            </ul>
+            
+            <h3>2. 次要问题：缓存未生效</h3>
+            <div class="code-block">
+# 缓存检查耗时0.51秒，说明缓存可能未正确配置
+cached_questions = self.cache_service.get_cached_questions(
+    user_id=user_id,
+    resume=resume,
+    interview_type=interview_type.value,
+    total_questions=total_questions,
+    difficulty_distribution=difficulty_distribution,
+    type_distribution=type_distribution
+)
+            </div>
+        </div>
+
+        <div class="optimization-section">
+            <h2>💡 优化方案</h2>
+            
+            <div class="optimization-item">
+                <div class="optimization-title">🚀 方案1：启用问题缓存机制</div>
+                <div class="optimization-desc">
+                    为相同简历和面试类型的问题启用Redis缓存，避免重复调用AI API
+                </div>
+                <div class="optimization-benefit">
+                    <strong>预期效果：</strong> 缓存命中时响应时间从58秒降低到1秒以内
+                </div>
+            </div>
+            
+            <div class="optimization-item">
+                <div class="optimization-title">🤖 方案2：优化AI Prompt</div>
+                <div class="optimization-desc">
+                    简化prompt内容，减少token数量，提高AI响应速度
+                </div>
+                <div class="optimization-benefit">
+                    <strong>预期效果：</strong> AI调用时间从55秒降低到20-30秒
+                </div>
+            </div>
+            
+            <div class="optimization-item">
+                <div class="optimization-title">⚡ 方案3：实现异步处理</div>
+                <div class="optimization-desc">
+                    将问题生成改为异步任务，立即返回会话ID，后台生成问题
+                </div>
+                <div class="optimization-benefit">
+                    <strong>预期效果：</strong> 用户等待时间从58秒降低到2秒以内
+                </div>
+            </div>
+            
+            <div class="optimization-item">
+                <div class="optimization-title">🔄 方案4：使用更快的AI模型</div>
+                <div class="optimization-desc">
+                    考虑使用响应更快的AI模型，如GPT-4o或Claude 3.5 Haiku
+                </div>
+                <div class="optimization-benefit">
+                    <strong>预期效果：</strong> AI调用时间从55秒降低到10-15秒
+                </div>
+            </div>
+            
+            <div class="optimization-item">
+                <div class="optimization-title">📦 方案5：预生成问题库</div>
+                <div class="optimization-desc">
+                    为常见技能和职位预生成问题库，减少实时AI调用
+                </div>
+                <div class="optimization-benefit">
+                    <strong>预期效果：</strong> 大部分情况下响应时间降低到1秒以内
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <h2>📋 实施优先级</h2>
+            <ol>
+                <li><strong>高优先级：</strong> 启用问题缓存机制（立即实施）</li>
+                <li><strong>高优先级：</strong> 实现异步处理（用户体验提升最大）</li>
+                <li><strong>中优先级：</strong> 优化AI Prompt（降低AI调用时间）</li>
+                <li><strong>中优先级：</strong> 预生成问题库（长期优化）</li>
+                <li><strong>低优先级：</strong> 更换AI模型（成本考虑）</li>
+            </ol>
+        </div>
+
+        <div class="optimization-section">
+            <h2>🎯 预期优化效果</h2>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <thead>
+                    <tr style="background-color: #f7fafc;">
+                        <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">优化方案</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">当前耗时</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">优化后耗时</th>
+                        <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">提升幅度</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">缓存命中</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">58秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">1秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; color: #38a169;">98%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">异步处理</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">58秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">2秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; color: #38a169;">97%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">Prompt优化</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">55秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">25秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; color: #38a169;">55%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">预生成问题库</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">58秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">1秒</td>
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; color: #38a169;">98%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html> 

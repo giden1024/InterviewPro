@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目经验提取功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .project-item {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .project-name {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        .project-type {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .project-technologies {
+            margin: 8px 0;
+        }
+        .tech-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .project-description {
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+        .loading {
+            text-align: center;
+            color: #007bff;
+        }
+        .test-files {
+            margin: 20px 0;
+        }
+        .test-file-button {
+            background-color: #28a745;
+            margin: 5px;
+        }
+        .test-file-button:hover {
+            background-color: #218838;
+        }
+        .stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .stats h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .stat-item {
+            margin: 5px 0;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📂 简历项目经验提取功能测试</h1>
+        <p>测试简历解析器的项目经验提取功能。上传简历文件或选择测试文件查看项目经验提取结果。</p>
+
+        <div class="test-files">
+            <h3>📁 测试文件</h3>
+            <p>选择预置的测试简历文件进行快速测试：</p>
+            <button class="test-file-button" onclick="testFile('app_cv.pdf')">app_cv.pdf</button>
+            <button class="test-file-button" onclick="testFile('resume.docx')">resume.docx</button>
+            <button class="test-file-button" onclick="testFile('陈熙蕾.docx')">陈熙蕾.docx</button>
+            <button class="test-file-button" onclick="testFile('刘婧哲 Ven.docx')">刘婧哲 Ven.docx</button>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>📤 拖拽简历文件到此处，或点击选择文件</p>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+            <button onclick="document.getElementById('fileInput').click()">选择文件</button>
+        </div>
+
+        <div id="results" class="results">
+            <h3>解析结果</h3>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // const API_BASE = 'https://offerott.com/api';
+        // const API_BASE = 'http://localhost:5001';  // 需要认证
+        const API_BASE = 'http://localhost:5002';  // 测试服务器，无需认证
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const results = document.getElementById('results');
+        const resultsContent = document.getElementById('resultsContent');
+
+        // 文件拖拽处理
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function testFile(filename) {
+            showLoading();
+            
+            // 使用专用的测试端点
+            fetch(`${API_BASE}/test-file/${filename}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, filename);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(`测试文件 ${filename} 解析失败: ${error.message}`);
+            });
+        }
+
+        function handleFile(file) {
+            showLoading();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(`${API_BASE}/test-project-extraction`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, file.name);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(`文件 ${file.name} 解析失败: ${error.message}`);
+            });
+        }
+
+        function showLoading() {
+            results.style.display = 'block';
+            results.className = 'results';
+            resultsContent.innerHTML = '<div class="loading">🔄 正在解析简历，请稍候...</div>';
+        }
+
+        function displayResults(data, filename) {
+            results.style.display = 'block';
+            
+            if (data.success && data.parsed_data) {
+                results.className = 'results success';
+                const parsed = data.parsed_data;
+                const projects = parsed.projects || [];
+                
+                let html = `
+                    <h4>✅ 解析成功 - ${filename}</h4>
+                    
+                    <div class="stats">
+                        <h4>📊 解析统计</h4>
+                        <div class="stat-item">📝 姓名: ${parsed.name || 'N/A'}</div>
+                        <div class="stat-item">📧 邮箱: ${parsed.email || 'N/A'}</div>
+                        <div class="stat-item">📞 电话: ${parsed.phone || 'N/A'}</div>
+                        <div class="stat-item">🛠️ 技能数量: ${(parsed.skills || []).length}</div>
+                        <div class="stat-item">💼 工作经历: ${(parsed.experience || []).length}</div>
+                        <div class="stat-item">🎓 教育背景: ${(parsed.education || []).length}</div>
+                        <div class="stat-item">🚀 项目经验: ${projects.length}</div>
+                    </div>
+                `;
+
+                if (projects.length > 0) {
+                    html += `
+                        <h4>🚀 项目经验 (${projects.length} 个)</h4>
+                    `;
+                    
+                    projects.forEach((project, index) => {
+                        const technologies = project.technologies || [];
+                        const techTags = technologies.map(tech => 
+                            `<span class="tech-tag">${tech}</span>`
+                        ).join('');
+                        
+                        html += `
+                            <div class="project-item">
+                                <div class="project-name">
+                                    ${index + 1}. ${project.name || '未命名项目'}
+                                </div>
+                                <span class="project-type">${project.type || 'unknown'}</span>
+                                ${project.duration ? `<span style="margin-left: 10px; color: #6c757d;">⏰ ${project.duration}</span>` : ''}
+                                
+                                ${technologies.length > 0 ? `
+                                    <div class="project-technologies">
+                                        <strong>🛠️ 技术栈:</strong> ${techTags}
+                                    </div>
+                                ` : ''}
+                                
+                                ${project.description ? `
+                                    <div class="project-description">
+                                        <strong>📝 描述:</strong> ${project.description}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `
+                        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <h4>⚠️ 未找到项目经验</h4>
+                            <p>可能的原因：</p>
+                            <ul>
+                                <li>简历中没有专门的项目经验部分</li>
+                                <li>项目信息包含在工作经历中，但格式不标准</li>
+                                <li>项目描述使用了不常见的关键词</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // 显示其他字段摘要
+                if (parsed.skills && parsed.skills.length > 0) {
+                    html += `
+                        <div class="stats">
+                            <h4>🛠️ 技能</h4>
+                            <div>${parsed.skills.slice(0, 10).join(', ')}${parsed.skills.length > 10 ? '...' : ''}</div>
+                        </div>
+                    `;
+                }
+
+                resultsContent.innerHTML = html;
+            } else {
+                displayError(data.error || '解析失败');
+            }
+        }
+
+        function displayError(message) {
+            results.style.display = 'block';
+            results.className = 'results error';
+            resultsContent.innerHTML = `
+                <h4>❌ 解析失败</h4>
+                <p>${message}</p>
+                <p>请检查文件格式是否正确，支持的格式：PDF, DOC, DOCX, TXT</p>
+            `;
+        }
+    </script>
+</body>
+</html> 

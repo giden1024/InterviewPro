@@ -65,7 +65,8 @@ class Question(db.Model):
             'expected_answer': self.expected_answer,
             'evaluation_criteria': self.evaluation_criteria or {},
             'ai_context': self.ai_context or {},
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'session_id': self.session_id
         }
 
 class InterviewSession(db.Model):

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误处理测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 登录错误处理测试</h1>
+        
+        <div class="info result">
+            <strong>测试说明：</strong><br>
+            这个页面用于测试各种登录错误场景的处理，验证前端能否正确显示错误信息。<br>
+            <strong>确保后端服务已启动：</strong> <code>./start_backend.sh</code>
+        </div>
+
+        <!-- 用户不存在测试 -->
+        <div class="test-section">
+            <h3>🚫 测试：用户不存在</h3>
+            <p>测试使用不存在的邮箱登录</p>
+            <button class="test-button" onclick="testUserNotExists()">测试用户不存在</button>
+            <div id="userNotExistsResult"></div>
+        </div>
+
+        <!-- 密码错误测试 -->
+        <div class="test-section">
+            <h3>🔒 测试：密码错误</h3>
+            <p>测试使用错误密码登录已存在用户</p>
+            <button class="test-button" onclick="testWrongPassword()">测试密码错误</button>
+            <div id="wrongPasswordResult"></div>
+        </div>
+
+        <!-- 网络错误测试 -->
+        <div class="test-section">
+            <h3>🌐 测试：网络错误</h3>
+            <p>测试网络连接问题</p>
+            <button class="test-button" onclick="testNetworkError()">测试网络错误</button>
+            <div id="networkErrorResult"></div>
+        </div>
+
+        <!-- 正常登录测试 -->
+        <div class="test-section">
+            <h3>✅ 测试：正常登录</h3>
+            <p>测试使用正确的凭据登录</p>
+            <button class="test-button" onclick="testSuccessfulLogin()">测试正常登录</button>
+            <div id="successfulLoginResult"></div>
+        </div>
+
+        <!-- 日志区域 -->
+        <div class="test-section">
+            <h3>📋 测试日志</h3>
+            <div id="testLog" class="log"></div>
+            <button class="test-button" onclick="clearLog()">清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api/v1';
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('testLog');
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function showResult(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.innerHTML = message;
+        }
+
+        async function makeLoginRequest(email, password) {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            let responseData;
+            try {
+                responseData = await response.json();
+            } catch (e) {
+                responseData = { 
+                    success: false, 
+                    error: { 
+                        code: 'PARSE_ERROR', 
+                        message: `服务器响应格式错误 (HTTP ${response.status})` 
+                    } 
+                };
+            }
+
+            if (!response.ok) {
+                let errorMessage = '';
+                
+                if (responseData.error && responseData.error.message) {
+                    errorMessage = responseData.error.message;
+                } else if (responseData.message) {
+                    errorMessage = responseData.message;
+                } else {
+                    errorMessage = `请求失败 (HTTP ${response.status})`;
+                }
+                
+                const error = new Error(errorMessage);
+                error.response = responseData;
+                error.status = response.status;
+                throw error;
+            }
+
+            return responseData;
+        }
+
+        async function testUserNotExists() {
+            log('开始测试：用户不存在');
+            try {
+                const result = await makeLoginRequest('nonexistent@example.com', 'password123');
+                showResult('userNotExistsResult', 'error', '❌ 测试失败：应该返回用户不存在错误');
+                log('❌ 用户不存在测试失败：没有抛出错误');
+            } catch (error) {
+                const message = error.message;
+                log(`✅ 捕获到错误：${message}`);
+                
+                if (message.includes('用户不存在')) {
+                    showResult('userNotExistsResult', 'success', `✅ 测试成功！<br>错误信息：${message}`);
+                    log('✅ 用户不存在测试通过');
+                } else {
+                    showResult('userNotExistsResult', 'error', `⚠️ 错误信息不匹配<br>实际信息：${message}`);
+                    log(`⚠️ 用户不存在测试失败：错误信息不匹配 - ${message}`);
+                }
+            }
+        }
+
+        async function testWrongPassword() {
+            log('开始测试：密码错误');
+            try {
+                // 首先确保测试用户存在
+                const result = await makeLoginRequest('393893095@qq.com', 'wrongpassword');
+                showResult('wrongPasswordResult', 'error', '❌ 测试失败：应该返回密码错误');
+                log('❌ 密码错误测试失败：没有抛出错误');
+            } catch (error) {
+                const message = error.message;
+                log(`✅ 捕获到错误：${message}`);
+                
+                if (message.includes('密码错误')) {
+                    showResult('wrongPasswordResult', 'success', `✅ 测试成功！<br>错误信息：${message}`);
+                    log('✅ 密码错误测试通过');
+                } else if (message.includes('用户不存在')) {
+                    showResult('wrongPasswordResult', 'info', `ℹ️ 测试用户不存在<br>请先创建测试用户：393893095@qq.com`);
+                    log('ℹ️ 测试用户不存在，请先创建');
+                } else {
+                    showResult('wrongPasswordResult', 'error', `⚠️ 错误信息不匹配<br>实际信息：${message}`);
+                    log(`⚠️ 密码错误测试失败：错误信息不匹配 - ${message}`);
+                }
+            }
+        }
+
+        async function testNetworkError() {
+            log('开始测试：网络错误');
+            try {
+                // 使用错误的URL模拟网络错误
+                const response = await fetch('http://localhost:9999/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'test@example.com', password: 'password' })
+                });
+                showResult('networkErrorResult', 'error', '❌ 测试失败：应该产生网络错误');
+                log('❌ 网络错误测试失败：没有抛出错误');
+            } catch (error) {
+                const message = error.message;
+                log(`✅ 捕获到网络错误：${message}`);
+                showResult('networkErrorResult', 'success', `✅ 网络错误测试成功！<br>错误信息：${message}`);
+            }
+        }
+
+        async function testSuccessfulLogin() {
+            log('开始测试：正常登录');
+            try {
+                const result = await makeLoginRequest('393893095@qq.com', '123456');
+                if (result.success && result.data) {
+                    showResult('successfulLoginResult', 'success', `✅ 登录成功！<br>用户：${result.data.user.email}`);
+                    log(`✅ 登录成功：${result.data.user.email}`);
+                } else {
+                    showResult('successfulLoginResult', 'error', '❌ 登录响应格式错误');
+                    log('❌ 登录响应格式错误');
+                }
+            } catch (error) {
+                const message = error.message;
+                log(`❌ 登录失败：${message}`);
+                
+                if (message.includes('用户不存在')) {
+                    showResult('successfulLoginResult', 'info', `ℹ️ 测试用户不存在<br>请先创建测试用户：393893095@qq.com / 123456`);
+                } else {
+                    showResult('successfulLoginResult', 'error', `❌ 登录失败<br>错误信息：${message}`);
+                }
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = '';
+        }
+
+        // 页面加载时显示当前时间和测试环境
+        window.onload = function() {
+            log('=== 登录错误处理测试开始 ===');
+            log(`测试环境：${API_BASE_URL}`);
+            log(`测试时间：${new Date().toLocaleString()}`);
+        };
+    </script>
+</body>
+</html> 

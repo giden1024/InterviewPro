@@ -42,6 +42,18 @@ export interface GenerateQuestionsData {
   title?: string;
 }
 
+export interface AsyncTaskStatus {
+  task_id: string;
+  state: 'PENDING' | 'PROGRESS' | 'SUCCESS' | 'FAILURE';
+  current?: number;
+  total?: number;
+  status?: string;
+  questions?: Question[];
+  from_cache?: boolean;
+  generated_at?: string;
+  error?: string;
+}
+
 export interface QuestionStats {
   total_questions: number;
   by_difficulty: Record<string, number>;
@@ -89,7 +101,7 @@ class QuestionService {
   }
 
   /**
-   * 基于简历生成面试问题
+   * 基于简历生成面试问题（同步）
    */
   async generateQuestions(data: GenerateQuestionsData): Promise<{
     session: InterviewSession;
@@ -105,6 +117,38 @@ class QuestionService {
       return response.data;
     } catch (error) {
       console.error('生成问题失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 异步生成面试问题
+   */
+  async generateQuestionsAsync(data: GenerateQuestionsData): Promise<{
+    session_id: string;
+    questions: Question[];
+    total_questions: number;
+    status: string;
+    message: string;
+  }> {
+    try {
+      const response: any = await apiClient.post('/questions/generate-async', data);
+      return response.data;
+    } catch (error) {
+      console.error('启动异步问题生成失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取异步任务状态
+   */
+  async getTaskStatus(taskId: string): Promise<AsyncTaskStatus> {
+    try {
+      const response: any = await apiClient.get(`/questions/task-status/${taskId}`);
+      return response.data;
+    } catch (error) {
+      console.error('获取任务状态失败:', error);
       throw error;
     }
   }

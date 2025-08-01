@@ -5,9 +5,32 @@ from typing import List, Dict, Any, Optional
 from flask import current_app
 from app.models.question import QuestionType, QuestionDifficulty, InterviewType
 from app.models.resume import Resume
+from app.services.question_cache_service import QuestionCacheService
 import os
+import time
+import functools
 
 logger = logging.getLogger(__name__)
+
+def performance_monitor(func_name: str = None):
+    """性能监控装饰器"""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                execution_time = time.time() - start_time
+                name = func_name or func.__name__
+                logger.info(f"⏱️ {name} 执行时间: {execution_time:.2f}秒")
+                return result
+            except Exception as e:
+                execution_time = time.time() - start_time
+                name = func_name or func.__name__
+                logger.error(f"❌ {name} 执行失败，耗时: {execution_time:.2f}秒，错误: {e}")
+                raise
+        return wrapper
+    return decorator
 
 class AIQuestionGenerator:
     """AI Question Generator for International Interview System"""
@@ -16,6 +39,7 @@ class AIQuestionGenerator:
         """Initialize AI question generator"""
         self.client = None
         self.model = "deepseek-chat"  # DeepSeek-V3 model
+        self.cache_service = QuestionCacheService()  # 初始化缓存服务
     
     def _get_client(self):
         """Lazy initialization of OpenAI client"""
@@ -40,16 +64,18 @@ class AIQuestionGenerator:
     def generate_questions_for_resume(
         self, 
         resume: Resume, 
+        user_id: int,  # 添加用户ID参数
         interview_type: InterviewType = InterviewType.COMPREHENSIVE,
         total_questions: int = 10,
         difficulty_distribution: Optional[Dict[str, int]] = None,
         type_distribution: Optional[Dict[str, int]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Generate interview questions based on resume
+        Generate interview questions based on resume with improved caching
         
         Args:
             resume: Resume object
+            user_id: User ID for cache isolation
             interview_type: Interview type
             total_questions: Total number of questions
             difficulty_distribution: Difficulty distribution
@@ -65,6 +91,23 @@ class AIQuestionGenerator:
             if type_distribution is None:
                 type_distribution = self._get_default_type_distribution(interview_type)
             
+            # 尝试从缓存获取问题
+            cached_questions = self.cache_service.get_cached_questions(
+                user_id=user_id,
+                resume=resume,
+                interview_type=interview_type.value,
+                total_questions=total_questions,
+                difficulty_distribution=difficulty_distribution,
+                type_distribution=type_distribution
+            )
+            
+            if cached_questions:
+                logger.info(f"✅ 用户{user_id}使用缓存问题，响应时间: <1秒")
+                return cached_questions[:total_questions]
+            
+            # 缓存未命中，需要重新生成
+            logger.info(f"🔄 用户{user_id}缓存未命中，开始生成新问题...")
+            
             # Prepare resume context
             resume_context = self._prepare_resume_context(resume)
             
@@ -75,6 +118,31 @@ class AIQuestionGenerator:
                 total_questions=total_questions,
                 difficulty_distribution=difficulty_distribution,
                 type_distribution=type_distribution
+            )
+            
+            # 缓存生成的问题 - 确保问题数据可以JSON序列化
+            serializable_questions = []
+            for question in questions:
+                serializable_question = {
+                    'question': question.get('question_text', ''),  # 使用question_text字段
+                    'question_type': question.get('question_type', ''),
+                    'difficulty': question.get('difficulty', ''),
+                    'category': question.get('category', ''),
+                    'tags': question.get('tags', []),
+                    'expected_answer': question.get('expected_answer', ''),
+                    'evaluation_criteria': question.get('evaluation_criteria', {}),
+                    'ai_context': question.get('ai_context', {})
+                }
+                serializable_questions.append(serializable_question)
+            
+            self.cache_service.cache_questions(
+                user_id=user_id,
+                resume=resume,
+                interview_type=interview_type.value,
+                total_questions=total_questions,
+                difficulty_distribution=difficulty_distribution,
+                type_distribution=type_distribution,
+                questions=serializable_questions
             )
             
             return questions[:total_questions]
@@ -281,8 +349,8 @@ Important:
                         
                         question = {
                             'question_text': q['question_text'],
-                            'question_type': q_type_enum,
-                            'difficulty': difficulty_enum,
+                            'question_type': q_type_enum.value,  # 使用枚举值而不是枚举对象
+                            'difficulty': difficulty_enum.value,  # 使用枚举值而不是枚举对象
                             'category': q.get('category', ''),
                             'tags': q.get('tags', []),
                             'expected_answer': q.get('expected_answer', ''),
@@ -706,39 +774,84 @@ Difficulty Explanations:
         
         return questions[:total_questions]
     
+    @performance_monitor("AI参考答案生成")
     def generate_reference_answer(
         self,
         question: 'Question',
         resume: 'Resume',
         user_context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """实时生成问题的AI参考答案"""
+        """实时生成问题的AI参考答案（优化版本）"""
         try:
-            # 准备简历上下文
-            resume_context = self._prepare_resume_context(resume)
+            # 1. 检查缓存
+            cache_key = self._generate_reference_cache_key(question, resume)
+            cached_answer = self._get_cached_reference_answer(cache_key)
+            if cached_answer:
+                logger.info(f"Using cached reference answer for question {question.id}")
+                return cached_answer
             
-            # 构建参考答案生成提示
-            prompt = self._build_reference_answer_prompt(
+            # 2. 准备简历上下文（简化版本）
+            resume_context = self._prepare_resume_context_optimized(resume)
+            
+            # 3. 构建优化的参考答案生成提示
+            prompt = self._build_reference_answer_prompt_optimized(
                 question=question,
                 resume_context=resume_context,
                 user_context=user_context or {}
             )
             
-            # 调用AI生成参考答案
+            # 4. 调用AI生成参考答案（优化参数）
             client = self._get_client()
             if client:
-                response = client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": self._get_reference_answer_system_prompt()},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=800,
-                    temperature=0.7
-                )
+                start_time = time.time()
                 
-                content = response.choices[0].message.content.strip()
-                return self._parse_reference_answer_response(content, question)
+                try:
+                    logger.info(f"Calling AI API for question {question.id} with model {self.model}")
+                    
+                    response = client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self._get_reference_answer_system_prompt_optimized()},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=400,         # 进一步减少到400个token（减少50%）
+                        temperature=0.2,        # 进一步降低到0.2（提高一致性，减少生成时间）
+                        timeout=25,             # 减少超时到25秒
+                        presence_penalty=0.0,   # 移除惩罚，减少计算
+                        frequency_penalty=0.0,  # 移除惩罚，减少计算
+                        top_p=0.9,              # 添加top_p参数，提高生成效率
+                        stream=False            # 确保不使用流式传输
+                    )
+                    
+                    generation_time = time.time() - start_time
+                    logger.info(f"AI reference answer generation took {generation_time:.2f} seconds")
+                    
+                    # 检查响应是否有效
+                    if not response or not response.choices or len(response.choices) == 0:
+                        logger.warning("AI response is empty or invalid")
+                        return self._get_fallback_reference_answer(question)
+                    
+                    if not response.choices[0] or not response.choices[0].message:
+                        logger.warning("AI response choice or message is empty")
+                        return self._get_fallback_reference_answer(question)
+                    
+                    content = response.choices[0].message.content.strip()
+                    if not content:
+                        logger.warning("AI response content is empty")
+                        return self._get_fallback_reference_answer(question)
+                    
+                    logger.info(f"AI generated content length: {len(content)} characters")
+                    result = self._parse_reference_answer_response(content, question)
+                    
+                    # 5. 缓存结果
+                    self._cache_reference_answer(cache_key, result)
+                    
+                    return result
+                    
+                except Exception as ai_error:
+                    generation_time = time.time() - start_time
+                    logger.error(f"AI API call failed after {generation_time:.2f} seconds: {ai_error}")
+                    return self._get_fallback_reference_answer(question)
             else:
                 # 返回fallback参考答案
                 logger.warning("AI client not available, using fallback reference answer")
@@ -748,81 +861,121 @@ Difficulty Explanations:
             logger.error(f"Failed to generate reference answer: {e}")
             return self._get_fallback_reference_answer(question)
     
-    def _get_reference_answer_system_prompt(self) -> str:
-        """获取参考答案生成的系统提示"""
-        return """You are an expert interview coach helping candidates prepare for interviews. 
-Your task is to generate high-quality, specific reference answers for interview questions based on the candidate's resume and the specific question.
-
-Guidelines for reference answers:
-1. Generate a COMPLETE, specific sample answer that the candidate can use as a template
-2. Base the answer on the candidate's actual skills and experience from their resume
-3. Make the answer realistic and authentic to the candidate's background
-4. Include specific examples, technologies, and scenarios from their experience
-5. Structure the answer professionally and logically
-6. Keep answers practical, realistic, and interview-appropriate
-7. Generate answers that sound natural and conversational
-
-Response format should be JSON with:
-- sample_answer: A complete, specific sample answer (2-3 paragraphs) that the candidate can adapt and use
-- reference_answer: Additional guidance and tips for answering this type of question
-- key_points: List of key points to cover
-- structure_tips: Suggested answer structure
-- example_scenarios: Relevant examples the candidate could mention
-- dos_and_donts: Important dos and don'ts for this question type
-
-The sample_answer should be the main focus - a complete, realistic answer that demonstrates exactly how to respond to this question using the candidate's background.
-
-All content must be in English and professional."""
-
-    def _build_reference_answer_prompt(
+    def _generate_reference_cache_key(self, question: 'Question', resume: 'Resume') -> str:
+        """生成参考答案缓存键"""
+        # 基于问题ID、问题类型、难度和简历内容哈希生成缓存键
+        resume_hash = hash(resume.raw_text[:1000])  # 只使用前1000字符
+        return f"ref_answer:{question.id}:{question.question_type.value}:{question.difficulty.value}:{resume_hash}"
+    
+    def _get_cached_reference_answer(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """从缓存获取参考答案"""
+        try:
+            from app.extensions import redis_client
+            if redis_client:
+                cached_data = redis_client.get(cache_key)
+                if cached_data is not None:
+                    # 确保cached_data是字符串
+                    if isinstance(cached_data, bytes):
+                        cached_data = cached_data.decode('utf-8')
+                    elif not isinstance(cached_data, str):
+                        logger.warning(f"Cached data is not a string: {type(cached_data)}")
+                        return None
+                    
+                    return json.loads(cached_data)
+        except Exception as e:
+            logger.warning(f"Failed to get cached reference answer: {e}")
+        return None
+    
+    def _cache_reference_answer(self, cache_key: str, answer_data: Dict[str, Any]) -> None:
+        """缓存参考答案"""
+        try:
+            from app.extensions import redis_client
+            if redis_client:
+                # 缓存24小时
+                redis_client.setex(cache_key, 86400, json.dumps(answer_data))
+                logger.info(f"Cached reference answer for key: {cache_key}")
+        except Exception as e:
+            logger.warning(f"Failed to cache reference answer: {e}")
+    
+    def _prepare_resume_context_optimized(self, resume: 'Resume') -> Dict[str, Any]:
+        """准备简历上下文（极简版本，最大化减少处理时间）"""
+        try:
+            parsed_data = resume.parsed_content or {}
+            
+            # 极简技能提取，只取前3个
+            skills = parsed_data.get('skills', [])[:3]
+            
+            # 极简教育背景，只取最高学历
+            education = parsed_data.get('education', [])
+            if education:
+                education = [education[0]]  # 只保留第一个（通常是最新的）
+            
+            # 极简工作经验，只取最近1个
+            experience = parsed_data.get('experience', [])[:1]
+            
+            # 极简姓名提取
+            name = parsed_data.get('name', 'Candidate')
+            if len(name) > 30:  # 进一步限制姓名长度
+                name = name[:30]
+            
+            return {
+                'name': name,
+                'skills': skills,
+                'education': education,
+                'experience': experience,
+                'summary': parsed_data.get('summary', '')[:100]  # 进一步限制摘要长度
+            }
+        except Exception as e:
+            logger.error(f"Error preparing optimized resume context: {e}")
+            return {
+                'name': 'Candidate',
+                'skills': [],
+                'education': [],
+                'experience': [],
+                'summary': ''
+            }
+    
+    def _build_reference_answer_prompt_optimized(
         self,
         question: 'Question',
         resume_context: Dict[str, Any],
         user_context: Dict[str, Any]
     ) -> str:
-        """构建参考答案生成提示"""
-        skills_str = ", ".join(resume_context['skills'][:8])
+        """构建优化的参考答案生成提示（极简版本）"""
+        # 极简技能字符串，只取前2个
+        skills_str = ", ".join(resume_context['skills'][:2]) if resume_context['skills'] else "general"
         
-        prompt = f"""Generate a comprehensive reference answer for the following interview question:
+        # 构建极简提示
+        prompt = f"""Generate a reference answer for: "{question.question_text}"
+Type: {question.question_type.value}
+Skills: {skills_str}
+Experience: {len(resume_context['experience'])} positions
 
-Question: "{question.question_text}"
-Question Type: {question.question_type.value}
-Difficulty Level: {question.difficulty.value}
-Category: {question.category}
+Provide a complete, realistic sample answer (2 paragraphs) based on this background.
 
-Candidate Background:
-- Name: {resume_context['name']}
-- Key Skills: {skills_str}
-- Education: {len(resume_context['education'])} education entries
-- Work Experience: {len(resume_context['experience'])} work experiences
-
-"""
+Format: JSON with "sample_answer" field."""
         
-        # 添加具体的技能和经验上下文
-        if resume_context['skills']:
-            prompt += f"Technical Skills: {', '.join(resume_context['skills'][:5])}\n"
-        
-        if resume_context['experience']:
-            exp_summary = []
-            for exp in resume_context['experience'][:2]:
-                if isinstance(exp, dict):
-                    title = exp.get('title', 'Position')
-                    company = exp.get('company', 'Company')
-                    exp_summary.append(f"{title} @ {company}")
-            if exp_summary:
-                prompt += f"Recent Experience: {'; '.join(exp_summary)}\n"
-        
-        # 添加问题特定的指导
+        # 极简问题类型指导
         if question.question_type.value == 'technical':
-            prompt += "\nFor this technical question, generate a sample answer that:\n- Demonstrates technical knowledge with specific examples\n- Shows problem-solving approach step by step\n- Includes best practices and real experience\n- Mentions specific technologies from the candidate's background\n- Provides a complete, realistic answer the candidate can adapt\n"
+            prompt += "\nInclude specific technologies and step-by-step approach."
         elif question.question_type.value == 'behavioral':
-            prompt += "\nFor this behavioral question, generate a sample answer that:\n- Uses STAR method (Situation, Task, Action, Result) structure\n- Provides a specific, realistic scenario from their background\n- Shows soft skills and teamwork in action\n- Demonstrates growth mindset and learning\n- Gives a complete story with clear outcome\n"
-        elif question.question_type.value == 'experience':
-            prompt += "\nFor this experience question, generate a sample answer that:\n- Highlights specific projects and achievements\n- Shows progression and growth in their career\n- Quantifies achievements with realistic metrics\n- Connects experience directly to the role\n- Provides concrete examples of their contributions\n"
-        
-        prompt += "\n\nIMPORTANT: Generate a complete, specific sample answer (2-3 paragraphs) that this candidate can use as a template. The sample answer should sound natural, authentic, and be based on their actual background. Include specific technologies, projects, or scenarios that align with their resume."
+            prompt += "\nUse STAR method with specific scenario."
         
         return prompt
+    
+    def _get_reference_answer_system_prompt_optimized(self) -> str:
+        """获取优化的参考答案生成系统提示（极简版本）"""
+        return """You are an interview coach. Generate concise, realistic reference answers.
+
+Guidelines:
+1. Create a complete sample answer (2 paragraphs)
+2. Base on candidate's background
+3. Include specific examples
+4. Make it interview-appropriate
+
+Format: JSON with "sample_answer" field only.
+
+Keep responses concise and professional."""
     
     def _parse_reference_answer_response(
         self,

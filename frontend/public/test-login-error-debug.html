@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录错误调试测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 登录错误处理调试</h1>
+        
+        <div class="info result">
+            <strong>调试目标：</strong><br>
+            验证前端是否能正确处理后端返回的错误信息格式，特别是Unicode编码的中文错误消息。
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button class="test-button" onclick="testDirectFetch()">1. 直接测试fetch请求</button>
+            <button class="test-button" onclick="testApiClient()">2. 测试API客户端</button>
+            <button class="test-button" onclick="testFullFlow()">3. 测试完整流程</button>
+            <button class="test-button" onclick="clearLog()">清除日志</button>
+        </div>
+
+        <div id="result" class="result info">等待测试...</div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api/v1';
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function showResult(type, message) {
+            const element = document.getElementById('result');
+            element.className = `result ${type}`;
+            element.innerHTML = message;
+        }
+
+        // 1. 直接测试fetch请求
+        async function testDirectFetch() {
+            log('=== 开始直接fetch测试 ===');
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3001'
+                    },
+                    body: JSON.stringify({
+                        email: 'nonexistent@test.com',
+                        password: '123456'
+                    })
+                });
+
+                log(`Response status: ${response.status}`);
+                log(`Response ok: ${response.ok}`);
+
+                const responseText = await response.text();
+                log(`Raw response text: ${responseText}`);
+
+                const responseData = JSON.parse(responseText);
+                log(`Parsed response: ${JSON.stringify(responseData, null, 2)}`);
+
+                if (responseData.error && responseData.error.message) {
+                    log(`Error message: "${responseData.error.message}"`);
+                    log(`Message includes "用户不存在": ${responseData.error.message.includes('用户不存在')}`);
+                }
+
+                showResult('success', '✅ 直接fetch测试完成，请查看日志');
+
+            } catch (error) {
+                log(`Fetch error: ${error.message}`);
+                showResult('error', `❌ Fetch错误: ${error.message}`);
+            }
+        }
+
+        // 2. 测试API客户端错误处理逻辑
+        async function testApiClient() {
+            log('=== 开始API客户端测试 ===');
+            
+            // 模拟API客户端的handleResponse方法
+            async function simulateApiClient(url, options) {
+                const response = await fetch(url, options);
+                
+                let responseData;
+                try {
+                    responseData = await response.json();
+                    log(`API Client - parsed response: ${JSON.stringify(responseData, null, 2)}`);
+                } catch (e) {
+                    responseData = { 
+                        success: false, 
+                        error: { 
+                            code: 'PARSE_ERROR', 
+                            message: `服务器响应格式错误 (HTTP ${response.status})` 
+                        } 
+                    };
+                    log(`API Client - parse error, using default: ${JSON.stringify(responseData, null, 2)}`);
+                }
+
+                if (!response.ok) {
+                    let errorMessage = '';
+                    
+                    if (responseData.error && responseData.error.message) {
+                        errorMessage = responseData.error.message;
+                        log(`API Client - extracted error from responseData.error.message: "${errorMessage}"`);
+                    } else if (responseData.message) {
+                        errorMessage = responseData.message;
+                        log(`API Client - extracted error from responseData.message: "${errorMessage}"`);
+                    } else {
+                        errorMessage = `请求失败 (HTTP ${response.status})`;
+                        log(`API Client - using default error message: "${errorMessage}"`);
+                    }
+                    
+                    const error = new Error(errorMessage);
+                    error.response = responseData;
+                    error.status = response.status;
+                    
+                    log(`API Client - throwing error with message: "${error.message}"`);
+                    throw error;
+                }
+
+                return responseData;
+            }
+
+            try {
+                await simulateApiClient(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3001'
+                    },
+                    body: JSON.stringify({
+                        email: 'nonexistent@test.com',
+                        password: '123456'
+                    })
+                });
+
+                showResult('error', '❌ API客户端测试失败：应该抛出错误');
+
+            } catch (error) {
+                log(`API Client caught error: "${error.message}"`);
+                log(`Error type: ${typeof error.message}`);
+                log(`Message includes "用户不存在": ${error.message.includes('用户不存在')}`);
+                
+                // 测试错误信息匹配
+                const errorMsg = error.message;
+                let friendlyMessage = '';
+                
+                if (errorMsg.includes('用户不存在') || errorMsg.includes('用户名不存在')) {
+                    friendlyMessage = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
+                    log(`✅ 错误信息匹配成功，友好提示: "${friendlyMessage}"`);
+                } else {
+                    friendlyMessage = errorMsg || '登录失败，请重试';
+                    log(`⚠️ 错误信息不匹配，使用原始消息: "${friendlyMessage}"`);
+                }
+
+                showResult('success', `✅ API客户端测试完成<br>原始错误: ${errorMsg}<br>友好提示: ${friendlyMessage}`);
+            }
+        }
+
+        // 3. 测试完整的错误处理流程
+        async function testFullFlow() {
+            log('=== 开始完整流程测试 ===');
+            
+            // 模拟完整的登录错误处理流程
+            try {
+                // 1. 模拟authService.login调用
+                log('Step 1: 调用authService.login');
+                const loginResponse = await simulateApiClient('/auth/login', {
+                    email: 'nonexistent@test.com',
+                    password: '123456'
+                });
+
+                log('Step 2: 检查登录响应');
+                if (loginResponse.success && loginResponse.data) {
+                    log('登录成功');
+                } else {
+                    throw new Error(loginResponse.message || '登录失败');
+                }
+
+            } catch (error) {
+                log(`Step 3: 捕获登录错误: "${error.message}"`);
+                
+                // 模拟useUserInfo的错误处理
+                const userInfoError = error instanceof Error ? error.message : '登录失败';
+                log(`Step 4: useUserInfo设置错误: "${userInfoError}"`);
+                
+                // 模拟LoginPage的错误处理
+                log('Step 5: LoginPage处理错误');
+                const errorMsg = userInfoError;
+                let friendlyErrorMessage = '';
+                
+                if (errorMsg.includes('用户不存在') || errorMsg.includes('用户名不存在')) {
+                    friendlyErrorMessage = '该邮箱尚未注册，请检查邮箱地址或点击下方"Sign up"注册新账户';
+                } else if (errorMsg.includes('密码错误') || errorMsg.includes('密码不正确')) {
+                    friendlyErrorMessage = '密码错误，请重新输入正确密码';
+                } else {
+                    friendlyErrorMessage = errorMsg || '登录失败，请重试';
+                }
+                
+                log(`Step 6: 最终显示的错误信息: "${friendlyErrorMessage}"`);
+                showResult('success', `✅ 完整流程测试完成<br>最终错误信息: ${friendlyErrorMessage}`);
+            }
+        }
+
+        // 简化的API客户端模拟
+        async function simulateApiClient(endpoint, options) {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Origin': 'http://localhost:3001'
+                },
+                body: JSON.stringify(options)
+            });
+
+            let responseData;
+            try {
+                responseData = await response.json();
+            } catch (e) {
+                responseData = { 
+                    success: false, 
+                    error: { 
+                        code: 'PARSE_ERROR', 
+                        message: `服务器响应格式错误 (HTTP ${response.status})` 
+                    } 
+                };
+            }
+
+            if (!response.ok) {
+                let errorMessage = '';
+                
+                if (responseData.error && responseData.error.message) {
+                    errorMessage = responseData.error.message;
+                } else if (responseData.message) {
+                    errorMessage = responseData.message;
+                } else {
+                    errorMessage = `请求失败 (HTTP ${response.status})`;
+                }
+                
+                const error = new Error(errorMessage);
+                error.response = responseData;
+                error.status = response.status;
+                throw error;
+            }
+
+            return responseData;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // 页面加载时显示环境信息
+        window.onload = function() {
+            log('=== 登录错误处理调试工具 ===');
+            log(`后端API: ${API_BASE_URL}`);
+            log(`测试时间: ${new Date().toLocaleString()}`);
+        };
+    </script>
+</body>
+</html> 

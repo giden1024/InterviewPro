@@ -75,11 +75,22 @@ def handle_errors(app):
     
     @app.errorhandler(422)
     def handle_validation_error(error):
-        return jsonify({
-            'success': False,
-            'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': 'Request parameter validation failed',
-                'details': getattr(error, 'data', {}).get('messages', {})
-            }
-        }), 422 
+        # 检查是否是JWT相关错误
+        error_msg = str(error)
+        if 'Not enough segments' in error_msg or 'Invalid header string' in error_msg:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_TOKEN',
+                    'message': 'Invalid token format'
+                }
+            }), 422
+        else:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'VALIDATION_ERROR',
+                    'message': 'Request parameter validation failed',
+                    'details': getattr(error, 'data', {}).get('messages', {})
+                }
+            }), 422 

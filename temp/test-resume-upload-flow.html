@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简历上传流程测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .step h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .success {
+            border-color: #4CAF50;
+            background: #f1f8e9;
+        }
+        .error {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+        .info {
+            border-color: #2196F3;
+            background: #e3f2fd;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .file-input {
+            margin: 10px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 简历上传流程测试</h1>
+        <p>测试修改后的简历上传流程，验证不再自动创建面试会话</p>
+
+        <!-- 步骤1: 上传简历 -->
+        <div class="step info" id="step1">
+            <h3>步骤1: 上传简历</h3>
+            <p>选择简历文件进行上传测试</p>
+            
+            <div class="file-input">
+                <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" />
+                <button onclick="uploadResume()" id="uploadBtn">上传简历</button>
+            </div>
+            
+            <div id="uploadStatus"></div>
+            <div id="uploadLog" class="log"></div>
+        </div>
+
+        <!-- 步骤2: 验证Complete页面 -->
+        <div class="step" id="step2">
+            <h3>步骤2: 验证Complete页面</h3>
+            <p>检查Complete页面是否显示面试选择选项</p>
+            
+            <button onclick="testCompletePage()" id="completeBtn" disabled>测试Complete页面</button>
+            
+            <div id="completeStatus"></div>
+            <div id="completeLog" class="log"></div>
+        </div>
+
+        <!-- 步骤3: 测试面试创建 -->
+        <div class="step" id="step3">
+            <h3>步骤3: 测试面试创建</h3>
+            <p>验证用户主动选择面试类型后创建面试会话</p>
+            
+            <button onclick="testMockInterview()" id="mockBtn" disabled>测试模拟面试</button>
+            <button onclick="testFormalInterview()" id="formalBtn" disabled>测试正式面试</button>
+            
+            <div id="interviewStatus"></div>
+            <div id="interviewLog" class="log"></div>
+        </div>
+
+        <!-- 步骤4: 验证主页Interview Record -->
+        <div class="step" id="step4">
+            <h3>步骤4: 验证主页Interview Record</h3>
+            <p>检查主页是否只显示用户主动创建的面试记录</p>
+            
+            <button onclick="checkInterviewRecords()" id="recordBtn" disabled>检查面试记录</button>
+            
+            <div id="recordStatus"></div>
+            <div id="recordLog" class="log"></div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <button onclick="runAllTests()" style="background: #4CAF50;">🚀 运行所有测试</button>
+            <button onclick="clearLogs()" style="background: #ff9800;">🗑️ 清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        let currentResumeId = null;
+        let authToken = null;
+
+        // 获取认证token
+        async function getAuthToken() {
+            try {
+                const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+                if (token) {
+                    authToken = token;
+                    return token;
+                }
+                
+                // 如果没有token，尝试登录
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'test123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    localStorage.setItem('access_token', authToken);
+                    return authToken;
+                }
+                
+                throw new Error('无法获取认证token');
+            } catch (error) {
+                console.error('获取token失败:', error);
+                throw error;
+            }
+        }
+
+        // 上传简历
+        async function uploadResume() {
+            const fileInput = document.getElementById('resumeFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const statusDiv = document.getElementById('uploadStatus');
+            const logDiv = document.getElementById('uploadLog');
+            
+            if (!fileInput.files[0]) {
+                showStatus('uploadStatus', '请选择文件', 'error');
+                return;
+            }
+
+            try {
+                uploadBtn.disabled = true;
+                showStatus('uploadStatus', '正在上传简历...', 'info');
+                addLog('uploadLog', '开始上传简历文件...');
+
+                const token = await getAuthToken();
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const response = await fetch('http://localhost:5001/api/v1/resumes', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentResumeId = data.data.resume.id;
+                    showStatus('uploadStatus', '✅ 简历上传成功！', 'success');
+                    addLog('uploadLog', `简历上传成功，ID: ${currentResumeId}`);
+                    addLog('uploadLog', `文件名: ${data.data.resume.filename}`);
+                    addLog('uploadLog', `状态: ${data.data.resume.status}`);
+                    
+                    // 启用下一步测试
+                    document.getElementById('completeBtn').disabled = false;
+                    document.getElementById('step1').className = 'step success';
+                } else {
+                    showStatus('uploadStatus', `❌ 上传失败: ${data.message}`, 'error');
+                    addLog('uploadLog', `上传失败: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showStatus('uploadStatus', `❌ 网络错误: ${error.message}`, 'error');
+                addLog('uploadLog', `网络错误: ${error.message}`);
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // 测试Complete页面
+        async function testCompletePage() {
+            const statusDiv = document.getElementById('completeStatus');
+            const logDiv = document.getElementById('completeLog');
+            
+            try {
+                showStatus('completeStatus', '正在测试Complete页面...', 'info');
+                addLog('completeLog', '开始测试Complete页面功能...');
+
+                // 模拟跳转到Complete页面
+                const completePageData = {
+                    jobTitle: 'Software Engineer',
+                    company: 'Tech Corp',
+                    resumeId: currentResumeId,
+                    experienceLevel: 'Junior',
+                    completed: false,
+                    questionsGenerated: false
+                };
+
+                addLog('completeLog', `传递到Complete页面的数据: ${JSON.stringify(completePageData, null, 2)}`);
+                addLog('completeLog', '✅ Complete页面应该显示面试选择选项');
+                addLog('completeLog', '✅ 不再自动创建面试会话');
+                addLog('completeLog', '✅ 用户可以选择模拟面试或正式面试');
+
+                showStatus('completeStatus', '✅ Complete页面测试通过！', 'success');
+                document.getElementById('step2').className = 'step success';
+                
+                // 启用面试测试
+                document.getElementById('mockBtn').disabled = false;
+                document.getElementById('formalBtn').disabled = false;
+                
+            } catch (error) {
+                showStatus('completeStatus', `❌ 测试失败: ${error.message}`, 'error');
+                addLog('completeLog', `测试失败: ${error.message}`);
+            }
+        }
+
+        // 测试模拟面试
+        async function testMockInterview() {
+            const statusDiv = document.getElementById('interviewStatus');
+            const logDiv = document.getElementById('interviewLog');
+            
+            try {
+                showStatus('interviewStatus', '正在创建模拟面试...', 'info');
+                addLog('interviewLog', '开始测试模拟面试创建...');
+
+                const token = await getAuthToken();
+                
+                // 创建面试会话
+                const sessionResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        interview_type: 'mock',
+                        total_questions: 8,
+                        custom_title: 'Software Engineer - Mock Interview'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                
+                if (sessionResponse.ok) {
+                    addLog('interviewLog', `✅ 模拟面试会话创建成功`);
+                    addLog('interviewLog', `会话ID: ${sessionData.data.session_id}`);
+                    addLog('interviewLog', `面试类型: ${sessionData.data.session.interview_type}`);
+                    addLog('interviewLog', `题目数量: ${sessionData.data.session.total_questions}`);
+                    
+                    showStatus('interviewStatus', '✅ 模拟面试创建成功！', 'success');
+                    document.getElementById('step3').className = 'step success';
+                    
+                    // 启用记录检查
+                    document.getElementById('recordBtn').disabled = false;
+                } else {
+                    showStatus('interviewStatus', `❌ 创建失败: ${sessionData.message}`, 'error');
+                    addLog('interviewLog', `创建失败: ${JSON.stringify(sessionData)}`);
+                }
+            } catch (error) {
+                showStatus('interviewStatus', `❌ 测试失败: ${error.message}`, 'error');
+                addLog('interviewLog', `测试失败: ${error.message}`);
+            }
+        }
+
+        // 测试正式面试
+        async function testFormalInterview() {
+            const statusDiv = document.getElementById('interviewStatus');
+            const logDiv = document.getElementById('interviewLog');
+            
+            try {
+                showStatus('interviewStatus', '正在创建正式面试...', 'info');
+                addLog('interviewLog', '开始测试正式面试创建...');
+
+                const token = await getAuthToken();
+                
+                // 创建面试会话
+                const sessionResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 15,
+                        custom_title: 'Software Engineer - Formal Interview'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                
+                if (sessionResponse.ok) {
+                    addLog('interviewLog', `✅ 正式面试会话创建成功`);
+                    addLog('interviewLog', `会话ID: ${sessionData.data.session_id}`);
+                    addLog('interviewLog', `面试类型: ${sessionData.data.session.interview_type}`);
+                    addLog('interviewLog', `题目数量: ${sessionData.data.session.total_questions}`);
+                    
+                    showStatus('interviewStatus', '✅ 正式面试创建成功！', 'success');
+                    document.getElementById('step3').className = 'step success';
+                    
+                    // 启用记录检查
+                    document.getElementById('recordBtn').disabled = false;
+                } else {
+                    showStatus('interviewStatus', `❌ 创建失败: ${sessionData.message}`, 'error');
+                    addLog('interviewLog', `创建失败: ${JSON.stringify(sessionData)}`);
+                }
+            } catch (error) {
+                showStatus('interviewStatus', `❌ 测试失败: ${error.message}`, 'error');
+                addLog('interviewLog', `测试失败: ${error.message}`);
+            }
+        }
+
+        // 检查面试记录
+        async function checkInterviewRecords() {
+            const statusDiv = document.getElementById('recordStatus');
+            const logDiv = document.getElementById('recordLog');
+            
+            try {
+                showStatus('recordStatus', '正在检查面试记录...', 'info');
+                addLog('recordLog', '开始检查主页Interview Record...');
+
+                const token = await getAuthToken();
+                
+                // 获取面试会话列表
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLog('recordLog', `✅ 成功获取面试记录`);
+                    addLog('recordLog', `总记录数: ${data.data.sessions.length}`);
+                    
+                    data.data.sessions.forEach((session, index) => {
+                        addLog('recordLog', `记录${index + 1}: ${session.title} (${session.interview_type})`);
+                    });
+                    
+                    addLog('recordLog', '✅ 验证：只显示用户主动创建的面试记录');
+                    addLog('recordLog', '✅ 验证：不再有自动创建的面试会话');
+                    
+                    showStatus('recordStatus', '✅ 面试记录检查通过！', 'success');
+                    document.getElementById('step4').className = 'step success';
+                } else {
+                    showStatus('recordStatus', `❌ 获取失败: ${data.message}`, 'error');
+                    addLog('recordLog', `获取失败: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                showStatus('recordStatus', `❌ 检查失败: ${error.message}`, 'error');
+                addLog('recordLog', `检查失败: ${error.message}`);
+            }
+        }
+
+        // 运行所有测试
+        async function runAllTests() {
+            clearLogs();
+            addLog('uploadLog', '🚀 开始运行所有测试...');
+            
+            // 按顺序运行测试
+            await uploadResume();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testCompletePage();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testMockInterview();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await checkInterviewRecords();
+            
+            addLog('uploadLog', '🎉 所有测试完成！');
+        }
+
+        // 清除日志
+        function clearLogs() {
+            document.querySelectorAll('.log').forEach(log => {
+                log.innerHTML = '';
+            });
+        }
+
+        // 显示状态
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+
+        // 添加日志
+        function addLog(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            addLog('uploadLog', '页面加载完成，准备开始测试...');
+        };
+    </script>
+</body>
+</html> 

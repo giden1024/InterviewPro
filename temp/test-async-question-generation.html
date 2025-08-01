@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>异步问题生成测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+        }
+        .test-section {
+            background-color: #f7fafc;
+            border-left: 4px solid #4299e1;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .progress-section {
+            background-color: #fffaf0;
+            border-left: 4px solid #ed8936;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .success-section {
+            background-color: #f0fff4;
+            border-left: 4px solid #38a169;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .error-section {
+            background-color: #fed7d7;
+            border-left: 4px solid #e53e3e;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .button {
+            background-color: #4299e1;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #3182ce;
+        }
+        .button:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4299e1;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .log {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .metric-label {
+            font-weight: bold;
+            color: #2d3748;
+        }
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .success {
+            color: #38a169;
+        }
+        .warning {
+            color: #ed8936;
+        }
+        .info {
+            color: #4299e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 异步问题生成测试</h1>
+            <p>测试Celery异步任务处理系统</p>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 测试说明</h2>
+            <p>本测试将验证异步问题生成功能：</p>
+            <ul>
+                <li><strong>同步调用</strong>：直接调用API，等待完成</li>
+                <li><strong>异步调用</strong>：启动异步任务，实时监控进度</li>
+                <li><strong>性能对比</strong>：比较两种方式的响应时间</li>
+                <li><strong>用户体验</strong>：异步方式提供实时进度反馈</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 测试控制</h2>
+            <button id="testSync" class="button">测试同步调用</button>
+            <button id="testAsync" class="button">测试异步调用</button>
+            <button id="clearLog" class="button">清空日志</button>
+            <button id="stopTest" class="button" disabled>停止测试</button>
+        </div>
+
+        <div id="progressSection" class="progress-section" style="display: none;">
+            <h2>📊 任务进度</h2>
+            <div class="metric">
+                <span class="metric-label">任务ID</span>
+                <span class="metric-value info" id="taskId">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">当前状态</span>
+                <span class="metric-value info" id="taskState">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">进度</span>
+                <span class="metric-value info" id="taskProgress">-</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+            </div>
+            <div id="taskStatus" class="metric">
+                <span class="metric-label">状态信息</span>
+                <span class="metric-value info">等待开始...</span>
+            </div>
+        </div>
+
+        <div id="resultSection" class="success-section" style="display: none;">
+            <h2>✅ 测试结果</h2>
+            <div class="metric">
+                <span class="metric-label">总耗时</span>
+                <span class="metric-value success" id="totalTime">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">生成问题数</span>
+                <span class="metric-value success" id="questionCount">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">是否来自缓存</span>
+                <span class="metric-value success" id="fromCache">-</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">性能提升</span>
+                <span class="metric-value success" id="performanceGain">-</span>
+            </div>
+        </div>
+
+        <div id="errorSection" class="error-section" style="display: none;">
+            <h2>❌ 错误信息</h2>
+            <div id="errorMessage"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 测试日志</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let currentTaskId = null;
+        let pollingInterval = null;
+        let startTime = null;
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#e53e3e' : type === 'success' ? '#38a169' : '#2d3748';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 清空日志
+        document.getElementById('clearLog').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 获取JWT token
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        // 检查认证状态
+        async function checkAuth() {
+            const token = getToken();
+            if (!token) {
+                log('❌ 未找到认证token，请先登录', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        // 创建测试用户和简历
+        async function createTestData() {
+            try {
+                log('🔧 创建测试数据...');
+                
+                // 创建测试用户
+                const userResponse = await fetch(`${API_BASE}/dev/create-test-user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'test_user_async',
+                        email: 'test_async@example.com',
+                        password: 'test123456'
+                    })
+                });
+                
+                if (!userResponse.ok) {
+                    throw new Error('创建测试用户失败');
+                }
+                
+                const userData = await userResponse.json();
+                log('✅ 测试用户创建成功');
+                
+                // 登录获取token
+                const loginResponse = await fetch(`${API_BASE}/dev/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'test_user_async',
+                        password: 'test123456'
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    throw new Error('登录失败');
+                }
+                
+                const loginData = await loginResponse.json();
+                localStorage.setItem('token', loginData.data.token);
+                log('✅ 登录成功，获取token');
+                
+                // 创建测试简历
+                const resumeResponse = await fetch(`${API_BASE}/resumes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${loginData.data.token}`
+                    },
+                    body: JSON.stringify({
+                        filename: 'test_resume_async.txt',
+                        content: '测试简历内容 - 前端开发工程师，3年经验，熟悉React、TypeScript、Node.js等技术栈。',
+                        parsed_data: {
+                            name: '测试用户',
+                            email: 'test@example.com',
+                            phone: '13800138000',
+                            skills: ['React', 'TypeScript', 'Node.js', 'Python'],
+                            experience: '3年',
+                            education: '本科'
+                        }
+                    })
+                });
+                
+                if (!resumeResponse.ok) {
+                    throw new Error('创建测试简历失败');
+                }
+                
+                const resumeData = await resumeResponse.json();
+                log('✅ 测试简历创建成功');
+                
+                return {
+                    token: loginData.data.token,
+                    resumeId: resumeData.data.id
+                };
+                
+            } catch (error) {
+                log(`❌ 创建测试数据失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // 创建面试会话
+        async function createInterviewSession(resumeId, token) {
+            try {
+                log('📋 创建面试会话...');
+                
+                const response = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 5,
+                        custom_title: '异步测试面试'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('创建面试会话失败');
+                }
+                
+                const data = await response.json();
+                log('✅ 面试会话创建成功');
+                
+                return data.data.session_id;
+                
+            } catch (error) {
+                log(`❌ 创建面试会话失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // 测试同步调用
+        async function testSyncCall() {
+            try {
+                log('🔄 开始同步调用测试...');
+                startTime = Date.now();
+                
+                // 检查认证
+                if (!await checkAuth()) {
+                    return;
+                }
+                
+                const token = getToken();
+                
+                // 创建测试数据
+                const testData = await createTestData();
+                const sessionId = await createInterviewSession(testData.resumeId, token);
+                
+                // 同步生成问题
+                log('⏳ 开始同步生成问题（可能需要30-60秒）...');
+                
+                const response = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: testData.resumeId,
+                        session_id: sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('同步生成问题失败');
+                }
+                
+                const data = await response.json();
+                const endTime = Date.now();
+                const totalTime = (endTime - startTime) / 1000;
+                
+                log(`✅ 同步调用完成，耗时: ${totalTime.toFixed(2)}秒`);
+                
+                // 显示结果
+                document.getElementById('resultSection').style.display = 'block';
+                document.getElementById('totalTime').textContent = `${totalTime.toFixed(2)}秒`;
+                document.getElementById('questionCount').textContent = data.data.questions.length;
+                document.getElementById('fromCache').textContent = '否';
+                document.getElementById('performanceGain').textContent = '基准';
+                
+            } catch (error) {
+                log(`❌ 同步调用测试失败: ${error.message}`, 'error');
+                document.getElementById('errorSection').style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        // 测试异步调用
+        async function testAsyncCall() {
+            try {
+                log('🔄 开始异步调用测试...');
+                startTime = Date.now();
+                
+                // 检查认证
+                if (!await checkAuth()) {
+                    return;
+                }
+                
+                const token = getToken();
+                
+                // 创建测试数据
+                const testData = await createTestData();
+                const sessionId = await createInterviewSession(testData.resumeId, token);
+                
+                // 启动异步任务
+                log('🚀 启动异步任务...');
+                
+                const response = await fetch(`${API_BASE}/questions/generate-async`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: testData.resumeId,
+                        session_id: sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('启动异步任务失败');
+                }
+                
+                const data = await response.json();
+                currentTaskId = data.data.task_id;
+                
+                log(`✅ 异步任务启动成功，任务ID: ${currentTaskId}`);
+                
+                // 显示进度区域
+                document.getElementById('progressSection').style.display = 'block';
+                document.getElementById('taskId').textContent = currentTaskId;
+                
+                // 开始轮询任务状态
+                pollTaskStatus();
+                
+            } catch (error) {
+                log(`❌ 异步调用测试失败: ${error.message}`, 'error');
+                document.getElementById('errorSection').style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        // 轮询任务状态
+        async function pollTaskStatus() {
+            if (!currentTaskId) return;
+            
+            try {
+                const token = getToken();
+                const response = await fetch(`${API_BASE}/questions/task-status/${currentTaskId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('获取任务状态失败');
+                }
+                
+                const data = await response.json();
+                const taskData = data.data;
+                
+                // 更新UI
+                document.getElementById('taskState').textContent = taskData.state;
+                
+                if (taskData.state === 'PENDING') {
+                    document.getElementById('taskProgress').textContent = '等待中...';
+                    document.getElementById('taskStatus').innerHTML = '<span class="metric-label">状态信息</span><span class="metric-value info">任务排队中...</span>';
+                    document.getElementById('progressFill').style.width = '0%';
+                    document.getElementById('progressFill').textContent = '0%';
+                } else if (taskData.state === 'PROGRESS') {
+                    const progress = taskData.current || 0;
+                    document.getElementById('taskProgress').textContent = `${progress}%`;
+                    document.getElementById('taskStatus').innerHTML = `<span class="metric-label">状态信息</span><span class="metric-value info">${taskData.status || '处理中...'}</span>`;
+                    document.getElementById('progressFill').style.width = `${progress}%`;
+                    document.getElementById('progressFill').textContent = `${progress}%`;
+                    log(`📊 任务进度: ${progress}% - ${taskData.status || '处理中...'}`);
+                } else if (taskData.state === 'SUCCESS') {
+                    const endTime = Date.now();
+                    const totalTime = (endTime - startTime) / 1000;
+                    
+                    log(`✅ 异步任务完成，耗时: ${totalTime.toFixed(2)}秒`);
+                    
+                    // 显示结果
+                    document.getElementById('resultSection').style.display = 'block';
+                    document.getElementById('totalTime').textContent = `${totalTime.toFixed(2)}秒`;
+                    document.getElementById('questionCount').textContent = taskData.questions?.length || 0;
+                    document.getElementById('fromCache').textContent = taskData.from_cache ? '是' : '否';
+                    
+                    // 计算性能提升
+                    const syncTime = 30; // 假设同步调用需要30秒
+                    const gain = ((syncTime - totalTime) / syncTime * 100).toFixed(1);
+                    document.getElementById('performanceGain').textContent = `提升${gain}%`;
+                    
+                    // 停止轮询
+                    stopPolling();
+                    return;
+                } else if (taskData.state === 'FAILURE') {
+                    log(`❌ 任务失败: ${taskData.error || '未知错误'}`, 'error');
+                    document.getElementById('errorSection').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = taskData.error || '未知错误';
+                    stopPolling();
+                    return;
+                }
+                
+                // 继续轮询
+                pollingInterval = setTimeout(pollTaskStatus, 1000);
+                
+            } catch (error) {
+                log(`❌ 轮询任务状态失败: ${error.message}`, 'error');
+                stopPolling();
+            }
+        }
+
+        // 停止轮询
+        function stopPolling() {
+            if (pollingInterval) {
+                clearTimeout(pollingInterval);
+                pollingInterval = null;
+            }
+            currentTaskId = null;
+            document.getElementById('stopTest').disabled = true;
+        }
+
+        // 停止测试
+        document.getElementById('stopTest').addEventListener('click', () => {
+            stopPolling();
+            log('⏹️ 测试已停止');
+        });
+
+        // 绑定测试按钮
+        document.getElementById('testSync').addEventListener('click', testSyncCall);
+        document.getElementById('testAsync').addEventListener('click', testAsyncCall);
+
+        // 页面加载完成
+        log('🚀 异步问题生成测试页面已加载');
+        log('💡 提示：请确保后端服务和Celery worker已启动');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,14 @@
+张三
+软件工程师
+
+教育背景：
+- 计算机科学学士，清华大学，2020-2024
+
+工作经验：
+- 初级开发工程师，ABC公司，2024-至今
+- 负责前端开发，使用React和TypeScript
+
+技能：
+- 编程语言：JavaScript, Python, Java
+- 框架：React, Vue, Django
+- 数据库：MySQL, MongoDB

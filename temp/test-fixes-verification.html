@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修复验证测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .fix-section {
+            background-color: #f0fff4;
+            border-left: 4px solid #38a169;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .test-section {
+            background-color: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f7fafc;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+        }
+        .step-number {
+            background-color: #4299e1;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .success {
+            color: #38a169;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ed8936;
+            font-weight: bold;
+        }
+        .error {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 修复验证测试</h1>
+            <p>验证 MockInterviewPage.tsx 中的两个问题修复效果</p>
+        </div>
+
+        <div class="fix-section">
+            <h2>✅ 修复内容总结</h2>
+            <h3>1. Token 覆盖问题修复</h3>
+            <div class="code-block">
+// 修复前（问题代码）
+const testToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+localStorage.setItem('access_token', testToken);
+
+// 修复后（正确代码）
+const currentToken = localStorage.getItem('access_token');
+if (!currentToken) {
+    throw new Error('No authentication token found. Please login again.');
+}
+console.log('🔐 Using current authentication token');
+            </div>
+            <p class="success">✅ 不再覆盖用户的真实 token</p>
+            <p class="success">✅ 提供清晰的认证错误提示</p>
+
+            <h3>2. /generate 接口重复调用问题修复</h3>
+            <div class="code-block">
+// 新增优先检查逻辑
+if (stateData?.questions && stateData?.sessionId) {
+    console.log('✅ 使用已传递的问题数据:', stateData.sessionId);
+    console.log(`📋 问题数量: ${stateData.questions.length}`);
+    
+    // 直接使用已传递的问题数据，避免重复API调用
+    setQuestions(stateData.questions);
+    
+    // 只获取会话信息，不重新获取问题
+    const sessionData = await questionService.getSessionQuestions(stateData.sessionId);
+    setInterviewSession(sessionData.session);
+    console.log('✅ 使用已传递的问题数据，避免重复生成');
+} else if (stateData?.selectedJob && stateData?.resumeId) {
+    // 原有的 HomePage 跳转逻辑
+}
+            </div>
+            <p class="success">✅ 优先使用已传递的问题数据</p>
+            <p class="success">✅ 避免重复调用 /api/v1/questions/generate</p>
+            <p class="success">✅ 只调用 getSessionQuestions 获取会话信息</p>
+
+            <h3>3. 错误处理改进</h3>
+            <div class="code-block">
+// 改进的错误处理
+if (error.message?.includes('token') || error.message?.includes('authentication')) {
+    setError('Authentication failed. Please login again.');
+    console.error('🔐 Token认证失败，请重新登录');
+} else {
+    handleApiError(error);
+    setError(error.message || 'Failed to initialize interview, please try again later');
+}
+            </div>
+            <p class="success">✅ 区分 token 相关错误和其他错误</p>
+            <p class="success">✅ 提供用户友好的错误提示</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 测试步骤</h2>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>确保后端服务运行在 <code>http://localhost:5001</code></div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>确保前端服务运行在 <code>http://localhost:3000</code></div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>访问 <code>http://localhost:3000/resume</code> 上传简历</div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div>在 <code>http://localhost:3000/complete</code> 点击"开始模拟面试"</div>
+            </div>
+            <div class="step">
+                <div class="step-number">5</div>
+                <div>使用浏览器开发者工具监控网络请求</div>
+            </div>
+            <div class="step">
+                <div class="step-number">6</div>
+                <div>验证 <code>/api/v1/questions/generate</code> 只被调用一次</div>
+            </div>
+            <div class="step">
+                <div class="step-number">7</div>
+                <div>验证 <code>/api/v1/resumes</code> 接口不再报 422 错误</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 预期效果</h2>
+            <h3>修复前的问题：</h3>
+            <ul>
+                <li class="error">❌ /api/v1/questions/generate 被调用三次</li>
+                <li class="error">❌ /api/v1/resumes 接口报 422 UNPROCESSABLE ENTITY</li>
+                <li class="error">❌ 用户 token 被硬编码的测试 token 覆盖</li>
+                <li class="error">❌ 响应时间过长，用户体验差</li>
+            </ul>
+
+            <h3>修复后的效果：</h3>
+            <ul>
+                <li class="success">✅ /api/v1/questions/generate 只被调用一次</li>
+                <li class="success">✅ /api/v1/resumes 接口正常工作</li>
+                <li class="success">✅ 用户 token 得到保护，不再被覆盖</li>
+                <li class="success">✅ 响应时间显著提升</li>
+                <li class="success">✅ 提供清晰的错误提示</li>
+            </ul>
+        </div>
+
+        <div class="fix-section">
+            <h2>🔍 调试信息</h2>
+            <p>在浏览器控制台中应该看到以下日志：</p>
+            <div class="code-block">
+✅ 使用已传递的问题数据: [session_id]
+📋 问题数量: 8
+✅ 使用已传递的问题数据，避免重复生成
+🔐 Using current authentication token
+            </div>
+            
+            <p class="warning">⚠️ 如果仍然看到多次调用，请检查：</p>
+            <ul>
+                <li>CompletePage 是否正确传递了 questions 数据</li>
+                <li>MockInterviewPage 是否正确接收了 state 数据</li>
+                <li>是否有其他地方也在调用 generateQuestions</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 性能提升</h2>
+            <p><strong>预期性能提升：</strong></p>
+            <ul>
+                <li>API 调用次数：从 3 次减少到 1 次</li>
+                <li>响应时间：从 3+ 分钟减少到 1 分钟以内</li>
+                <li>用户体验：显著改善</li>
+                <li>服务器负载：减少 66%</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

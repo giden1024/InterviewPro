@@ -15,6 +15,8 @@ import UserProfilePage from './pages/UserProfilePage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
+import QuestionEditPage from './pages/QuestionEditPage';
+import CreateQuestionPage from './pages/CreateQuestionPage';
 import { useAuthRedirect } from './hooks/useAuthRedirect';
 import './index.css';
 
@@ -48,6 +50,8 @@ const App: React.FC = () => {
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms-of-use" element={<TermsOfUsePage />} />
           <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+          <Route path="/questions/:questionId/edit" element={<QuestionEditPage />} />
+          <Route path="/questions/create" element={<CreateQuestionPage />} />
           {/* Other routes can be added here */}
           <Route path="/demo" element={<div className="p-8">Demo Page - Coming Soon</div>} />
           <Route path="/contact" element={<div className="p-8">Contact Page - Coming Soon</div>} />

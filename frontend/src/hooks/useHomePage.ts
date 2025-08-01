@@ -43,6 +43,7 @@ export const useHomePage = () => {
   const [questionsWithAnswers, setQuestionsWithAnswers] = useState<QuestionWithAnswer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
 
   const [stats, setStats] = useState<InterviewStats>({
     mockMinutes: 15,
@@ -53,16 +54,17 @@ export const useHomePage = () => {
 
   const [activeTab, setActiveTab] = useState<'questions' | 'records'>('questions');
 
-  // 加载问题和答案数据
+  // 加载问题和答案数据 - 修改为加载所有问题（包括没有答案的）
   const loadQuestionsWithAnswers = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       
+      // 获取所有问题，不限制has_answers参数
       const response = await questionService.getQuestionsWithAnswers({
         page: 1,
-        per_page: 10,
-        has_answers: true
+        per_page: 50,
+        has_answers: undefined // 移除has_answers限制，获取所有问题
       });
       
       setQuestionsWithAnswers(response.questions);
@@ -78,6 +80,23 @@ export const useHomePage = () => {
       setIsLoading(false);
     }
   }, []);
+
+  // 生成新问题
+  const generateNewQuestions = useCallback(async () => {
+    try {
+      setIsGeneratingQuestions(true);
+      setError(null);
+      
+      // 跳转到手动创建问题页面
+      navigate('/questions/create');
+      
+    } catch (error) {
+      console.error('跳转失败:', error);
+      setError('跳转失败，请重试');
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  }, [navigate]);
 
   // 初始化加载数据
   useEffect(() => {
@@ -147,6 +166,7 @@ export const useHomePage = () => {
     activeTab,
     isLoading,
     error,
+    isGeneratingQuestions,
     
     // 交互方法
     handleAddNewJob,
@@ -158,6 +178,7 @@ export const useHomePage = () => {
     handleStartFormalInterview,
     handleAddQuestion,
     handleTabChange,
-    loadQuestionsWithAnswers
+    loadQuestionsWithAnswers,
+    generateNewQuestions
   };
 }; 

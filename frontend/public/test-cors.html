@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS测试</title>
+</head>
+<body>
+    <h1>CORS测试页面</h1>
+    <button onclick="testCORS()">测试CORS请求</button>
+    <div id="result"></div>
+
+    <script>
+        function testCORS() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '正在测试...';
+            
+            fetch('http://localhost:5002/health')
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.innerHTML = `
+                        <h3>✅ CORS测试成功!</h3>
+                        <p>服务状态: ${data.status}</p>
+                        <p>服务名称: ${data.service}</p>
+                        <p>版本: ${data.version}</p>
+                    `;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `
+                        <h3>❌ CORS测试失败</h3>
+                        <p>错误: ${error.message}</p>
+                    `;
+                });
+        }
+        
+        // 页面加载时自动测试
+        window.onload = () => {
+            testCORS();
+        };
+    </script>
+</body>
+</html> 
