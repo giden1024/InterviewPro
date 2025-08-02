@@ -86,7 +86,4 @@ openai-whisper==20231117
 
 # 音频处理
 librosa==0.10.1
-soundfile==0.12.1
-
-# 生产环境Redis
-redis==4.5.4 
+soundfile==0.12.1 
