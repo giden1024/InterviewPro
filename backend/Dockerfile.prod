@@ -12,11 +12,6 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY requirements.txt .
 
-# 添加gunicorn到requirements
-RUN echo "gunicorn==21.2.0" >> requirements.txt && \
-    echo "psutil==5.9.0" >> requirements.txt && \
-    echo "redis==4.5.4" >> requirements.txt
-
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
