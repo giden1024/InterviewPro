@@ -2,11 +2,23 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖 - 添加OpenCV、portaudio和tesseract支持
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgthread-2.0-0 \
+    portaudio19-dev \
+    python3-dev \
+    libasound2-dev \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
