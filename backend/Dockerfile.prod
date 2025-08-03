@@ -13,15 +13,12 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    portaudio19-dev \
-    python3-dev \
-    libasound2-dev \
     tesseract-ocr \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY requirements.txt .
+COPY requirements_minimal.txt requirements.txt
 
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt
