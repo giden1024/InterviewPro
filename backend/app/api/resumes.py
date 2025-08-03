@@ -228,7 +228,7 @@ def upload_resume():
         
         # 生成安全的文件名
         original_filename = secure_filename(file.filename)
-        file_extension = get_file_extension(original_filename)
+        file_extension = get_file_extension(file.filename)  # 从原始文件名获取扩展名
         filename = f"{uuid.uuid4().hex}.{file_extension}"
         
         # 确保上传目录存在
