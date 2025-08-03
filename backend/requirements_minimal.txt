@@ -12,6 +12,9 @@ Flask-SocketIO==5.3.6
 python-socketio==5.9.0
 eventlet==0.33.3
 
+# 异步任务
+celery==5.3.4
+
 # 数据库
 SQLAlchemy==2.0.23
 PyMySQL==1.1.0
