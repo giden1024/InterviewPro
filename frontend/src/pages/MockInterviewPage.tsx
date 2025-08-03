@@ -106,6 +106,29 @@ const MockInterviewPage: React.FC = () => {
   // 获取当前问题的AI参考答案
   const currentAIReferenceAnswer = currentQuestion ? aiReferenceAnswers[currentQuestion.id] : null;
 
+  // 公共函数：启动面试会话（避免重复调用）
+  const startInterviewIfNeeded = async (session: any) => {
+    if (!session) {
+      console.warn('⚠️ 无法获取会话信息，跳过启动步骤');
+      return;
+    }
+
+    try {
+      // 检查会话状态，created 和 ready 状态都可以启动面试
+      if (session.status === 'created' || session.status === 'ready') {
+        console.log(`🚀 会话状态为${session.status}，启动面试...`);
+        await interviewService.startInterview(session.session_id);
+        console.log('✅ Interview session started');
+      } else {
+        console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', session.status);
+      }
+    } catch (error) {
+      console.error('❌ Failed to start interview session:', error);
+      // 启动面试失败不应该阻止用户继续面试，只记录错误
+      console.warn('⚠️ 面试启动失败，但将继续进行面试流程');
+    }
+  };
+
   // 自动开始面试 - 获取用户简历并生成问题
   useEffect(() => {
     const initializeInterview = async () => {
@@ -199,27 +222,8 @@ const MockInterviewPage: React.FC = () => {
             console.log(`Successfully generated ${questionData.questions.length} questions`);
           }
           
-          // 启动面试会话（仅当状态为 'created' 时）
-          try {
-            const sessionToUse = questionData?.session || sessionData?.session;
-            if (!sessionToUse) {
-              console.warn('⚠️ 无法获取会话信息，跳过启动步骤');
-              return;
-            }
-            
-            // 检查会话状态，created 和 ready 状态都可以启动面试
-            if (sessionToUse.status === 'created' || sessionToUse.status === 'ready') {
-              console.log(`🚀 会话状态为${sessionToUse.status}，启动面试...`);
-              await interviewService.startInterview(sessionToUse.session_id);
-              console.log('✅ Interview session started');
-            } else {
-              console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', sessionToUse.status);
-            }
-          } catch (error) {
-            console.error('❌ Failed to start interview session (default logic):', error);
-            // 启动面试失败不应该阻止用户继续面试，只记录错误
-            console.warn('⚠️ 面试启动失败（默认逻辑），但将继续进行面试流程');
-          }
+          // 启动面试会话
+          await startInterviewIfNeeded(questionData?.session || sessionData?.session);
         } else {
           // 兼容旧的逻辑 - 自动获取最新简历
           console.log('No selected position and resume found, using default logic...');
@@ -289,21 +293,8 @@ const MockInterviewPage: React.FC = () => {
           console.log(`Successfully generated ${questionData.questions.length} questions`);
           console.log('✅ 使用的会话ID:', correctedSession.session_id);
 
-          // 启动面试会话（仅当状态为 'created' 时）
-          try {
-            // 检查会话状态，created 和 ready 状态都可以启动面试
-            if (correctedSession.status === 'created' || correctedSession.status === 'ready') {
-              console.log(`🚀 会话状态为${correctedSession.status}，启动面试...`);
-              await interviewService.startInterview(interviewData.session_id);
-              console.log('✅ Interview session started');
-            } else {
-              console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', correctedSession.status);
-            }
-          } catch (error) {
-            console.error('❌ Failed to start interview session (default logic):', error);
-            // 启动面试失败不应该阻止用户继续面试，只记录错误
-            console.warn('⚠️ 面试启动失败（默认逻辑），但将继续进行面试流程');
-          }
+          // 启动面试会话
+          await startInterviewIfNeeded(correctedSession);
         }
 
         setLoading(false);

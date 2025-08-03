@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Start Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 15px; margin: 5px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Mock Interview Start Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>测试步骤：</h3>
+        <ol>
+            <li>创建面试会话</li>
+            <li>生成问题（状态变为ready）</li>
+            <li>尝试启动面试（应该成功）</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>测试控制：</h3>
+        <button onclick="runFullTest()">🧪 运行完整测试</button>
+        <button onclick="clearResults()">🧹 清除结果</button>
+    </div>
+
+    <div class="test-section">
+        <h3>测试结果：</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://offerott.com/api/v1';
+        const TEST_USER = {
+            email: 'mayuyang@xmov.ai',
+            password: '12345678'
+        };
+
+        let authToken = null;
+        let resumeId = null;
+        let sessionId = null;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                },
+                ...options
+            };
+
+            try {
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`${response.status}: ${data.error?.message || data.message || 'Unknown error'}`);
+                }
+                
+                return data;
+            } catch (error) {
+                log(`❌ API Error (${endpoint}): ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function login() {
+            log('🔐 正在登录...');
+            try {
+                const result = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify(TEST_USER)
+                });
+                authToken = result.data.access_token;
+                log('✅ 登录成功', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ 登录失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function getResume() {
+            log('📄 获取简历...');
+            try {
+                const result = await apiCall('/resumes');
+                const resumes = result.data.resumes;
+                const processedResume = resumes.find(r => r.status === 'PROCESSED');
+                
+                if (processedResume) {
+                    resumeId = processedResume.id;
+                    log(`✅ 找到已处理简历 ID: ${resumeId}`, 'success');
+                    return true;
+                } else {
+                    log('❌ 没有找到已处理的简历', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ 获取简历失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function createInterview() {
+            log('🎯 创建面试会话...');
+            try {
+                const result = await apiCall('/interviews', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        interview_type: 'mock',
+                        total_questions: 5,
+                        custom_title: 'Mock Interview Start Fix Test'
+                    })
+                });
+                
+                sessionId = result.data.session_id;
+                log(`✅ 面试会话创建成功 ID: ${sessionId}`, 'success');
+                log(`📊 初始状态: ${result.data.session.status}`, 'info');
+                return result.data.session;
+            } catch (error) {
+                log(`❌ 创建面试会话失败: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function generateQuestions() {
+            log('❓ 生成面试问题...');
+            try {
+                const result = await apiCall('/questions/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        session_id: sessionId,
+                        interview_type: 'mock',
+                        total_questions: 5
+                    })
+                });
+                
+                log(`✅ 问题生成成功，共 ${result.data.questions.length} 个问题`, 'success');
+                log(`📊 生成后状态: ${result.data.session.status}`, 'info');
+                return result.data.session;
+            } catch (error) {
+                log(`❌ 生成问题失败: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function startInterview() {
+            log('🚀 启动面试会话...');
+            try {
+                const result = await apiCall(`/interviews/${sessionId}/start`, {
+                    method: 'POST'
+                });
+                
+                log(`✅ 面试启动成功！`, 'success');
+                log(`📊 启动后状态: ${result.data.session.status}`, 'success');
+                log(`❓ 第一个问题: ${result.data.next_question?.question_text || '无'}`, 'info');
+                return true;
+            } catch (error) {
+                log(`❌ 启动面试失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function runFullTest() {
+            clearResults();
+            log('🧪 开始完整测试流程...', 'info');
+            
+            // Step 1: Login
+            if (!await login()) return;
+            
+            // Step 2: Get Resume
+            if (!await getResume()) return;
+            
+            // Step 3: Create Interview
+            const session = await createInterview();
+            if (!session) return;
+            
+            // Step 4: Generate Questions (this changes status to 'ready')
+            const updatedSession = await generateQuestions();
+            if (!updatedSession) return;
+            
+            // Step 5: Start Interview (this should work with 'ready' status)
+            const started = await startInterview();
+            
+            if (started) {
+                log('🎉 测试完成！修复成功 - ready状态的会话可以正常启动', 'success');
+            } else {
+                log('💥 测试失败！ready状态的会话无法启动', 'error');
+            }
+        }
+
+        // Auto-run test on page load
+        window.onload = () => {
+            log('🔧 Mock Interview Start Fix 测试页面已加载');
+            log('点击"运行完整测试"按钮开始测试');
+        };
+    </script>
+</body>
+</html> 
