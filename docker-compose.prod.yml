@@ -87,7 +87,7 @@ services:
       - '443:443'
     volumes:
       - ./frontend/dist:/usr/share/nginx/html:ro
-      - ./nginx-https.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx-https.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
