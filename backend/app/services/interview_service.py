@@ -161,7 +161,8 @@ class InterviewService:
         """开始面试会话"""
         session = self.get_interview_session(user_id, session_id)
         
-        if session.status != 'created':
+        # 修复：允许 created 和 ready 状态的会话启动
+        if session.status not in ['created', 'ready']:
             raise ValidationError("Interview session already started or completed")
         
         session.status = 'in_progress'

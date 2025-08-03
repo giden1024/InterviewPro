@@ -207,13 +207,13 @@ const MockInterviewPage: React.FC = () => {
               return;
             }
             
-            // 检查会话状态，只有在 'created' 状态时才启动面试
-            if (sessionToUse.status === 'created') {
-              console.log('🚀 会话状态为created，启动面试（默认逻辑）...');
+            // 检查会话状态，created 和 ready 状态都可以启动面试
+            if (sessionToUse.status === 'created' || sessionToUse.status === 'ready') {
+              console.log(`🚀 会话状态为${sessionToUse.status}，启动面试...`);
               await interviewService.startInterview(sessionToUse.session_id);
-              console.log('✅ Interview session started (default logic)');
+              console.log('✅ Interview session started');
             } else {
-              console.log('ℹ️ 会话已启动，跳过启动步骤（默认逻辑），当前状态:', sessionToUse.status);
+              console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', sessionToUse.status);
             }
           } catch (error) {
             console.error('❌ Failed to start interview session (default logic):', error);
@@ -291,13 +291,13 @@ const MockInterviewPage: React.FC = () => {
 
           // 启动面试会话（仅当状态为 'created' 时）
           try {
-            // 检查会话状态，只有在 'created' 状态时才启动面试
-            if (correctedSession.status === 'created') {
-              console.log('🚀 会话状态为created，启动面试（默认逻辑）...');
+            // 检查会话状态，created 和 ready 状态都可以启动面试
+            if (correctedSession.status === 'created' || correctedSession.status === 'ready') {
+              console.log(`🚀 会话状态为${correctedSession.status}，启动面试...`);
               await interviewService.startInterview(interviewData.session_id);
-              console.log('✅ Interview session started (default logic)');
+              console.log('✅ Interview session started');
             } else {
-              console.log('ℹ️ 会话已启动，跳过启动步骤（默认逻辑），当前状态:', correctedSession.status);
+              console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', correctedSession.status);
             }
           } catch (error) {
             console.error('❌ Failed to start interview session (default logic):', error);
