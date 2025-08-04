@@ -23,7 +23,7 @@ export interface InterviewSession {
   resume_id: number;
   session_id: string;
   title: string;
-  interview_type: 'technical' | 'hr' | 'comprehensive';
+  interview_type: 'technical' | 'hr' | 'comprehensive' | 'mock';
   status: 'created' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
   total_questions: number;
   difficulty_distribution?: Record<string, number>;
@@ -35,7 +35,7 @@ export interface InterviewSession {
 export interface GenerateQuestionsData {
   resume_id: number;
   session_id: string;  // 现在必须提供session_id
-  interview_type?: 'technical' | 'hr' | 'comprehensive';  // 改为可选
+  interview_type?: 'technical' | 'hr' | 'comprehensive' | 'mock';  // 改为可选
   total_questions?: number;
   difficulty_distribution?: Record<string, number>;
   type_distribution?: Record<string, number>;
@@ -113,9 +113,26 @@ class QuestionService {
     };
   }> {
     try {
+      console.log('🔍 [DEBUG] generateQuestions被调用');
+      console.log('🔍 [DEBUG] 请求数据:', JSON.stringify(data, null, 2));
+      console.log('🔍 [DEBUG] 数据类型检查:');
+      console.log('  - resume_id:', typeof data.resume_id, data.resume_id);
+      console.log('  - session_id:', typeof data.session_id, data.session_id);
+      console.log('  - interview_type:', typeof data.interview_type, data.interview_type);
+      console.log('  - total_questions:', typeof data.total_questions, data.total_questions);
+      
       const response: any = await apiClient.post('/questions/generate', data);
+      console.log('🔍 [DEBUG] API响应成功:', response);
       return response.data;
     } catch (error) {
+      console.error('🔍 [DEBUG] generateQuestions失败，错误详情:', error);
+      console.error('🔍 [DEBUG] 错误类型:', typeof error);
+      console.error('🔍 [DEBUG] 错误对象键:', Object.keys(error as any));
+      if ((error as any).response) {
+        console.error('🔍 [DEBUG] 响应状态:', (error as any).response.status);
+        console.error('🔍 [DEBUG] 响应数据:', (error as any).response.data);
+        console.error('🔍 [DEBUG] 响应头:', (error as any).response.headers);
+      }
       console.error('生成问题失败:', error);
       throw error;
     }

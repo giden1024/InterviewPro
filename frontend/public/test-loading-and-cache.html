@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Loading and Cache Functionality</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading {
+            color: #ffc107;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Loading State and Cache Functionality Test</h1>
+    
+    <div class="container">
+        <h2>🔐 Authentication</h2>
+        <button class="button" onclick="login()">Login (3938930977@qq.com)</button>
+        <div id="auth-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Resume & Job Management</h2>
+        <button class="button" onclick="getResumes()">Get Resumes</button>
+        <button class="button" onclick="getJobs()">Get Jobs</button>
+        <div id="resume-job-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>🎯 Test New Flow (HomePage → MockInterviewPage)</h2>
+        <p>This tests the new flow where HomePage creates session and MockInterviewPage generates questions with loading state.</p>
+        <button class="button" onclick="testNewFlow()">Test New Flow with Loading</button>
+        <div id="new-flow-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>💾 Cache Testing</h2>
+        <p>Test question generation caching based on user_id + resume_id</p>
+        <button class="button" onclick="testCache()">Test Cache (First Generation)</button>
+        <button class="button" onclick="testCacheHit()">Test Cache Hit (Second Generation)</button>
+        <button class="button" onclick="getCacheStats()">Get Cache Stats</button>
+        <div id="cache-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let authToken = '';
+        let currentResumeId = null;
+        let currentJobId = null;
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'loading' ? 'loading' : 'info';
+            resultsDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        async function login() {
+            try {
+                log('🔐 Logging in...', 'loading');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    authToken = data.access_token;
+                    document.getElementById('auth-status').innerHTML = '<div class="success">✅ Login successful</div>';
+                    log('✅ Login successful', 'success');
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (error) {
+                document.getElementById('auth-status').innerHTML = `<div class="error">❌ Login failed: ${error.message}</div>`;
+                log(`❌ Login failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getResumes() {
+            try {
+                log('📄 Getting resumes...', 'loading');
+                const response = await fetch(`${API_BASE}/resumes`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    const resumes = data.data?.resumes || data.resumes || [];
+                    const processedResumes = resumes.filter(r => r.status === 'processed' || r.status === 'completed');
+                    
+                    if (processedResumes.length > 0) {
+                        currentResumeId = processedResumes[0].id;
+                        document.getElementById('resume-job-status').innerHTML = 
+                            `<div class="success">✅ Found ${processedResumes.length} processed resumes. Using resume ID: ${currentResumeId}</div>`;
+                        log(`✅ Found ${processedResumes.length} processed resumes. Using resume ID: ${currentResumeId}`, 'success');
+                    } else {
+                        log('⚠️ No processed resumes found', 'error');
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to get resumes');
+                }
+            } catch (error) {
+                log(`❌ Failed to get resumes: ${error.message}`, 'error');
+            }
+        }
+
+        async function getJobs() {
+            try {
+                log('💼 Getting jobs...', 'loading');
+                const response = await fetch(`${API_BASE}/jobs?per_page=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    const jobs = data.data?.jobs || data.jobs || [];
+                    
+                    if (jobs.length > 0) {
+                        currentJobId = jobs[0].id;
+                        const job = jobs[0];
+                        document.getElementById('resume-job-status').innerHTML += 
+                            `<div class="success">✅ Found ${jobs.length} jobs. Using job: ${job.title} @ ${job.company} (ID: ${currentJobId})</div>`;
+                        log(`✅ Found ${jobs.length} jobs. Using job: ${job.title} @ ${job.company} (ID: ${currentJobId})`, 'success');
+                    } else {
+                        log('⚠️ No jobs found', 'error');
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to get jobs');
+                }
+            } catch (error) {
+                log(`❌ Failed to get jobs: ${error.message}`, 'error');
+            }
+        }
+
+        async function testNewFlow() {
+            if (!currentResumeId || !currentJobId) {
+                log('❌ Please get resumes and jobs first', 'error');
+                return;
+            }
+
+            try {
+                log('🚀 Testing new flow (HomePage → MockInterviewPage)...', 'loading');
+                
+                // Step 1: Create interview session (like HomePage does)
+                log('📝 Step 1: Creating interview session...', 'loading');
+                const sessionResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: 'Test Mock Interview - New Flow'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                if (!sessionResponse.ok) {
+                    throw new Error(sessionData.message || 'Failed to create session');
+                }
+
+                const sessionId = sessionData.session_id;
+                log(`✅ Session created: ${sessionId}`, 'success');
+
+                // Step 2: Simulate MockInterviewPage loading and question generation
+                log('🔄 Step 2: Generating questions (with loading state)...', 'loading');
+                const startTime = Date.now();
+                
+                const questionsResponse = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        session_id: sessionId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8
+                    })
+                });
+
+                const questionsData = await questionsResponse.json();
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (questionsResponse.ok) {
+                    const fromCache = questionsData.from_cache;
+                    const questions = questionsData.questions || [];
+                    
+                    document.getElementById('new-flow-status').innerHTML = 
+                        `<div class="success">✅ New flow completed successfully!<br>
+                        📊 Generated ${questions.length} questions in ${duration}s<br>
+                        💾 From cache: ${fromCache ? 'Yes' : 'No'}<br>
+                        🆔 Session ID: ${sessionId}</div>`;
+                    
+                    log(`✅ New flow completed! Generated ${questions.length} questions in ${duration}s (cache: ${fromCache})`, 'success');
+                } else {
+                    throw new Error(questionsData.message || 'Failed to generate questions');
+                }
+
+            } catch (error) {
+                document.getElementById('new-flow-status').innerHTML = `<div class="error">❌ New flow failed: ${error.message}</div>`;
+                log(`❌ New flow failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCache() {
+            if (!currentResumeId) {
+                log('❌ Please get resumes first', 'error');
+                return;
+            }
+
+            try {
+                log('💾 Testing cache (first generation)...', 'loading');
+                
+                // Create a new session for cache testing
+                const sessionResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: 'Cache Test - First Generation'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                if (!sessionResponse.ok) {
+                    throw new Error(sessionData.message || 'Failed to create session');
+                }
+
+                const sessionId = sessionData.session_id;
+                const startTime = Date.now();
+                
+                const questionsResponse = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        session_id: sessionId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8
+                    })
+                });
+
+                const questionsData = await questionsResponse.json();
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (questionsResponse.ok) {
+                    const fromCache = questionsData.from_cache;
+                    const questions = questionsData.questions || [];
+                    
+                    document.getElementById('cache-status').innerHTML = 
+                        `<div class="success">✅ First generation completed!<br>
+                        📊 Generated ${questions.length} questions in ${duration}s<br>
+                        💾 From cache: ${fromCache ? 'Yes' : 'No'} (Should be No)<br>
+                        🆔 Session ID: ${sessionId}</div>`;
+                    
+                    log(`✅ First generation: ${questions.length} questions in ${duration}s (cache: ${fromCache})`, 'success');
+                } else {
+                    throw new Error(questionsData.message || 'Failed to generate questions');
+                }
+
+            } catch (error) {
+                document.getElementById('cache-status').innerHTML = `<div class="error">❌ Cache test failed: ${error.message}</div>`;
+                log(`❌ Cache test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCacheHit() {
+            if (!currentResumeId) {
+                log('❌ Please get resumes first', 'error');
+                return;
+            }
+
+            try {
+                log('💾 Testing cache hit (second generation)...', 'loading');
+                
+                // Create another session for cache hit testing
+                const sessionResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: 'Cache Test - Second Generation (Should Hit Cache)'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                if (!sessionResponse.ok) {
+                    throw new Error(sessionData.message || 'Failed to create session');
+                }
+
+                const sessionId = sessionData.session_id;
+                const startTime = Date.now();
+                
+                const questionsResponse = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: currentResumeId,
+                        session_id: sessionId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8
+                    })
+                });
+
+                const questionsData = await questionsResponse.json();
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (questionsResponse.ok) {
+                    const fromCache = questionsData.from_cache;
+                    const questions = questionsData.questions || [];
+                    
+                    document.getElementById('cache-status').innerHTML += 
+                        `<div class="success">✅ Second generation completed!<br>
+                        📊 Generated ${questions.length} questions in ${duration}s<br>
+                        💾 From cache: ${fromCache ? 'Yes' : 'No'} (Should be Yes)<br>
+                        🆔 Session ID: ${sessionId}</div>`;
+                    
+                    log(`✅ Second generation: ${questions.length} questions in ${duration}s (cache: ${fromCache})`, fromCache ? 'success' : 'error');
+                    
+                    if (fromCache) {
+                        log('🎉 Cache is working correctly!', 'success');
+                    } else {
+                        log('⚠️ Cache miss - this might indicate an issue', 'error');
+                    }
+                } else {
+                    throw new Error(questionsData.message || 'Failed to generate questions');
+                }
+
+            } catch (error) {
+                document.getElementById('cache-status').innerHTML += `<div class="error">❌ Cache hit test failed: ${error.message}</div>`;
+                log(`❌ Cache hit test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getCacheStats() {
+            try {
+                log('📊 Getting cache statistics...', 'loading');
+                // Note: This would require a new API endpoint to get cache stats
+                // For now, we'll just show a placeholder
+                document.getElementById('cache-status').innerHTML += 
+                    `<div class="info">ℹ️ Cache stats endpoint not implemented yet.<br>
+                    Check server logs for cache hit/miss information.</div>`;
+                
+                log('ℹ️ Cache stats endpoint not implemented. Check server logs.', 'info');
+            } catch (error) {
+                log(`❌ Failed to get cache stats: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-scroll results
+        setInterval(() => {
+            const resultsDiv = document.getElementById('results');
+            if (resultsDiv.scrollHeight > resultsDiv.clientHeight) {
+                resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            }
+        }, 1000);
+    </script>
+</body>
+</html> 

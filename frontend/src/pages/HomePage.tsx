@@ -198,8 +198,8 @@ const HomePage: React.FC = () => {
         );
         
         if (processedResumes.length === 0) {
-                  alert('No processed resumes available, please upload and wait for resume processing to complete');
-        navigate('/resume');
+          alert('No processed resumes available, please upload and wait for resume processing to complete');
+          navigate('/resume');
           return;
         }
         
@@ -211,19 +211,25 @@ const HomePage: React.FC = () => {
       const totalQuestions = isMockInterview ? 8 : 15;
       const titleSuffix = isMockInterview ? 'Mock Interview' : 'Formal Interview';
       
+      console.log(`🚀 Creating ${titleSuffix} for job: ${selectedJob.title} @ ${selectedJob.company}`);
+      console.log(`📋 Using resume ID: ${resumeId}, Total questions: ${totalQuestions}`);
+      
       // Create new interview session
       const session = await interviewService.createInterview({
         resume_id: resumeId!,
-        interview_type: 'comprehensive',
+        interview_type: 'mock',
         total_questions: totalQuestions,
         custom_title: `${selectedJob.title} @ ${selectedJob.company} ${titleSuffix}`
       });
+      
+      console.log(`✅ Interview session created: ${session.session_id}`);
       
       // Navigate to different pages based on interview type
       if (isMockInterview) {
         navigate('/mock-interview', { 
           state: { 
             sessionId: session.session_id,
+            questions: [], // Questions will be generated on the fly
             selectedJob: selectedJob,
             resumeId: resumeId
           } 
@@ -232,14 +238,15 @@ const HomePage: React.FC = () => {
         navigate('/interview', { 
           state: { 
             sessionId: session.session_id,
+            questions: [], // Questions will be generated on the fly
             selectedJob: selectedJob,
             resumeId: resumeId
           } 
         });
       }
-    } catch (err) {
-      console.error('Failed to create interview:', err);
-      alert('Failed to create interview, please try again later');
+    } catch (err: any) {
+      console.error('Failed to create interview or generate questions:', err);
+      alert(`Failed to create interview: ${err.message || 'Please try again later'}`);
     }
   };
 
@@ -409,7 +416,7 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* User Profile */}
-        <div className="absolute bottom-0 left-0 right-0 w-60 p-4 bg-[#EBF8FF] border-t">
+        <div className="fixed bottom-0 left-0 w-60 p-4 bg-[#EBF8FF] border-t z-10">
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-r from-[#9CFAFF] to-[#6BBAFF] flex items-center justify-center mr-3">
               {user?.avatar_url ? (
@@ -787,6 +794,7 @@ const HomePage: React.FC = () => {
                           <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Duration</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Interview Type</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Status</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Action</th>
                         </tr>
                       </thead>
@@ -829,6 +837,11 @@ const HomePage: React.FC = () => {
                                   : 'bg-[#EEF9FF] text-[#1B5E8C]'
                               }`}>
                                 {record.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${record.statusFormatted.className}`}>
+                                {record.statusFormatted.text}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">

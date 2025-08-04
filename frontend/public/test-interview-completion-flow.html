@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Interview Completion Flow Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #f8fafc;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: transform 0.2s;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+        }
+        .test-button.danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .result-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left-color: #48bb78;
+            background-color: #f0fff4;
+        }
+        .error {
+            border-left-color: #f56565;
+            background-color: #fff5f5;
+        }
+        .info-box {
+            background: #ebf8ff;
+            border: 1px solid #bee3f8;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .session-info {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .session-info h4 {
+            margin: 0 0 10px 0;
+            color: #2d3748;
+        }
+        .session-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+        .session-detail:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .value {
+            color: #2d3748;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Interview Completion Flow Test</h1>
+            <p>测试面试正常结束和放弃流程，验证 completed_at 时间设置</p>
+        </div>
+
+        <div class="info-box">
+            <strong>📋 测试流程：</strong><br>
+            1. 登录获取Token<br>
+            2. 创建面试会话<br>
+            3. 启动面试会话<br>
+            4. 测试正常结束面试（设置completed_at）<br>
+            5. 测试放弃面试（设置completed_at）<br>
+            6. 验证数据库中的时间戳
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📝 1. 登录并获取Token</div>
+            <button class="test-button" onclick="testLogin()">登录测试</button>
+            <div id="loginResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🆕 2. 创建面试会话</div>
+            <button class="test-button" onclick="createInterviewSession()">创建Mock面试会话</button>
+            <div id="createResult" class="result-area" style="display:none;"></div>
+            <div id="sessionInfo" class="session-info" style="display:none;">
+                <h4>📊 会话信息</h4>
+                <div class="session-detail">
+                    <span class="label">Session ID:</span>
+                    <span class="value" id="sessionId">-</span>
+                </div>
+                <div class="session-detail">
+                    <span class="label">Status:</span>
+                    <span class="value" id="sessionStatus">-</span>
+                </div>
+                <div class="session-detail">
+                    <span class="label">Created At:</span>
+                    <span class="value" id="createdAt">-</span>
+                </div>
+                <div class="session-detail">
+                    <span class="label">Started At:</span>
+                    <span class="value" id="startedAt">-</span>
+                </div>
+                <div class="session-detail">
+                    <span class="label">Completed At:</span>
+                    <span class="value" id="completedAt">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">▶️ 3. 启动面试会话</div>
+            <button class="test-button" onclick="startInterview()">启动面试</button>
+            <div id="startResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">✅ 4. 测试正常结束面试</div>
+            <button class="test-button" onclick="endInterview()">正常结束面试</button>
+            <div id="endResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">❌ 5. 测试放弃面试</div>
+            <button class="test-button danger" onclick="abandonInterview()">放弃面试</button>
+            <div id="abandonResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔍 6. 查看会话详情</div>
+            <button class="test-button" onclick="getSessionDetails()">获取会话详情</button>
+            <div id="detailsResult" class="result-area" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let currentSessionId = '';
+
+        // 登录测试
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('🔐 开始登录测试...');
+                resultDiv.textContent = '🔐 正在登录...';
+                
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.access_token;
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 登录成功！\n\nToken: ${authToken.substring(0, 50)}...\nUser ID: ${data.user.id}\nEmail: ${data.user.email}`;
+                    console.log('✅ 登录成功:', data);
+                } else {
+                    throw new Error(data.message || '登录失败');
+                }
+            } catch (error) {
+                console.error('❌ 登录失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 登录失败: ${error.message}`;
+            }
+        }
+
+        // 创建面试会话
+        async function createInterviewSession() {
+            if (!authToken) {
+                alert('请先登录！');
+                return;
+            }
+
+            const resultDiv = document.getElementById('createResult');
+            const sessionInfoDiv = document.getElementById('sessionInfo');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('🆕 开始创建面试会话...');
+                resultDiv.textContent = '🆕 正在创建面试会话...';
+                
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        interview_type: 'mock',
+                        title: 'Test Interview Completion Flow'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentSessionId = data.data.session_id;
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 面试会话创建成功！\n\nSession ID: ${currentSessionId}\nStatus: ${data.data.session.status}\nTitle: ${data.data.session.title}`;
+                    
+                    // 更新会话信息显示
+                    updateSessionInfo(data.data.session);
+                    sessionInfoDiv.style.display = 'block';
+                    
+                    console.log('✅ 面试会话创建成功:', data);
+                } else {
+                    throw new Error(data.message || '创建面试会话失败');
+                }
+            } catch (error) {
+                console.error('❌ 创建面试会话失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 创建面试会话失败: ${error.message}`;
+            }
+        }
+
+        // 启动面试
+        async function startInterview() {
+            if (!currentSessionId) {
+                alert('请先创建面试会话！');
+                return;
+            }
+
+            const resultDiv = document.getElementById('startResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('▶️ 开始启动面试...');
+                resultDiv.textContent = '▶️ 正在启动面试...';
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${currentSessionId}/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 面试启动成功！\n\nSession Status: ${data.data.session.status}\nStarted At: ${data.data.session.started_at}`;
+                    
+                    // 更新会话信息显示
+                    updateSessionInfo(data.data.session);
+                    
+                    console.log('✅ 面试启动成功:', data);
+                } else {
+                    throw new Error(data.message || '启动面试失败');
+                }
+            } catch (error) {
+                console.error('❌ 启动面试失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 启动面试失败: ${error.message}`;
+            }
+        }
+
+        // 正常结束面试
+        async function endInterview() {
+            if (!currentSessionId) {
+                alert('请先创建并启动面试会话！');
+                return;
+            }
+
+            const resultDiv = document.getElementById('endResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('✅ 开始结束面试...');
+                resultDiv.textContent = '✅ 正在结束面试...';
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${currentSessionId}/end`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 面试结束成功！\n\nSession Status: ${data.data.session.status}\nCompleted At: ${data.data.session.completed_at}\nDuration: ${calculateDuration(data.data.session.started_at, data.data.session.completed_at)}`;
+                    
+                    // 更新会话信息显示
+                    updateSessionInfo(data.data.session);
+                    
+                    console.log('✅ 面试结束成功:', data);
+                } else {
+                    throw new Error(data.message || '结束面试失败');
+                }
+            } catch (error) {
+                console.error('❌ 结束面试失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 结束面试失败: ${error.message}`;
+            }
+        }
+
+        // 放弃面试
+        async function abandonInterview() {
+            if (!currentSessionId) {
+                alert('请先创建并启动面试会话！');
+                return;
+            }
+
+            const resultDiv = document.getElementById('abandonResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('❌ 开始放弃面试...');
+                resultDiv.textContent = '❌ 正在放弃面试...';
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${currentSessionId}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        reason: 'test_abandon'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 面试放弃成功！\n\nSession Status: ${data.data.session.status}\nCompleted At: ${data.data.session.completed_at}\nDuration: ${calculateDuration(data.data.session.started_at, data.data.session.completed_at)}`;
+                    
+                    // 更新会话信息显示
+                    updateSessionInfo(data.data.session);
+                    
+                    console.log('✅ 面试放弃成功:', data);
+                } else {
+                    throw new Error(data.message || '放弃面试失败');
+                }
+            } catch (error) {
+                console.error('❌ 放弃面试失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 放弃面试失败: ${error.message}`;
+            }
+        }
+
+        // 获取会话详情
+        async function getSessionDetails() {
+            if (!currentSessionId) {
+                alert('请先创建面试会话！');
+                return;
+            }
+
+            const resultDiv = document.getElementById('detailsResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area';
+            
+            try {
+                console.log('🔍 开始获取会话详情...');
+                resultDiv.textContent = '🔍 正在获取会话详情...';
+                
+                const response = await fetch(`http://localhost:5001/api/v1/interviews/${currentSessionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const session = data.data.session;
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 会话详情获取成功！\n\n${JSON.stringify(session, null, 2)}`;
+                    
+                    // 更新会话信息显示
+                    updateSessionInfo(session);
+                    
+                    console.log('✅ 会话详情获取成功:', data);
+                } else {
+                    throw new Error(data.message || '获取会话详情失败');
+                }
+            } catch (error) {
+                console.error('❌ 获取会话详情失败:', error);
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 获取会话详情失败: ${error.message}`;
+            }
+        }
+
+        // 更新会话信息显示
+        function updateSessionInfo(session) {
+            document.getElementById('sessionId').textContent = session.session_id || '-';
+            document.getElementById('sessionStatus').textContent = session.status || '-';
+            document.getElementById('createdAt').textContent = session.created_at || '-';
+            document.getElementById('startedAt').textContent = session.started_at || '-';
+            document.getElementById('completedAt').textContent = session.completed_at || '-';
+        }
+
+        // 计算时长
+        function calculateDuration(startTime, endTime) {
+            if (!startTime || !endTime) return '-';
+            
+            const start = new Date(startTime);
+            const end = new Date(endTime);
+            const diffMs = end.getTime() - start.getTime();
+            
+            const hours = Math.floor(diffMs / 3600000);
+            const minutes = Math.floor((diffMs % 3600000) / 60000);
+            const seconds = Math.floor((diffMs % 60000) / 1000);
+            
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            console.log('🎯 面试完成流程测试页面已加载');
+            console.log('请按顺序执行测试：1. 登录 → 2. 创建会话 → 3. 启动面试 → 4. 结束/放弃面试 → 5. 查看详情');
+        });
+    </script>
+</body>
+</html> 

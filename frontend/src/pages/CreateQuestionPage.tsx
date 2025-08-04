@@ -18,7 +18,7 @@ const CreateQuestionPage: React.FC = () => {
     question_text: '',
     question_type: 'technical',
     difficulty: 'medium',
-    category: '通用',
+    category: 'General',
     answer_text: '',
     tags: []
   });
@@ -56,12 +56,12 @@ const CreateQuestionPage: React.FC = () => {
     e.preventDefault();
     
     if (!formData.question_text.trim()) {
-      setError('请输入问题内容');
+      setError('Please enter question content');
       return;
     }
     
     if (!formData.answer_text.trim()) {
-      setError('请输入答案内容');
+      setError('Please enter answer content');
       return;
     }
 
@@ -69,7 +69,7 @@ const CreateQuestionPage: React.FC = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // 调用后端API创建问题
+      // Call backend API to create question
       const response = await fetch('/api/v1/questions/create', {
         method: 'POST',
         headers: {
@@ -81,15 +81,15 @@ const CreateQuestionPage: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || '创建问题失败');
+        throw new Error(errorData.message || 'Failed to create question');
       }
 
-      alert('问题创建成功！');
+      alert('Question created successfully!');
       navigate('/home');
       
     } catch (error) {
-      console.error('创建问题失败:', error);
-      setError(error instanceof Error ? error.message : '创建问题失败，请重试');
+      console.error('Failed to create question:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create question, please try again');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,12 +104,12 @@ const CreateQuestionPage: React.FC = () => {
       <div className="max-w-2xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">创建新问题</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Create New Question</h1>
             <button
               onClick={handleCancel}
               className="text-gray-500 hover:text-gray-700 text-sm"
             >
-              返回首页
+              Back to Home
             </button>
           </div>
 
@@ -120,10 +120,10 @@ const CreateQuestionPage: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 问题内容 */}
+            {/* Question Content */}
             <div>
               <label htmlFor="question_text" className="block text-sm font-medium text-gray-700 mb-2">
-                问题内容 *
+                Question Content *
               </label>
               <textarea
                 id="question_text"
@@ -132,15 +132,15 @@ const CreateQuestionPage: React.FC = () => {
                 onChange={handleInputChange}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入面试问题..."
+                placeholder="Please enter the interview question..."
                 required
               />
             </div>
 
-            {/* 问题类型 */}
+            {/* Question Type */}
             <div>
               <label htmlFor="question_type" className="block text-sm font-medium text-gray-700 mb-2">
-                问题类型
+                Question Type
               </label>
               <select
                 id="question_type"
@@ -149,17 +149,17 @@ const CreateQuestionPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="technical">技术问题</option>
-                <option value="behavioral">行为问题</option>
-                <option value="situational">情景问题</option>
-                <option value="general">通用问题</option>
+                <option value="technical">Technical</option>
+                <option value="behavioral">Behavioral</option>
+                <option value="situational">Situational</option>
+                <option value="general">General</option>
               </select>
             </div>
 
-            {/* 难度等级 */}
+            {/* Difficulty Level */}
             <div>
               <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-2">
-                难度等级
+                Difficulty Level
               </label>
               <select
                 id="difficulty"
@@ -168,16 +168,16 @@ const CreateQuestionPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="easy">简单</option>
-                <option value="medium">中等</option>
-                <option value="hard">困难</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
               </select>
             </div>
 
-            {/* 分类 */}
+            {/* Category */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                分类
+                Category
               </label>
               <input
                 type="text"
@@ -186,14 +186,14 @@ const CreateQuestionPage: React.FC = () => {
                 value={formData.category}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="如：前端开发、数据结构、算法等"
+                placeholder="e.g., Frontend Development, Data Structures, Algorithms, etc."
               />
             </div>
 
-            {/* 标签 */}
+            {/* Tags */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                标签
+                Tags
               </label>
               <div className="flex gap-2 mb-2">
                 <input
@@ -202,14 +202,14 @@ const CreateQuestionPage: React.FC = () => {
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="输入标签后按回车添加"
+                  placeholder="Enter tag and press Enter to add"
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
                   className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                 >
-                  添加
+                  Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -231,10 +231,10 @@ const CreateQuestionPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 答案内容 */}
+            {/* Answer Content */}
             <div>
               <label htmlFor="answer_text" className="block text-sm font-medium text-gray-700 mb-2">
-                参考答案 *
+                Reference Answer *
               </label>
               <textarea
                 id="answer_text"
@@ -243,12 +243,12 @@ const CreateQuestionPage: React.FC = () => {
                 onChange={handleInputChange}
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入参考答案..."
+                placeholder="Please enter the reference answer..."
                 required
               />
             </div>
 
-            {/* 提交按钮 */}
+            {/* Submit Buttons */}
             <div className="flex gap-4 pt-4">
               <button
                 type="submit"
@@ -259,14 +259,14 @@ const CreateQuestionPage: React.FC = () => {
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {isSubmitting ? '创建中...' : '创建问题'}
+                {isSubmitting ? 'Creating...' : 'Create Question'}
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
                 className="flex-1 py-3 px-4 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
-                取消
+                Cancel
               </button>
             </div>
           </form>

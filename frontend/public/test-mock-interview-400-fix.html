@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview 400 Error Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log-area {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-pending { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Mock Interview 400 Error Fix Test</h1>
+    
+    <div class="test-section">
+        <h2 class="test-title">🎯 问题描述</h2>
+        <div class="test-result warning">
+            <strong>问题：</strong>POST /api/v1/questions/generate 返回400错误 "Invalid request data"<br>
+            <strong>原因：</strong>后端GenerateQuestionsSchema不接受'mock'作为interview_type<br>
+            <strong>修复：</strong>在后端schema中添加'mock'到允许的interview_type列表
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">🧪 测试步骤</h2>
+        <div id="test-steps">
+            <div id="step-1">
+                <span class="status-indicator status-pending"></span>
+                <strong>步骤1：</strong>登录系统
+                <button onclick="testLogin()">执行登录</button>
+            </div>
+            <div id="step-2">
+                <span class="status-indicator status-pending"></span>
+                <strong>步骤2：</strong>创建Mock Interview会话
+                <button onclick="testCreateSession()">创建会话</button>
+            </div>
+            <div id="step-3">
+                <span class="status-indicator status-pending"></span>
+                <strong>步骤3：</strong>生成Mock Interview问题
+                <button onclick="testGenerateQuestions()">生成问题</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">📊 测试结果</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">📝 详细日志</h2>
+        <div id="log-area" class="log-area"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let currentSessionId = '';
+        
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('log-area');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logArea.textContent += logEntry;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function updateStepStatus(stepId, status) {
+            const step = document.getElementById(stepId);
+            const indicator = step.querySelector('.status-indicator');
+            indicator.className = `status-indicator status-${status}`;
+        }
+
+        function addResult(message, type) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        async function testLogin() {
+            try {
+                log('开始登录测试...');
+                
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    updateStepStatus('step-1', 'success');
+                    addResult('✅ 登录成功', 'success');
+                    log(`登录成功，获取到token: ${authToken.substring(0, 20)}...`);
+                } else {
+                    updateStepStatus('step-1', 'error');
+                    addResult('❌ 登录失败: ' + (data.message || '未知错误'), 'error');
+                    log(`登录失败: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                updateStepStatus('step-1', 'error');
+                addResult('❌ 登录异常: ' + error.message, 'error');
+                log(`登录异常: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateSession() {
+            if (!authToken) {
+                addResult('❌ 请先登录', 'error');
+                return;
+            }
+
+            try {
+                log('开始创建Mock Interview会话...');
+                
+                const response = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        interview_type: 'mock',
+                        total_questions: 8,
+                        custom_title: 'Test Mock Interview'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    currentSessionId = data.data.session.session_id;
+                    updateStepStatus('step-2', 'success');
+                    addResult('✅ 会话创建成功: ' + currentSessionId, 'success');
+                    log(`会话创建成功，Session ID: ${currentSessionId}`);
+                } else {
+                    updateStepStatus('step-2', 'error');
+                    addResult('❌ 会话创建失败: ' + (data.message || '未知错误'), 'error');
+                    log(`会话创建失败: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                updateStepStatus('step-2', 'error');
+                addResult('❌ 会话创建异常: ' + error.message, 'error');
+                log(`会话创建异常: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGenerateQuestions() {
+            if (!authToken || !currentSessionId) {
+                addResult('❌ 请先登录并创建会话', 'error');
+                return;
+            }
+
+            try {
+                log('开始生成Mock Interview问题...');
+                
+                const requestData = {
+                    resume_id: 71,
+                    session_id: currentSessionId,
+                    interview_type: 'mock',
+                    total_questions: 8
+                };
+                
+                log(`请求参数: ${JSON.stringify(requestData, null, 2)}`);
+                
+                const response = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+                
+                log(`响应状态: ${response.status}`);
+                log(`响应数据: ${JSON.stringify(data, null, 2)}`);
+                
+                if (response.ok && data.success) {
+                    updateStepStatus('step-3', 'success');
+                    addResult(`✅ 问题生成成功! 生成了 ${data.data.questions.length} 个问题`, 'success');
+                    log(`问题生成成功，生成了 ${data.data.questions.length} 个问题`);
+                    
+                    // 显示生成的问题
+                    data.data.questions.forEach((q, index) => {
+                        log(`问题 ${index + 1}: ${q.question_text} (类型: ${q.question_type}, 难度: ${q.difficulty})`);
+                    });
+                } else {
+                    updateStepStatus('step-3', 'error');
+                    addResult(`❌ 问题生成失败 (${response.status}): ${data.message || '未知错误'}`, 'error');
+                    log(`问题生成失败: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                updateStepStatus('step-3', 'error');
+                addResult('❌ 问题生成异常: ' + error.message, 'error');
+                log(`问题生成异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后的初始化
+        window.onload = function() {
+            log('测试页面已加载，准备开始测试...');
+            addResult('🚀 测试环境已准备就绪，请按顺序执行测试步骤', 'warning');
+        };
+    </script>
+</body>
+</html> 

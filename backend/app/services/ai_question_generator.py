@@ -578,8 +578,8 @@ Difficulty Explanations:
                     if 'question_text' in q:
                         question = {
                             'question_text': q['question_text'],
-                            'question_type': question_type,
-                            'difficulty': difficulty,
+                            'question_type': question_type.value,  # 使用枚举值而不是枚举对象
+                            'difficulty': difficulty.value,        # 使用枚举值而不是枚举对象
                             'category': q.get('category', ''),
                             'tags': q.get('tags', []),
                             'expected_answer': q.get('expected_answer', ''),
@@ -702,8 +702,8 @@ Difficulty Explanations:
         for i in range(min(count, len(questions_pool))):
             result.append({
                 'question_text': questions_pool[i],
-                'question_type': question_type,
-                'difficulty': difficulty,
+                'question_type': question_type.value,  # 使用枚举值而不是枚举对象
+                'difficulty': difficulty.value,        # 使用枚举值而不是枚举对象
                 'category': 'General',
                 'tags': ['fallback'],
                 'expected_answer': 'Answer based on personal experience',
@@ -721,8 +721,8 @@ Difficulty Explanations:
         basic_questions = [
             {
                 'question_text': 'Please introduce yourself briefly.',
-                'question_type': QuestionType.GENERAL,
-                'difficulty': QuestionDifficulty.EASY,
+                'question_type': QuestionType.GENERAL.value,
+                'difficulty': QuestionDifficulty.EASY.value,
                 'category': 'Introduction',
                 'tags': ['self-introduction'],
                 'expected_answer': 'Include educational background, work experience, skills, etc.',
@@ -730,8 +730,8 @@ Difficulty Explanations:
             },
             {
                 'question_text': 'Why are you interested in this position?',
-                'question_type': QuestionType.BEHAVIORAL,
-                'difficulty': QuestionDifficulty.EASY,
+                'question_type': QuestionType.BEHAVIORAL.value,
+                'difficulty': QuestionDifficulty.EASY.value,
                 'category': 'Motivation',
                 'tags': ['motivation', 'career'],
                 'expected_answer': 'Combine personal interests with career planning',
@@ -739,8 +739,8 @@ Difficulty Explanations:
             },
             {
                 'question_text': 'Please describe your most proud project experience.',
-                'question_type': QuestionType.EXPERIENCE,
-                'difficulty': QuestionDifficulty.MEDIUM,
+                'question_type': QuestionType.EXPERIENCE.value,
+                'difficulty': QuestionDifficulty.MEDIUM.value,
                 'category': 'Project',
                 'tags': ['project', 'achievement'],
                 'expected_answer': 'Include project background, personal responsibilities, achievements, etc.',
@@ -748,8 +748,8 @@ Difficulty Explanations:
             },
             {
                 'question_text': 'How do you handle challenging situations at work?',
-                'question_type': QuestionType.SITUATIONAL,
-                'difficulty': QuestionDifficulty.MEDIUM,
+                'question_type': QuestionType.SITUATIONAL.value,
+                'difficulty': QuestionDifficulty.MEDIUM.value,
                 'category': 'Problem Solving',
                 'tags': ['problem-solving', 'resilience'],
                 'expected_answer': 'Demonstrate problem-solving approach and resilience',
@@ -757,8 +757,8 @@ Difficulty Explanations:
             },
             {
                 'question_text': 'What are your main technical strengths?',
-                'question_type': QuestionType.TECHNICAL,
-                'difficulty': QuestionDifficulty.EASY,
+                'question_type': QuestionType.TECHNICAL.value,
+                'difficulty': QuestionDifficulty.EASY.value,
                 'category': 'Technical Skills',
                 'tags': ['skills', 'technical'],
                 'expected_answer': 'Highlight relevant technical skills and experience',

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 最终修复验证测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 最终修复验证测试</h1>
+            <p>验证API重复调用修复和数据库错误修复</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 测试控制面板</h3>
+            <button class="button" onclick="runFullTest()">运行完整测试</button>
+            <button class="button" onclick="testLogin()">测试登录</button>
+            <button class="button" onclick="testQuestionGeneration()">测试问题生成</button>
+            <button class="button" onclick="testMockInterviewFlow()">测试模拟面试流程</button>
+            <button class="button" onclick="clearLogs()">清空日志</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCalls">0</div>
+                <div class="stat-label">总API调用</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="duplicateCalls">0</div>
+                <div class="stat-label">重复调用</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successCalls">0</div>
+                <div class="stat-label">成功调用</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="errorCalls">0</div>
+                <div class="stat-label">错误调用</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 测试状态</h3>
+            <div id="testStatus" class="info status">准备开始测试...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 详细日志</h3>
+            <div class="log-container" id="logContainer">
+                <div>等待测试开始...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let apiCallStats = {
+            total: 0,
+            duplicates: 0,
+            success: 0,
+            errors: 0,
+            calls: new Map()
+        };
+
+        let testToken = null;
+        let testSessionId = null;
+
+        // API拦截器
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            
+            // 记录API调用
+            const callKey = `${options.method || 'GET'} ${url}`;
+            const callCount = apiCallStats.calls.get(callKey) || 0;
+            apiCallStats.calls.set(callKey, callCount + 1);
+            
+            apiCallStats.total++;
+            if (callCount > 0) {
+                apiCallStats.duplicates++;
+            }
+            
+            updateStats();
+            log(`🌐 API调用: ${callKey} (第${callCount + 1}次)`);
+            
+            return originalFetch.apply(this, args)
+                .then(response => {
+                    if (response.ok) {
+                        apiCallStats.success++;
+                        log(`✅ API成功: ${callKey} - ${response.status}`);
+                    } else {
+                        apiCallStats.errors++;
+                        log(`❌ API错误: ${callKey} - ${response.status}`);
+                    }
+                    updateStats();
+                    return response;
+                })
+                .catch(error => {
+                    apiCallStats.errors++;
+                    log(`🚨 API异常: ${callKey} - ${error.message}`);
+                    updateStats();
+                    throw error;
+                });
+        };
+
+        // 工具函数
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('totalCalls').textContent = apiCallStats.total;
+            document.getElementById('duplicateCalls').textContent = apiCallStats.duplicates;
+            document.getElementById('successCalls').textContent = apiCallStats.success;
+            document.getElementById('errorCalls').textContent = apiCallStats.errors;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('testStatus');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div>日志已清空...</div>';
+            apiCallStats = {
+                total: 0,
+                duplicates: 0,
+                success: 0,
+                errors: 0,
+                calls: new Map()
+            };
+            updateStats();
+        }
+
+        // 测试函数
+        async function testLogin() {
+            try {
+                log('🔐 开始登录测试...');
+                updateStatus('正在测试登录...', 'info');
+                
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    testToken = data.data.access_token;
+                    log('✅ 登录成功');
+                    updateStatus('登录测试通过', 'success');
+                    return true;
+                } else {
+                    log(`❌ 登录失败: ${data.message}`);
+                    updateStatus('登录测试失败', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`🚨 登录异常: ${error.message}`);
+                updateStatus('登录测试异常', 'error');
+                return false;
+            }
+        }
+
+        async function testQuestionGeneration() {
+            if (!testToken) {
+                log('⚠️ 需要先登录');
+                return false;
+            }
+
+            try {
+                log('❓ 开始问题生成测试...');
+                updateStatus('正在测试问题生成...', 'info');
+                
+                // 创建面试会话
+                const sessionResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${testToken}`
+                    },
+                    body: JSON.stringify({
+                        interview_type: 'mock'
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                
+                if (!sessionResponse.ok || !sessionData.success) {
+                    log(`❌ 创建会话失败: ${sessionData.message}`);
+                    return false;
+                }
+
+                testSessionId = sessionData.data.id;
+                log(`✅ 创建面试会话成功: ${testSessionId}`);
+
+                // 生成问题
+                const generateResponse = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${testToken}`
+                    },
+                    body: JSON.stringify({
+                        session_id: testSessionId,
+                        resume_id: 71
+                    })
+                });
+
+                const generateData = await generateResponse.json();
+                
+                if (generateResponse.ok && generateData.success) {
+                    log('✅ 问题生成成功');
+                    updateStatus('问题生成测试通过', 'success');
+                    return true;
+                } else {
+                    log(`❌ 问题生成失败: ${generateData.message}`);
+                    updateStatus('问题生成测试失败', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`🚨 问题生成异常: ${error.message}`);
+                updateStatus('问题生成测试异常', 'error');
+                return false;
+            }
+        }
+
+        async function testMockInterviewFlow() {
+            log('🎭 开始模拟面试流程测试...');
+            updateStatus('正在测试模拟面试流程...', 'info');
+            
+            // 模拟访问mock-interview页面
+            log('📄 模拟访问 /mock-interview 页面...');
+            
+            // 模拟页面加载时的API调用
+            if (testToken && testSessionId) {
+                try {
+                    // 获取简历信息
+                    await fetch('http://localhost:5001/api/v1/resumes/71', {
+                        headers: {
+                            'Authorization': `Bearer ${testToken}`
+                        }
+                    });
+
+                    // 获取会话问题
+                    await fetch(`http://localhost:5001/api/v1/questions/session/${testSessionId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${testToken}`
+                        }
+                    });
+
+                    log('✅ 模拟面试流程测试完成');
+                    updateStatus('模拟面试流程测试通过', 'success');
+                    return true;
+                } catch (error) {
+                    log(`🚨 模拟面试流程异常: ${error.message}`);
+                    updateStatus('模拟面试流程测试异常', 'error');
+                    return false;
+                }
+            } else {
+                log('⚠️ 需要先完成登录和问题生成测试');
+                return false;
+            }
+        }
+
+        async function runFullTest() {
+            log('🚀 开始完整测试流程...');
+            updateStatus('正在运行完整测试...', 'info');
+            updateProgress(0);
+
+            const tests = [
+                { name: '登录测试', func: testLogin, progress: 25 },
+                { name: '问题生成测试', func: testQuestionGeneration, progress: 50 },
+                { name: '模拟面试流程测试', func: testMockInterviewFlow, progress: 75 }
+            ];
+
+            let passedTests = 0;
+
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                log(`📋 执行 ${test.name}...`);
+                
+                const result = await test.func();
+                updateProgress(test.progress);
+                
+                if (result) {
+                    passedTests++;
+                    log(`✅ ${test.name} 通过`);
+                } else {
+                    log(`❌ ${test.name} 失败`);
+                }
+
+                // 等待一下再执行下一个测试
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            updateProgress(100);
+
+            if (passedTests === tests.length) {
+                log('🎉 所有测试通过！');
+                updateStatus(`完整测试通过 (${passedTests}/${tests.length})`, 'success');
+            } else {
+                log(`⚠️ 部分测试失败 (${passedTests}/${tests.length})`);
+                updateStatus(`部分测试失败 (${passedTests}/${tests.length})`, 'warning');
+            }
+
+            // 显示重复调用统计
+            if (apiCallStats.duplicates > 0) {
+                log(`⚠️ 检测到 ${apiCallStats.duplicates} 次重复API调用`);
+                updateStatus('检测到重复API调用', 'warning');
+            } else {
+                log('✅ 没有检测到重复API调用');
+            }
+        }
+
+        // 页面加载完成后的初始化
+        window.onload = function() {
+            log('🌟 最终修复验证测试页面已加载');
+            log('🔧 API拦截器已启用');
+            log('📊 统计功能已就绪');
+            updateStatus('测试页面已就绪，点击按钮开始测试', 'info');
+        };
+    </script>
+</body>
+</html> 

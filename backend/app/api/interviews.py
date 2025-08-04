@@ -172,7 +172,7 @@ def get_interview(session_id):
 def start_interview(session_id):
     """开始面试会话"""
     try:
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())  # 确保转换为整数
         
         session = interview_service.start_interview_session(user_id, session_id)
         next_question = interview_service.get_next_question(user_id, session_id)
@@ -283,6 +283,32 @@ def end_interview(session_id):
         raise APIError(str(e), 404)
     except Exception as e:
         raise APIError(f'Failed to end interview: {str(e)}', 500)
+
+@interviews_bp.route('/<session_id>/abandon', methods=['PUT'])
+@jwt_required()
+def abandon_interview(session_id):
+    """设置面试会话为已放弃状态"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 获取放弃原因
+        data = request.get_json() or {}
+        reason = data.get('reason', 'user_action')
+        
+        session = interview_service.abandon_interview_session(user_id, session_id, reason)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Interview session abandoned',
+            'data': {
+                'session': session.to_dict()
+            }
+        })
+        
+    except (ValidationError, NotFoundError) as e:
+        raise APIError(str(e), 400)
+    except Exception as e:
+        raise APIError(f'Failed to abandon interview: {str(e)}', 500)
 
 @interviews_bp.route('/<session_id>', methods=['DELETE'])
 @jwt_required()

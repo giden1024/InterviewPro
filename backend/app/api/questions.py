@@ -9,6 +9,7 @@ from app.models.question import Question, InterviewSession, QuestionType, Questi
 from app.models.resume import Resume
 from app.models.user import User
 from app.services.ai_question_generator import AIQuestionGenerator
+from app.services.cache_service import CacheService
 from app.utils.response import success_response, error_response
 # from app.tasks.question_tasks import generate_questions_async, generate_ai_reference_async
 
@@ -18,7 +19,7 @@ questions_bp = Blueprint('questions', __name__)
 class GenerateQuestionsSchema(Schema):
     resume_id = fields.Integer(required=True)
     session_id = fields.String(required=True)  # 现在必须提供session_id
-    interview_type = fields.String(allow_none=True, validate=validate.OneOf(['technical', 'hr', 'comprehensive']))  # 改为可选
+    interview_type = fields.String(allow_none=True, validate=validate.OneOf(['technical', 'hr', 'comprehensive', 'mock']))  # 改为可选
     total_questions = fields.Integer(allow_none=True, validate=validate.Range(min=1, max=50))
     difficulty_distribution = fields.Dict(allow_none=True)
     type_distribution = fields.Dict(allow_none=True)
@@ -178,11 +179,18 @@ def generate_questions():
         user_id = int(get_jwt_identity())
         
         # 验证请求数据
+        current_app.logger.info(f"🔍 [DEBUG] 收到生成问题请求")
+        current_app.logger.info(f"🔍 [DEBUG] 原始请求数据: {request.json}")
+        current_app.logger.info(f"🔍 [DEBUG] 请求数据类型: {type(request.json)}")
+        
         schema = GenerateQuestionsSchema()
         try:
             data = schema.load(request.json)
+            current_app.logger.info(f"🔍 [DEBUG] Schema验证成功，解析后数据: {data}")
         except ValidationError as err:
-            return error_response("Invalid request data", 400, details=err.messages)
+            current_app.logger.error(f"🔍 [DEBUG] Schema验证失败: {err}")
+            current_app.logger.error(f"🔍 [DEBUG] 验证错误详情: {err.messages}")
+            return error_response(f"Invalid request data: {err.messages}", 400)
         
         # 检查简历是否存在且属于当前用户
         resume = Resume.query.filter_by(id=data['resume_id'], user_id=user_id).first()
@@ -209,6 +217,85 @@ def generate_questions():
         if interview_session.status not in ['created', 'in_progress', 'ready']:
             return error_response("Interview session is not in valid state for question generation", 400)
         
+        # 首先检查缓存
+        cached_questions = CacheService.get_cached_questions(user_id, resume.id)
+        if cached_questions and CacheService.is_resume_cache_valid(resume.id, resume.updated_at):
+            current_app.logger.info(f"Using cached questions for user {user_id}, resume {resume.id}")
+            
+            # 将缓存的问题数据转换为Question对象并保存到数据库（如果还没有的话）
+            existing_questions = Question.query.filter_by(
+                session_id=interview_session.id,
+                user_id=user_id
+            ).count()
+            
+            if existing_questions == 0:
+                # 缓存命中但数据库中没有问题，需要保存到数据库
+                questions = []
+                for q_data in cached_questions:
+                    # 处理从缓存中恢复的枚举值 - 简化版本
+                    question_type_raw = q_data['question_type']
+                    difficulty_raw = q_data['difficulty']
+                    
+                    # 转换枚举字符串为简单值
+                    if isinstance(question_type_raw, str) and question_type_raw.startswith('QuestionType.'):
+                        question_type_value = question_type_raw.replace('QuestionType.', '').lower()
+                    else:
+                        question_type_value = question_type_raw
+                        
+                    if isinstance(difficulty_raw, str) and difficulty_raw.startswith('QuestionDifficulty.'):
+                        difficulty_value = difficulty_raw.replace('QuestionDifficulty.', '').lower()  
+                    else:
+                        difficulty_value = difficulty_raw
+                    
+                    # 转换为枚举对象
+                    question_type_enum = QuestionType(question_type_value)
+                    difficulty_enum = QuestionDifficulty(difficulty_value)
+                    
+                    question = Question(
+                        resume_id=resume.id,
+                        user_id=user_id,
+                        session_id=interview_session.id,
+                        question_text=q_data['question_text'],
+                        question_type=question_type_enum,
+                        difficulty=difficulty_enum,
+                        category=q_data.get('category', ''),
+                        tags=q_data.get('tags', []),
+                        expected_answer=q_data.get('expected_answer', ''),
+                        evaluation_criteria=q_data.get('evaluation_criteria', {}),
+                        ai_context=q_data.get('ai_context', {})
+                    )
+                    questions.append(question)
+                    db.session.add(question)
+                
+                # 更新会话状态
+                interview_session.status = 'ready'
+                db.session.commit()
+                
+                current_app.logger.info(f"Saved {len(questions)} cached questions to database for session {session_id}")
+            else:
+                # 数据库中已有问题，直接获取
+                questions = Question.query.filter_by(
+                    session_id=interview_session.id,
+                    user_id=user_id
+                ).all()
+                
+                # 确保会话状态为ready
+                if interview_session.status != 'ready':
+                    interview_session.status = 'ready'
+                    db.session.commit()
+            
+            return success_response(
+                data={
+                    'questions': [q.to_dict() for q in questions],
+                    'session': interview_session.to_dict(),
+                    'from_cache': True
+                },
+                message=f"Successfully retrieved {len(questions)} questions from cache"
+            )
+        
+        # 缓存未命中或已过期，生成新问题
+        current_app.logger.info(f"Cache miss or expired for user {user_id}, resume {resume.id}, generating new questions")
+        
         # 初始化AI问题生成器
         generator = AIQuestionGenerator()
         
@@ -225,13 +312,36 @@ def generate_questions():
         # 保存生成的问题到数据库
         questions = []
         for q_data in questions_data:
+            # 确保枚举值正确转换 - 简化版本
+            question_type_raw = q_data['question_type']
+            if hasattr(question_type_raw, 'value'):
+                # 如果是枚举对象，取其值
+                question_type_final = question_type_raw.value
+            elif isinstance(question_type_raw, str) and '.' in question_type_raw:
+                # 如果是字符串形式的枚举（如'QuestionType.TECHNICAL'），提取值部分并转换为小写
+                enum_value = question_type_raw.split('.')[-1]
+                question_type_final = enum_value.lower()
+            else:
+                question_type_final = question_type_raw
+            
+            difficulty_raw = q_data['difficulty']
+            if hasattr(difficulty_raw, 'value'):
+                # 如果是枚举对象，取其值
+                difficulty_final = difficulty_raw.value
+            elif isinstance(difficulty_raw, str) and '.' in difficulty_raw:
+                # 如果是字符串形式的枚举（如'QuestionDifficulty.MEDIUM'），提取值部分并转换为小写
+                enum_value = difficulty_raw.split('.')[-1]
+                difficulty_final = enum_value.lower()
+            else:
+                difficulty_final = difficulty_raw
+                
             question = Question(
                 resume_id=resume.id,
                 user_id=user_id,
                 session_id=interview_session.id,
                 question_text=q_data['question_text'],
-                question_type=q_data['question_type'],
-                difficulty=q_data['difficulty'],
+                question_type=QuestionType(question_type_final),  # 转换为枚举对象
+                difficulty=QuestionDifficulty(difficulty_final),  # 转换为枚举对象
                 category=q_data.get('category', ''),
                 tags=q_data.get('tags', []),
                 expected_answer=q_data.get('expected_answer', ''),
@@ -245,12 +355,34 @@ def generate_questions():
         interview_session.status = 'ready'
         db.session.commit()
         
+        # 保存到缓存
+        questions_data_for_cache = []
+        for question in questions:
+            questions_data_for_cache.append({
+                'question_text': question.question_text,
+                'question_type': question.question_type.value if hasattr(question.question_type, 'value') else question.question_type,
+                'difficulty': question.difficulty.value if hasattr(question.difficulty, 'value') else question.difficulty,
+                'category': question.category,
+                'tags': question.tags,
+                'expected_answer': question.expected_answer,
+                'evaluation_criteria': question.evaluation_criteria,
+                'ai_context': question.ai_context
+            })
+        
+        CacheService.set_cached_questions(
+            user_id=user_id,
+            resume_id=resume.id,
+            questions=questions_data_for_cache,
+            resume_updated_at=resume.updated_at
+        )
+        
         current_app.logger.info(f"Generated {len(questions)} questions for user {user_id}, session {session_id}")
         
         return success_response(
             data={
                 'session': interview_session.to_dict(),
                 'questions': [q.to_dict() for q in questions],
+                'from_cache': False,
                 'stats': {
                     'total_generated': len(questions),
                     'resume_id': resume.id,
@@ -263,7 +395,9 @@ def generate_questions():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error generating questions: {e}")
-        return error_response("Failed to generate questions", 500)
+        import traceback
+        current_app.logger.error(f"Full traceback: {traceback.format_exc()}")
+        return error_response(f"Failed to generate questions: {str(e)}", 500)
 
 @questions_bp.route('/generate-async', methods=['POST'])
 @jwt_required()
@@ -277,7 +411,7 @@ def generate_questions_async_endpoint():
         try:
             data = schema.load(request.json)
         except ValidationError as err:
-            return error_response("Invalid request data", 400, details=err.messages)
+            return error_response("Invalid request data", 400)
         
         # 检查简历是否存在且属于当前用户
         resume = Resume.query.filter_by(id=data['resume_id'], user_id=user_id).first()

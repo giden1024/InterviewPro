@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test StrictMode Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        .info { background: #e3f2fd; color: #1565c0; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        .counter { font-weight: bold; color: #1976d2; font-size: 18px; margin: 10px 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 React StrictMode API重复调用修复测试</h1>
+    
+    <div class="section">
+        <h3>问题说明</h3>
+        <p>React StrictMode在开发模式下会故意执行useEffect两次，导致API被重复调用。</p>
+        <p>修复方案：使用useRef防止重复执行初始化逻辑。</p>
+    </div>
+    
+    <div class="section">
+        <h3>测试控制</h3>
+        <button onclick="startTest()">开始测试</button>
+        <button onclick="clearLogs()">清除日志</button>
+        <button onclick="showInstructions()">显示测试说明</button>
+    </div>
+
+    <div class="section">
+        <h3>API调用计数器</h3>
+        <div class="counter">
+            <div>总API调用次数: <span id="total-count">0</span></div>
+            <div>GET /api/v1/resumes/{id}: <span id="resume-count">0</span> 次</div>
+            <div>GET /api/v1/questions/session/{id}: <span id="session-count">0</span> 次</div>
+            <div>POST /api/v1/questions/generate: <span id="generate-count">0</span> 次</div>
+        </div>
+        <div>
+            <strong>期望结果：</strong> 每个API都应该只被调用1次，即使在StrictMode下也是如此。
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>StrictMode检测日志</h3>
+        <div id="strictmode-logs" style="background: #f9f9f9; padding: 10px; min-height: 50px; border-radius: 3px;">
+            等待检测StrictMode重复执行...
+        </div>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        let apiCounts = {
+            total: 0,
+            resume: 0,
+            session: 0,
+            generate: 0
+        };
+
+        let strictModeDetections = 0;
+
+        function log(message, type = 'log') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function logStrictMode(message) {
+            const strictModeLogs = document.getElementById('strictmode-logs');
+            strictModeDetections++;
+            strictModeLogs.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}<br>`;
+            strictModeLogs.scrollTop = strictModeLogs.scrollHeight;
+        }
+
+        function updateCounter(type) {
+            apiCounts[type]++;
+            apiCounts.total++;
+            document.getElementById(`${type}-count`).textContent = apiCounts[type];
+            document.getElementById('total-count').textContent = apiCounts.total;
+            
+            if (apiCounts[type] === 1) {
+                log(`✅ ${type} API首次调用`, 'success');
+            } else {
+                log(`⚠️ ${type} API被调用了 ${apiCounts[type]} 次！`, 'warning');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            document.getElementById('strictmode-logs').innerHTML = '等待检测StrictMode重复执行...';
+            apiCounts = { total: 0, resume: 0, session: 0, generate: 0 };
+            strictModeDetections = 0;
+            document.getElementById('total-count').textContent = '0';
+            document.getElementById('resume-count').textContent = '0';
+            document.getElementById('session-count').textContent = '0';
+            document.getElementById('generate-count').textContent = '0';
+        }
+
+        function showInstructions() {
+            log('📋 测试说明:', 'info');
+            log('1. 点击"开始测试"按钮', 'info');
+            log('2. 打开新标签页访问 http://localhost:3000/home', 'info');
+            log('3. 登录账号：3938930977@qq.com / 12345678', 'info');
+            log('4. 点击"Mock Interview"按钮', 'info');
+            log('5. 选择任意职位', 'info');
+            log('6. 观察此页面的API调用计数器', 'info');
+            log('7. 检查StrictMode检测日志', 'info');
+            log('', 'info');
+            log('🎯 期望结果：每个API只被调用1次，StrictMode重复执行被成功拦截', 'info');
+        }
+
+        // 监听所有网络请求
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const [url, options] = args;
+            
+            // 记录API调用
+            if (typeof url === 'string') {
+                if (url.includes('/api/v1/resumes/') && !url.includes('/analyze') && options?.method !== 'POST') {
+                    updateCounter('resume');
+                    log(`📋 API调用: GET ${url.split('/').pop()}`);
+                } else if (url.includes('/api/v1/questions/session/')) {
+                    updateCounter('session');
+                    log(`🔄 API调用: GET ${url.split('/').pop()}`);
+                } else if (url.includes('/api/v1/questions/generate')) {
+                    updateCounter('generate');
+                    log(`🤖 API调用: POST questions/generate`);
+                }
+            }
+            
+            return originalFetch.apply(this, args);
+        };
+
+        // 监听控制台日志，捕获StrictMode检测信息
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('StrictMode重复执行检测')) {
+                logStrictMode('🔄 检测到StrictMode重复执行，已成功拦截');
+            }
+            return originalConsoleLog.apply(this, args);
+        };
+
+        function startTest() {
+            clearLogs();
+            log('🚀 开始StrictMode修复测试', 'success');
+            log('📝 请按照测试说明执行操作...', 'info');
+            
+            // 10秒后自动分析结果
+            setTimeout(analyzeResults, 10000);
+        }
+
+        function analyzeResults() {
+            log('📊 测试结果分析:', 'success');
+            
+            if (apiCounts.total === 0) {
+                log('ℹ️ 没有检测到API调用，请确保已执行测试步骤', 'warning');
+                return;
+            }
+            
+            log(`📈 总共检测到 ${apiCounts.total} 次API调用`);
+            
+            // 检查API调用次数
+            let allApisCallOnce = true;
+            if (apiCounts.resume > 1) {
+                log(`❌ GET /api/v1/resumes/{id} 被调用了 ${apiCounts.resume} 次`, 'error');
+                allApisCallOnce = false;
+            }
+            if (apiCounts.session > 1) {
+                log(`❌ GET /api/v1/questions/session/{id} 被调用了 ${apiCounts.session} 次`, 'error');
+                allApisCallOnce = false;
+            }
+            if (apiCounts.generate > 1) {
+                log(`❌ POST /api/v1/questions/generate 被调用了 ${apiCounts.generate} 次`, 'error');
+                allApisCallOnce = false;
+            }
+            
+            // 检查StrictMode检测
+            if (strictModeDetections > 0) {
+                log(`✅ StrictMode重复执行检测工作正常，拦截了 ${strictModeDetections} 次重复执行`, 'success');
+            } else {
+                log('⚠️ 没有检测到StrictMode重复执行拦截，可能修复有问题', 'warning');
+            }
+            
+            // 最终结果
+            if (allApisCallOnce && strictModeDetections > 0) {
+                log('🎉 修复成功！StrictMode重复调用问题已解决！', 'success');
+            } else if (allApisCallOnce) {
+                log('✅ API调用次数正常，但StrictMode检测可能有问题', 'warning');
+            } else {
+                log('❌ 修复失败，仍存在API重复调用问题', 'error');
+            }
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            log('✅ StrictMode修复测试页面已加载');
+            log('💡 此页面用于测试React StrictMode导致的API重复调用修复效果');
+            log('🔍 修复原理：使用useRef防止useEffect在StrictMode下重复执行');
+        };
+    </script>
+</body>
+</html> 

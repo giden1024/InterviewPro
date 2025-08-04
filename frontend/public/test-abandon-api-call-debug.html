@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abandon API Call Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .log { max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 3px; }
+        .token-info { background: #e9ecef; padding: 10px; border-radius: 3px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Abandon API Call Debug Test (Fixed)</h1>
+    <p>测试会话ID: <strong>fdf5a46f-b4a3-4cad-810b-9d2140f07f55</strong></p>
+
+    <div class="section info">
+        <h3>📋 测试步骤</h3>
+        <ol>
+            <li>检查登录状态</li>
+            <li>登录系统（如需要）</li>
+            <li>获取会话信息</li>
+            <li>模拟调用abandon API</li>
+            <li>验证结果</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h3>🔐 0. 登录状态检查</h3>
+        <button onclick="checkLoginStatus()">检查登录状态</button>
+        <button onclick="clearToken()">清除Token</button>
+        <div id="loginStatusResult"></div>
+        <div id="tokenInfo" class="token-info" style="display: none;"></div>
+    </div>
+
+    <div class="section">
+        <h3>🔐 1. 用户登录</h3>
+        <button onclick="login()">登录</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>📊 2. 获取会话信息</h3>
+        <button onclick="getSessionInfo()">获取会话信息</button>
+        <div id="sessionResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>🚫 3. 调用 Abandon API</h3>
+        <button onclick="callAbandonAPI()">调用 Abandon API</button>
+        <div id="abandonResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>✅ 4. 验证结果</h3>
+        <button onclick="verifyResult()">验证结果</button>
+        <div id="verifyResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>📝 调试日志</h3>
+        <button onclick="clearLogs()">清空日志</button>
+        <div id="debugLogs" class="log"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        const SESSION_ID = 'fdf5a46f-b4a3-4cad-810b-9d2140f07f55';
+        const TOKEN_KEY = 'test_auth_token';
+
+        // Token管理函数
+        function getAuthToken() {
+            return localStorage.getItem(TOKEN_KEY) || '';
+        }
+
+        function setAuthToken(token) {
+            localStorage.setItem(TOKEN_KEY, token);
+            log(`Token已保存到localStorage: ${token ? token.substring(0, 20) + '...' : 'empty'}`);
+        }
+
+        function clearAuthToken() {
+            localStorage.removeItem(TOKEN_KEY);
+            log('Token已从localStorage清除');
+        }
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debugLogs');
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLogs() {
+            document.getElementById('debugLogs').textContent = '';
+        }
+
+        function checkLoginStatus() {
+            const resultDiv = document.getElementById('loginStatusResult');
+            const tokenInfoDiv = document.getElementById('tokenInfo');
+            const token = getAuthToken();
+            
+            if (token) {
+                resultDiv.innerHTML = '<div class="success">✅ 已登录状态</div>';
+                tokenInfoDiv.style.display = 'block';
+                tokenInfoDiv.innerHTML = `
+                    <strong>当前Token:</strong><br>
+                    <code>${token ? token.substring(0, 50) + '...' : 'empty'}</code><br>
+                    <small>长度: ${token ? token.length : 0} 字符</small>
+                `;
+                log('检查登录状态: 已登录');
+            } else {
+                resultDiv.innerHTML = '<div class="warning">⚠️ 未登录状态</div>';
+                tokenInfoDiv.style.display = 'none';
+                log('检查登录状态: 未登录');
+            }
+        }
+
+        function clearToken() {
+            clearAuthToken();
+            checkLoginStatus();
+            document.getElementById('loginResult').innerHTML = '';
+        }
+
+        async function login() {
+            const resultDiv = document.getElementById('loginResult');
+            try {
+                log('开始登录...');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    setAuthToken(data.access_token);
+                    resultDiv.innerHTML = '<div class="success">✅ 登录成功</div>';
+                    log('登录成功，获取到token');
+                    checkLoginStatus(); // 更新状态显示
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ 登录失败: ${data.message}</div>`;
+                    log(`登录失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 登录错误: ${error.message}</div>`;
+                log(`登录错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function getSessionInfo() {
+            const resultDiv = document.getElementById('sessionResult');
+            const authToken = getAuthToken();
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '<div class="error">❌ 请先登录</div>';
+                log('获取会话信息失败: 未登录', 'error');
+                return;
+            }
+
+            try {
+                log(`获取会话信息: ${SESSION_ID}`);
+                log(`使用Token: ${authToken ? authToken.substring(0, 20) + '...' : 'empty'}`);
+                
+                const response = await fetch(`${API_BASE}/interviews?page=1&per_page=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    const session = data.sessions.find(s => s.session_id === SESSION_ID);
+                    if (session) {
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <h4>✅ 找到会话信息</h4>
+                                <pre>${JSON.stringify(session, null, 2)}</pre>
+                            </div>
+                        `;
+                        log(`找到会话，状态: ${session.status}`);
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">❌ 未找到指定会话</div>';
+                        log('未找到指定会话', 'error');
+                    }
+                } else {
+                    if (response.status === 401) {
+                        resultDiv.innerHTML = '<div class="error">❌ Token已过期，请重新登录</div>';
+                        clearAuthToken();
+                        checkLoginStatus();
+                        log('Token已过期，已清除', 'error');
+                    } else {
+                        resultDiv.innerHTML = `<div class="error">❌ 获取会话失败: ${data.message}</div>`;
+                        log(`获取会话失败: ${data.message}`, 'error');
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 获取会话错误: ${error.message}</div>`;
+                log(`获取会话错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function callAbandonAPI() {
+            const resultDiv = document.getElementById('abandonResult');
+            const authToken = getAuthToken();
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '<div class="error">❌ 请先登录</div>';
+                log('调用abandon API失败: 未登录', 'error');
+                return;
+            }
+
+            try {
+                log(`调用abandon API: PUT ${API_BASE}/interviews/${SESSION_ID}/abandon`);
+                log(`使用Token: ${authToken ? authToken.substring(0, 20) + '...' : 'empty'}`);
+                
+                // 记录请求详情
+                const requestData = { reason: 'user_leave_test' };
+                log(`请求数据: ${JSON.stringify(requestData)}`);
+                
+                const response = await fetch(`${API_BASE}/interviews/${SESSION_ID}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Abandon API 调用成功</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                    log('Abandon API 调用成功');
+                } else {
+                    if (response.status === 401) {
+                        resultDiv.innerHTML = '<div class="error">❌ Token已过期，请重新登录</div>';
+                        clearAuthToken();
+                        checkLoginStatus();
+                        log('Token已过期，已清除', 'error');
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <h4>❌ Abandon API 调用失败</h4>
+                                <p>状态码: ${response.status}</p>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                        log(`Abandon API 调用失败: ${response.status} - ${data.message}`, 'error');
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Abandon API 调用错误: ${error.message}</div>`;
+                log(`Abandon API 调用错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function verifyResult() {
+            const resultDiv = document.getElementById('verifyResult');
+            const authToken = getAuthToken();
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '<div class="error">❌ 请先登录</div>';
+                log('验证结果失败: 未登录', 'error');
+                return;
+            }
+
+            try {
+                log('验证abandon结果...');
+                log(`使用Token: ${authToken ? authToken.substring(0, 20) + '...' : 'empty'}`);
+                
+                const response = await fetch(`${API_BASE}/interviews?page=1&per_page=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    const session = data.sessions.find(s => s.session_id === SESSION_ID);
+                    if (session) {
+                        const isAbandoned = session.status === 'abandoned';
+                        const hasCompletedAt = session.completed_at !== null;
+                        
+                        resultDiv.innerHTML = `
+                            <div class="${isAbandoned && hasCompletedAt ? 'success' : 'error'}">
+                                <h4>${isAbandoned && hasCompletedAt ? '✅' : '❌'} 验证结果</h4>
+                                <p>状态: ${session.status} ${isAbandoned ? '✅' : '❌'}</p>
+                                <p>完成时间: ${session.completed_at || 'null'} ${hasCompletedAt ? '✅' : '❌'}</p>
+                                <p>更新时间: ${session.updated_at}</p>
+                                <p>整体评估: ${isAbandoned && hasCompletedAt ? '🎉 完全正确!' : '⚠️ 需要修复'}</p>
+                            </div>
+                        `;
+                        
+                        log(`验证结果 - 状态: ${session.status}, 完成时间: ${session.completed_at}`);
+                    } else {
+                        resultDiv.innerHTML = '<div class="error">❌ 未找到指定会话</div>';
+                        log('验证失败: 未找到指定会话', 'error');
+                    }
+                } else {
+                    if (response.status === 401) {
+                        resultDiv.innerHTML = '<div class="error">❌ Token已过期，请重新登录</div>';
+                        clearAuthToken();
+                        checkLoginStatus();
+                        log('Token已过期，已清除', 'error');
+                    } else {
+                        resultDiv.innerHTML = `<div class="error">❌ 验证失败: ${data.message}</div>`;
+                        log(`验证失败: ${data.message}`, 'error');
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 验证错误: ${error.message}</div>`;
+                log(`验证错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时的初始化
+        window.onload = function() {
+            log('页面加载完成，开始调试abandon API调用问题');
+            log(`目标会话ID: ${SESSION_ID}`);
+            checkLoginStatus(); // 自动检查登录状态
+        };
+    </script>
+</body>
+</html> 

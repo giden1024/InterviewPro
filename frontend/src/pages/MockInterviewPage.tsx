@@ -59,7 +59,65 @@ declare var SpeechRecognition: {
   new(): SpeechRecognition;
 };
 
+// 生成唯一的组件实例ID用于调试
+const INSTANCE_ID = Math.random().toString(36).substr(2, 9);
+console.log(`🎭 MockInterviewPage实例创建: ${INSTANCE_ID}`);
+
+// 全局API调用拦截器
+if (!(window as any).__API_INTERCEPTOR_INSTALLED__) {
+  const originalFetch = window.fetch;
+  let callCounter = 0;
+  
+  window.fetch = function(...args) {
+    const [url, options] = args;
+    callCounter++;
+    
+    if (typeof url === 'string' && url.includes('/api/v1/')) {
+      const method = options?.method || 'GET';
+      const apiPath = url.replace(/^.*\/api\/v1\//, '');
+      const timestamp = new Date().toISOString();
+      
+      console.log(`🌐 [${callCounter}] API调用: ${method} /api/v1/${apiPath}`);
+      console.log(`🕐 时间戳: ${timestamp}`);
+      console.log(`📍 调用栈:`, new Error().stack?.split('\n').slice(1, 5).join('\n'));
+      console.log(`---`);
+    }
+    
+    return originalFetch.apply(this, args);
+  };
+  
+  (window as any).__API_INTERCEPTOR_INSTALLED__ = true;
+  console.log(`🔧 全局API拦截器已安装`);
+}
+
+// 创建API调用追踪器
+const apiCallTracker = {
+  calls: new Map<string, number>(),
+  track: (apiName: string, sessionId?: string) => {
+    const key = sessionId ? `${apiName}:${sessionId}` : apiName;
+    const count = (apiCallTracker.calls.get(key) || 0) + 1;
+    apiCallTracker.calls.set(key, count);
+    
+    console.log(`🔍 [${INSTANCE_ID}] API调用追踪: ${key} (第${count}次)`);
+    console.log(`🔍 [${INSTANCE_ID}] 调用栈:`, new Error().stack?.split('\n').slice(1, 4).join('\n'));
+    
+    if (count > 1) {
+      console.warn(`⚠️ [${INSTANCE_ID}] 检测到重复API调用: ${key}`);
+    }
+    
+    return count;
+  },
+  getStats: () => {
+    const stats: Record<string, number> = {};
+    apiCallTracker.calls.forEach((count, key) => {
+      stats[key] = count;
+    });
+    return stats;
+  }
+};
+
 const MockInterviewPage: React.FC = () => {
+  console.log(`🎭 MockInterviewPage渲染: ${INSTANCE_ID}`);
   const location = useLocation();
   const navigate = useNavigate();
   const { handleApiError } = useAuthRedirect();
@@ -98,7 +156,29 @@ const MockInterviewPage: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // 新增状态：当前问题开始时间
-  const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState<string>('');
+  const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState<Date | null>(null);
+  
+  // 新增状态：面试启动相关
+  const [isStartingInterview, setIsStartingInterview] = useState(false);
+  const startedInterviewSessions = useRef<Set<string>>(new Set());
+  
+  // 防止StrictMode重复执行useEffect - 使用全局标识符
+  const initializationRef = useRef<boolean>(false);
+  
+  // 使用全局标识符来防止重复初始化
+  const sessionKey = location.state?.sessionId || 'default';
+  const globalInitKey = `mock_interview_init_${sessionKey}`;
+  
+  useEffect(() => {
+    // 清理之前的全局标识符（页面刷新时）
+    return () => {
+      delete (window as any)[globalInitKey];
+    };
+  }, [globalInitKey]);
+
+  // 新增状态：问题生成Loading
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // 获取当前问题
   const currentQuestion = questions[currentQuestionIndex];
@@ -107,34 +187,82 @@ const MockInterviewPage: React.FC = () => {
   const currentAIReferenceAnswer = currentQuestion ? aiReferenceAnswers[currentQuestion.id] : null;
 
   // 公共函数：启动面试会话（避免重复调用）
-  const startInterviewIfNeeded = async (session: any) => {
+  const startInterviewIfNeeded = useCallback(async (session: any) => {
     if (!session) {
       console.warn('⚠️ 无法获取会话信息，跳过启动步骤');
       return;
     }
 
+    // 防重复调用检查
+    if (isStartingInterview || startedInterviewSessions.current.has(session.session_id)) {
+      console.log('🔄 面试启动已在进行中或已完成，跳过重复调用');
+      return;
+    }
+
     try {
-      // 检查会话状态，created 和 ready 状态都可以启动面试
+      // 检查会话状态，created、ready 和 in_progress 状态都可以启动面试
       if (session.status === 'created' || session.status === 'ready') {
-        console.log(`🚀 会话状态为${session.status}，启动面试...`);
+        console.log(`🚀 [${INSTANCE_ID}] 会话状态为${session.status}，启动面试...`);
+        setIsStartingInterview(true);
+        console.log(`🚀 [${INSTANCE_ID}] 调用interviewService.startInterview`);
+        apiCallTracker.track('interviewService.startInterview', session.session_id);
         await interviewService.startInterview(session.session_id);
+        startedInterviewSessions.current.add(session.session_id);
         console.log('✅ Interview session started');
+      } else if (session.status === 'in_progress') {
+        console.log('ℹ️ 会话已经在进行中，尝试启动以确保状态同步...');
+        setIsStartingInterview(true);
+        try {
+          await interviewService.startInterview(session.session_id);
+          startedInterviewSessions.current.add(session.session_id);
+          console.log('✅ Interview session status synchronized');
+        } catch (error: any) {
+          // 如果是400错误且会话已经在进行中，这是正常的
+          if (error.response?.status === 400) {
+            console.log('ℹ️ 会话已启动，继续进行面试');
+            startedInterviewSessions.current.add(session.session_id);
+          } else {
+            throw error;
+          }
+        }
       } else {
-        console.log('ℹ️ 会话已启动，跳过启动步骤，当前状态:', session.status);
+        console.log('ℹ️ 会话状态不需要启动，当前状态:', session.status);
       }
     } catch (error) {
       console.error('❌ Failed to start interview session:', error);
       // 启动面试失败不应该阻止用户继续面试，只记录错误
       console.warn('⚠️ 面试启动失败，但将继续进行面试流程');
+    } finally {
+      setIsStartingInterview(false);
     }
-  };
+  }, [isStartingInterview]);
 
   // 自动开始面试 - 获取用户简历并生成问题
   useEffect(() => {
+    console.log(`🎭 useEffect执行: ${INSTANCE_ID}`);
+    console.log(`🔍 location.state详细内容:`, JSON.stringify(location.state, null, 2));
+    console.log(`🔍 当前时间戳:`, new Date().toISOString());
+    
+    // 防止React StrictMode重复执行 - 使用全局标识符
+    if ((window as any)[globalInitKey]) {
+      console.log(`🔄 全局重复执行检测，跳过初始化: ${INSTANCE_ID}, key: ${globalInitKey}`);
+      return;
+    }
+    
+    if (initializationRef.current) {
+      console.log(`🔄 本地重复执行检测，跳过初始化: ${INSTANCE_ID}`);
+      return;
+    }
+    
+    (window as any)[globalInitKey] = true;
+    initializationRef.current = true;
+    console.log(`✅ useEffect初始化开始: ${INSTANCE_ID}, key: ${globalInitKey}`);
+
     const initializeInterview = async () => {
       try {
         setLoading(true);
         setError(null);
+        setGenerationError(null);
 
         // 从路由状态获取选择的职位和简历ID
         const stateData = location.state as {
@@ -144,89 +272,91 @@ const MockInterviewPage: React.FC = () => {
           questions?: Question[]; // 添加questions字段
         } | null;
 
-        // 优先检查questions数据（从CompletePage传递过来）
-        if (stateData?.questions && stateData?.sessionId) {
-          console.log('✅ 使用已传递的问题数据:', stateData.sessionId);
+        let sessionToUse: InterviewSession | null = null;
+        let questionsToUse: Question[] = [];
+        let resumeToUse: Resume | null = null;
+
+        // 情况1：从HomePage传递过来的数据（新流程）- sessionId + selectedJob + resumeId，但没有questions
+        if (stateData?.sessionId && stateData?.selectedJob && stateData?.resumeId && (!stateData.questions || stateData.questions.length === 0)) {
+          console.log(`🚀 从HomePage传递的数据，需要生成问题: ${INSTANCE_ID}`);
+          console.log('Session ID:', stateData.sessionId);
+          console.log('Selected Job:', stateData.selectedJob.title);
+          console.log('Resume ID:', stateData.resumeId);
+
+          // 设置基本数据
+          setSelectedJob(stateData.selectedJob);
+          
+          // 获取简历详情
+          console.log(`📋 调用resumeService.getResume: ${INSTANCE_ID}`);
+          apiCallTracker.track('resumeService.getResume', stateData.resumeId.toString());
+          resumeToUse = await resumeService.getResume(stateData.resumeId);
+          setUserResume(resumeToUse);
+          
+          // 获取会话信息
+          console.log(`🔄 调用questionService.getSessionQuestions: ${INSTANCE_ID}`);
+          apiCallTracker.track('questionService.getSessionQuestions', stateData.sessionId);
+          const sessionData = await questionService.getSessionQuestions(stateData.sessionId);
+          sessionToUse = sessionData.session;
+          setInterviewSession(sessionToUse);
+
+          // 开始生成问题的Loading状态
+          setIsGeneratingQuestions(true);
+          console.log(`🔄 开始生成问题: ${INSTANCE_ID}`);
+
+          try {
+            // 生成问题
+            console.log(`🤖 调用questionService.generateQuestions: ${INSTANCE_ID}`);
+            apiCallTracker.track('questionService.generateQuestions', stateData.sessionId);
+            const result = await questionService.generateQuestions({
+              resume_id: stateData.resumeId,
+              session_id: stateData.sessionId,
+              interview_type: 'mock',
+              total_questions: sessionToUse.total_questions || 8
+            });
+
+            if (!result.questions || result.questions.length === 0) {
+              throw new Error('生成的问题为空，请重试');
+            }
+
+            questionsToUse = result.questions;
+            console.log(`✅ 成功生成 ${result.questions.length} 个问题`);
+          } catch (generateError: any) {
+            console.error('❌ 问题生成失败:', generateError);
+            setGenerationError(generateError.message || '问题生成失败，请重试');
+            setError('问题生成失败，请重试');
+            throw generateError;
+          } finally {
+            setIsGeneratingQuestions(false);
+          }
+        }
+        // 情况2：从CompletePage传递过来的数据 - 已有questions和sessionId
+        else if (stateData?.questions && stateData?.sessionId) {
+          console.log(`✅ [${INSTANCE_ID}] 使用已传递的问题数据:`, stateData.sessionId);
           console.log(`📋 问题数量: ${stateData.questions.length}`);
           
           // 直接使用已传递的问题数据，避免重复API调用
-          setQuestions(stateData.questions);
+          questionsToUse = stateData.questions;
           
           // 只获取会话信息，不重新获取问题
+          console.log(`🔄 [${INSTANCE_ID}] 调用questionService.getSessionQuestions (情况2)`);
+          apiCallTracker.track('questionService.getSessionQuestions', stateData.sessionId);
           const sessionData = await questionService.getSessionQuestions(stateData.sessionId);
-          setInterviewSession(sessionData.session);
-          console.log('✅ 使用已传递的问题数据，避免重复生成');
-        } else         if (stateData?.selectedJob && stateData?.resumeId) {
-          // 使用从HomePage传递的数据
-          setSelectedJob(stateData.selectedJob);
-          console.log('Using selected position:', stateData.selectedJob.title);
-          console.log('Using resume ID:', stateData.resumeId);
-
+          sessionToUse = sessionData.session;
+          setInterviewSession(sessionToUse);
+          
           // 获取简历详情
-          const resumeData = await resumeService.getResume(stateData.resumeId);
-          setUserResume(resumeData);
-          console.log('Getting resume details:', resumeData.filename);
-
-                    // 检查是否已经有会话ID和问题数据（从CompletePage传递过来）
-          let questionData;
-          let sessionData;
-          if (stateData.sessionId && stateData.questions) {
-            console.log('✅ 使用已存在的会话ID和问题数据:', stateData.sessionId);
-            
-            // 直接使用已传递的问题数据，避免重复API调用
-            setQuestions(stateData.questions);
-            
-            // 获取会话信息（不包含问题，避免重复）
-            sessionData = await questionService.getSessionQuestions(stateData.sessionId);
-            setInterviewSession(sessionData.session);
-            console.log(`✅ 使用已传递的问题数据，共 ${stateData.questions.length} 个`);
-          } else if (stateData.sessionId) {
-            console.log('✅ 使用已存在的会话ID，但需要获取问题:', stateData.sessionId);
-            
-            // 只有会话ID，需要获取问题
-            questionData = await questionService.getSessionQuestions(stateData.sessionId);
-            setQuestions(questionData.questions);
-            setInterviewSession(questionData.session);
-            console.log(`✅ 获取到的问题，共 ${questionData.questions.length} 个`);
-          } else {
-            // 只有在没有会话ID时才创建新的面试会话
-            console.log('🆕 创建新的面试会话...');
-            const interviewData = await interviewService.createInterview({
-              resume_id: stateData.resumeId,
-              interview_type: 'mock',
-              total_questions: 8,
-              difficulty_distribution: {
-                'easy': 2,
-                'medium': 4,
-                'hard': 2
-              },
-              type_distribution: {
-                'behavioral': 3,
-                'technical': 2,
-                'situational': 2,
-                'experience': 1
-              },
-              custom_title: `${stateData.selectedJob.title} @ ${stateData.selectedJob.company} Mock Interview`
-            });
-
-            console.log('✅ 创建面试会话成功:', interviewData.session_id);
-
-            // 然后基于会话ID生成问题
-            questionData = await questionService.generateQuestions({
-              resume_id: stateData.resumeId,
-              session_id: interviewData.session_id
-            });
-            
-            setQuestions(questionData.questions);
-            setInterviewSession(questionData.session);
-            console.log(`Successfully generated ${questionData.questions.length} questions`);
+          if (sessionToUse?.resume_id) {
+            console.log(`📋 [${INSTANCE_ID}] 调用resumeService.getResume (情况2)`);
+            apiCallTracker.track('resumeService.getResume', sessionToUse.resume_id.toString());
+            resumeToUse = await resumeService.getResume(sessionToUse.resume_id);
+            setUserResume(resumeToUse);
           }
           
-          // 启动面试会话
-          await startInterviewIfNeeded(questionData?.session || sessionData?.session);
-        } else {
-          // 兼容旧的逻辑 - 自动获取最新简历
-          console.log('No selected position and resume found, using default logic...');
+          console.log(`✅ [${INSTANCE_ID}] 使用已传递的问题数据，避免重复生成`);
+        }
+        // 情况3：直接访问或刷新页面 - 没有任何状态数据
+        else {
+          console.log(`🔄 [${INSTANCE_ID}] 直接访问页面，使用默认逻辑获取最新简历...`);
           
           // 检查当前token是否有效
           const currentToken = localStorage.getItem('access_token');
@@ -234,8 +364,10 @@ const MockInterviewPage: React.FC = () => {
             throw new Error('No authentication token found. Please login again.');
           }
           
-          console.log('🔐 Using current authentication token');
+          console.log(`🔐 [${INSTANCE_ID}] Using current authentication token`);
 
+          console.log(`📋 [${INSTANCE_ID}] 调用resumeService.getResumes (情况3)`);
+          apiCallTracker.track('resumeService.getResumes');
           const resumesResponse = await resumeService.getResumes({ 
             page: 1, 
             per_page: 50
@@ -255,12 +387,19 @@ const MockInterviewPage: React.FC = () => {
             throw new Error('No completed resume found, please upload and analyze your resume first');
           }
 
-          const latestResume = processedResumes[0];
-          setUserResume(latestResume);
+          resumeToUse = processedResumes[0];
+          setUserResume(resumeToUse);
+
+          // 确保resumeToUse不为null
+          if (!resumeToUse) {
+            throw new Error('Failed to get resume data');
+          }
 
           // 首先创建面试会话
+          console.log(`🚀 [${INSTANCE_ID}] 调用interviewService.createInterview (情况3)`);
+          apiCallTracker.track('interviewService.createInterview');
           const interviewData = await interviewService.createInterview({
-            resume_id: latestResume.id,
+            resume_id: resumeToUse.id,
             interview_type: 'mock',
             total_questions: 8,
             difficulty_distribution: {
@@ -274,29 +413,39 @@ const MockInterviewPage: React.FC = () => {
               'situational': 2,
               'experience': 1
             },
-            custom_title: `Mock Interview Based on ${latestResume.filename}`
+            custom_title: `Mock Interview Based on ${resumeToUse.filename}`
           });
 
           // 然后基于会话ID生成问题
+          setIsGeneratingQuestions(true);
+          console.log(`🤖 [${INSTANCE_ID}] 调用questionService.generateQuestions (情况3)`);
+          apiCallTracker.track('questionService.generateQuestions', interviewData.session_id);
           const questionData = await questionService.generateQuestions({
-            resume_id: latestResume.id,
+            resume_id: resumeToUse.id,
             session_id: interviewData.session_id
           });
+          setIsGeneratingQuestions(false);
 
-          setQuestions(questionData.questions);
+          questionsToUse = questionData.questions;
           // ✅ 使用生成的会话但确保session_id正确
-          const correctedSession = {
+          sessionToUse = {
             ...questionData.session,
             session_id: interviewData.session_id  // 确保使用正确的session_id
           };
-          setInterviewSession(correctedSession);
-          console.log(`Successfully generated ${questionData.questions.length} questions`);
-          console.log('✅ 使用的会话ID:', correctedSession.session_id);
-
-          // 启动面试会话
-          await startInterviewIfNeeded(correctedSession);
+          setInterviewSession(sessionToUse);
+          console.log(`Successfully generated ${questionsToUse.length} questions`);
+          console.log('✅ 使用的会话ID:', sessionToUse.session_id);
         }
 
+        // 设置问题数据
+        setQuestions(questionsToUse);
+        
+        // 启动面试会话
+        await startInterviewIfNeeded(sessionToUse);
+
+        // 输出API调用统计
+        console.log(`📊 [${INSTANCE_ID}] API调用统计:`, apiCallTracker.getStats());
+        
         setLoading(false);
       } catch (error: any) {
         console.error('Failed to initialize interview:', error);
@@ -306,15 +455,100 @@ const MockInterviewPage: React.FC = () => {
           setError('Authentication failed. Please login again.');
           console.error('🔐 Token authentication failed, please login again');
         } else {
-          handleApiError(error);
+          console.error('Failed to initialize interview:', error);
           setError(error.message || 'Failed to initialize interview, please try again later');
         }
         setLoading(false);
+        setIsGeneratingQuestions(false);
+        setGenerationError(error.message || 'Failed to initialize interview');
       }
     };
 
     initializeInterview();
+
+    // Cleanup function for speech recognition and synthesis
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      window.speechSynthesis.cancel();
+      // 重置初始化标记，允许下次正常初始化
+      initializationRef.current = false;
+    };
   }, [location.state]);
+
+  // 浏览器关闭/刷新检测 - 自动设置面试为abandoned状态
+  useEffect(() => {
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      // 如果面试正在进行中，尝试设置为abandoned状态
+      if (interviewSession && interviewSession.status === 'in_progress') {
+        event.preventDefault();
+        
+        // 使用sendBeacon API进行异步调用，确保在页面卸载时能够发送请求
+        const data = JSON.stringify({ reason: 'browser_close' });
+        const blob = new Blob([data], { type: 'application/json' });
+        
+        try {
+          // 获取token
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            // 构造完整的URL
+            const url = `http://localhost:5001/api/v1/interviews/${interviewSession.session_id}/abandon`;
+            
+            // 使用fetch进行同步调用（在beforeunload中）
+            fetch(url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: data,
+              keepalive: true // 确保请求在页面卸载后继续
+            }).catch(error => {
+              console.error('❌ 设置面试为abandoned状态失败:', error);
+            });
+          }
+        } catch (error) {
+          console.error('❌ beforeunload处理失败:', error);
+        }
+        
+        // 设置确认消息
+        event.returnValue = '面试正在进行中，确定要离开吗？';
+        return '面试正在进行中，确定要离开吗？';
+      }
+    };
+
+    // 页面可见性变化检测 - 检测长时间离开
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('📱 页面失去焦点');
+        // 记录离开时间，可以用于后续判断是否需要abandon
+        sessionStorage.setItem('pageHiddenTime', Date.now().toString());
+      } else {
+        console.log('📱 页面重新获得焦点');
+        const hiddenTime = sessionStorage.getItem('pageHiddenTime');
+        if (hiddenTime) {
+          const timeDiff = Date.now() - parseInt(hiddenTime);
+          // 如果离开超过5分钟，考虑设置为abandoned（可根据需求调整）
+          if (timeDiff > 5 * 60 * 1000 && interviewSession && interviewSession.status === 'in_progress') {
+            console.log('⏰ 检测到长时间离开，建议重新开始面试');
+            // 这里可以显示提示或自动abandon
+          }
+          sessionStorage.removeItem('pageHiddenTime');
+        }
+      }
+    };
+
+    // 添加事件监听器
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 清理函数
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [interviewSession]); // 依赖interviewSession，当会话状态变化时重新绑定
 
   // 初始化语音识别
   useEffect(() => {
@@ -371,12 +605,38 @@ const MockInterviewPage: React.FC = () => {
   }, []);
 
   // 处理退出面试
-  const handleLeaveInterview = () => {
+  const handleLeaveInterview = async () => {
+    console.log('🚪 [DEBUG] Leave按钮被点击');
+    console.log('🚪 [DEBUG] 当前会话状态:', interviewSession?.status);
+    console.log('🚪 [DEBUG] 当前会话ID:', interviewSession?.session_id);
+    
     const confirmLeave = window.confirm(
-      '确定要离开面试吗？\n\n当前的面试进度和答案将会保存，您可以稍后继续。'
+      '确定要离开面试吗？\n\n面试将被标记为已放弃。'
     );
     
+    console.log('🚪 [DEBUG] 用户确认结果:', confirmLeave);
+    
     if (confirmLeave) {
+      try {
+        // 如果有面试会话且状态为进行中或已创建，调用abandon API
+        if (interviewSession && (interviewSession.status === 'in_progress' || interviewSession.status === 'created')) {
+          console.log('🔄 设置面试会话为已放弃状态...');
+          console.log('🔄 [DEBUG] 调用 abandonInterview API:', interviewSession.session_id);
+          console.log('🔄 [DEBUG] 会话状态:', interviewSession.status);
+          await interviewService.abandonInterview(interviewSession.session_id, 'user_leave');
+          console.log('✅ 面试会话已设置为已放弃状态');
+        } else {
+          console.log('🚪 [DEBUG] 不满足abandon条件:');
+          console.log('🚪 [DEBUG] - interviewSession存在:', !!interviewSession);
+          console.log('🚪 [DEBUG] - 会话状态:', interviewSession?.status);
+          console.log('🚪 [DEBUG] - 状态为in_progress或created:', 
+            interviewSession?.status === 'in_progress' || interviewSession?.status === 'created');
+        }
+      } catch (error) {
+        console.error('❌ 设置面试会话为已放弃状态失败:', error);
+        // 即使API调用失败，也继续执行退出流程
+      }
+      
       // 停止语音识别
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -796,12 +1056,7 @@ const MockInterviewPage: React.FC = () => {
   useEffect(() => {
     if (currentQuestion) {
       // 设置当前问题开始时间
-      setCurrentQuestionStartTime(new Date().toLocaleTimeString('en-US', { 
-        hour12: false,
-        hour: '2-digit', 
-        minute: '2-digit',
-        second: '2-digit'
-      }));
+      setCurrentQuestionStartTime(new Date());
       
       // 延迟一下再朗读，确保页面已经渲染完成
       if (currentQuestion.question_text) {
@@ -843,14 +1098,40 @@ const MockInterviewPage: React.FC = () => {
   }
 
   // 加载状态显示
-  if (loading) {
+  if (loading || isGeneratingQuestions) {
     return (
       <div className="min-h-screen bg-[#EEF9FF] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6FBDFF] mx-auto mb-4"></div>
-          <p className="text-gray-600">Generating interview questions based on your resume...</p>
-          {userResume && (
-            <p className="text-sm text-gray-500 mt-2">Resume: {userResume.filename}</p>
+          {isGeneratingQuestions ? (
+            <>
+              <p className="text-gray-600">🤖 Generating personalized interview questions...</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a moment as we analyze your resume</p>
+              {selectedJob && (
+                <p className="text-sm text-blue-600 mt-2">Position: {selectedJob.title} @ {selectedJob.company}</p>
+              )}
+              {userResume && (
+                <p className="text-sm text-gray-500 mt-1">Resume: {userResume.filename}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-gray-600">Initializing interview session...</p>
+              {userResume && (
+                <p className="text-sm text-gray-500 mt-2">Resume: {userResume.filename}</p>
+              )}
+            </>
+          )}
+          {generationError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{generationError}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-2 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -934,7 +1215,12 @@ const MockInterviewPage: React.FC = () => {
               <svg className="w-6 h-6 text-[#6FBDFF]" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span>{currentQuestionStartTime || '00:00:00'}</span>
+              <span>{currentQuestionStartTime ? currentQuestionStartTime.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+              }) : '00:00:00'}</span>
             </div>
             
             <div className="bg-white border border-dashed border-[#EEEEEE] rounded-lg p-4">

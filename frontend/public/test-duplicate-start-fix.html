@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Start Interview Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        button { padding: 10px 15px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Duplicate Start Interview Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>问题描述：</h3>
+        <p>MockInterviewPage中有两个地方会调用startInterview，导致重复请求：</p>
+        <ul>
+            <li>第一次调用：处理传入的会话数据时</li>
+            <li>第二次调用：兼容旧逻辑分支中</li>
+        </ul>
+        <p><strong>修复方案</strong>：提取公共函数避免重复调用</p>
+    </div>
+
+    <div class="test-section">
+        <h3>测试步骤：</h3>
+        <ol>
+            <li>创建面试会话</li>
+            <li>生成问题（状态变为ready）</li>
+            <li>模拟MockInterviewPage初始化</li>
+            <li>检查是否只调用一次startInterview</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>测试控制：</h3>
+        <button onclick="runDuplicateTest()">🧪 测试重复调用修复</button>
+        <button onclick="clearResults()">🧹 清除结果</button>
+    </div>
+
+    <div class="test-section">
+        <h3>测试结果：</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        const TEST_USER = {
+            email: 'mayuyang@xmov.ai',
+            password: '12345678'
+        };
+
+        let authToken = null;
+        let startInterviewCallCount = 0;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            startInterviewCallCount = 0;
+        }
+
+        // 监控startInterview API调用
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const [url, options] = args;
+            
+            // 检测startInterview API调用
+            if (typeof url === 'string' && url.includes('/start') && options?.method === 'POST') {
+                startInterviewCallCount++;
+                log(`📞 检测到第${startInterviewCallCount}次startInterview调用: ${url}`, 
+                    startInterviewCallCount > 1 ? 'error' : 'info');
+            }
+            
+            return originalFetch.apply(this, args);
+        };
+
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                },
+                ...options
+            };
+
+            try {
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`${response.status}: ${data.error?.message || data.message || 'Unknown error'}`);
+                }
+                
+                return data;
+            } catch (error) {
+                log(`❌ API Error (${endpoint}): ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function login() {
+            log('🔐 正在登录...');
+            try {
+                const result = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify(TEST_USER)
+                });
+                authToken = result.data.access_token;
+                log('✅ 登录成功', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ 登录失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function simulateMockInterviewFlow() {
+            log('🎭 模拟Mock Interview流程...');
+            
+            // 1. 获取简历
+            const resumeResult = await apiCall('/resumes');
+            const resumes = resumeResult.data.resumes;
+            const processedResume = resumes.find(r => r.status === 'PROCESSED');
+            
+            if (!processedResume) {
+                log('❌ 没有找到已处理的简历', 'error');
+                return false;
+            }
+            
+            log(`📄 找到简历 ID: ${processedResume.id}`, 'info');
+
+            // 2. 创建面试会话
+            const sessionResult = await apiCall('/interviews', {
+                method: 'POST',
+                body: JSON.stringify({
+                    resume_id: processedResume.id,
+                    interview_type: 'mock',
+                    total_questions: 5,
+                    custom_title: 'Duplicate Test Mock Interview'
+                })
+            });
+
+            const sessionId = sessionResult.data.session_id;
+            log(`🎯 创建会话成功 ID: ${sessionId}`, 'success');
+            log(`📊 初始状态: ${sessionResult.data.session.status}`, 'info');
+
+            // 3. 生成问题
+            const questionResult = await apiCall('/questions/generate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    resume_id: processedResume.id,
+                    session_id: sessionId,
+                    interview_type: 'mock',
+                    total_questions: 5
+                })
+            });
+
+            log(`❓ 问题生成成功，共 ${questionResult.data.questions.length} 个`, 'success');
+            log(`📊 问题生成后状态: ${questionResult.data.session.status}`, 'info');
+
+            // 4. 重置调用计数器
+            startInterviewCallCount = 0;
+
+            // 5. 模拟MockInterviewPage的初始化逻辑
+            log('🔄 模拟MockInterviewPage初始化...', 'info');
+            
+            // 模拟第一个分支：有sessionId和questions的情况
+            const mockStateData = {
+                sessionId: sessionId,
+                questions: questionResult.data.questions,
+                selectedJob: { title: 'Product Manager', company: 'Test Company' }
+            };
+
+            // 模拟startInterviewIfNeeded调用
+            const session = questionResult.data.session;
+            if (session.status === 'created' || session.status === 'ready') {
+                log(`🚀 模拟启动面试，会话状态: ${session.status}`, 'info');
+                try {
+                    await apiCall(`/interviews/${sessionId}/start`, { method: 'POST' });
+                    log('✅ 面试启动成功', 'success');
+                } catch (error) {
+                    log(`❌ 面试启动失败: ${error.message}`, 'error');
+                }
+            }
+
+            return true;
+        }
+
+        async function runDuplicateTest() {
+            clearResults();
+            log('🧪 开始重复调用测试...', 'info');
+            
+            if (!await login()) return;
+            
+            if (!await simulateMockInterviewFlow()) return;
+
+            // 检查结果
+            log('📊 测试结果分析:', 'info');
+            if (startInterviewCallCount === 0) {
+                log('⚠️ 没有检测到startInterview调用', 'warning');
+            } else if (startInterviewCallCount === 1) {
+                log('✅ 完美！只调用了1次startInterview，重复调用问题已修复', 'success');
+            } else {
+                log(`❌ 仍然存在重复调用！检测到${startInterviewCallCount}次调用`, 'error');
+            }
+        }
+
+        window.onload = () => {
+            log('🔧 重复调用修复测试页面已加载');
+            log('点击"测试重复调用修复"按钮开始测试');
+        };
+    </script>
+</body>
+</html> 

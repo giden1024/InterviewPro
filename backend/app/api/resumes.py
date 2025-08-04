@@ -9,6 +9,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from app.extensions import db
 from app.models.resume import Resume, ResumeStatus
 from app.services.resume_parser import ResumeParser
+from app.services.cache_service import CacheService
 from app.utils.response import success_response, error_response
 from app.utils.validation import validate_file
 
@@ -280,6 +281,10 @@ def upload_resume():
                 resume.education = parsed_data.get('education', [])
                 # 添加项目经验支持
                 resume.projects = parsed_data.get('projects', [])
+                
+                # 清除相关的问题缓存，因为简历内容已更新
+                CacheService.invalidate_resume_cache(resume.id)
+                current_app.logger.info(f"Invalidated cache for resume {resume.id} after processing")
                 
             else:
                 resume.status = ResumeStatus.FAILED

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API重复调用最终测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .test-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .test-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .test-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .log-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .api-call {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid #007bff;
+            background-color: #e9ecef;
+        }
+        
+        .api-duplicate {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 API重复调用最终测试</h1>
+        <p>测试修复后的MockInterviewPage是否还有API重复调用问题</p>
+        
+        <div class="status info">
+            <strong>测试状态:</strong> <span id="testStatus">准备就绪</span>
+        </div>
+        
+        <button onclick="testMockInterviewFlow()">🧪 测试MockInterview流程</button>
+        <button onclick="testDirectAccess()">🔗 测试直接访问</button>
+        <button onclick="clearLogs()">🗑️ 清除日志</button>
+        
+        <div class="test-results">
+            <div class="test-box">
+                <div class="test-number" id="totalApiCalls">0</div>
+                <div>总API调用数</div>
+            </div>
+            <div class="test-box">
+                <div class="test-number" id="duplicateCount">0</div>
+                <div>重复调用数</div>
+            </div>
+            <div class="test-box">
+                <div class="test-number" id="uniqueApis">0</div>
+                <div>唯一API数</div>
+            </div>
+            <div class="test-box">
+                <div class="test-number" id="testResult">未测试</div>
+                <div>测试结果</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>📊 API调用监控</h3>
+        <div id="logContainer" class="log-container">
+            <div class="info">等待测试开始...</div>
+        </div>
+    </div>
+
+    <script>
+        let apiCallLog = [];
+        let apiCallCounts = {};
+        let testWindow = null;
+        
+        function logMessage(message, isDuplicate = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = isDuplicate ? 'api-call api-duplicate' : 'api-call';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function updateStats() {
+            const totalCalls = apiCallLog.length;
+            const uniqueApis = Object.keys(apiCallCounts).length;
+            const duplicates = totalCalls - uniqueApis;
+            
+            document.getElementById('totalApiCalls').textContent = totalCalls;
+            document.getElementById('duplicateCount').textContent = duplicates;
+            document.getElementById('uniqueApis').textContent = uniqueApis;
+            
+            if (duplicates === 0 && totalCalls > 0) {
+                document.getElementById('testResult').textContent = '✅ 通过';
+                document.getElementById('testResult').style.color = '#28a745';
+            } else if (duplicates > 0) {
+                document.getElementById('testResult').textContent = '❌ 失败';
+                document.getElementById('testResult').style.color = '#dc3545';
+            } else {
+                document.getElementById('testResult').textContent = '⏳ 进行中';
+                document.getElementById('testResult').style.color = '#ffc107';
+            }
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('testStatus');
+            statusElement.textContent = message;
+            statusElement.parentElement.className = `status ${type}`;
+        }
+        
+        // 监听来自MockInterviewPage的消息
+        window.addEventListener('message', function(event) {
+            if (event.origin !== window.location.origin) return;
+            
+            if (event.data.type === 'API_CALL') {
+                const { method, url, timestamp } = event.data;
+                const apiKey = `${method} ${url}`;
+                
+                apiCallLog.push({ method, url, timestamp });
+                
+                if (apiCallCounts[apiKey]) {
+                    apiCallCounts[apiKey]++;
+                    logMessage(`🔄 重复API调用: ${apiKey} (第${apiCallCounts[apiKey]}次)`, true);
+                } else {
+                    apiCallCounts[apiKey] = 1;
+                    logMessage(`📞 API调用: ${apiKey}`);
+                }
+                
+                updateStats();
+            }
+        });
+        
+        async function testMockInterviewFlow() {
+            updateStatus('正在测试MockInterview流程...', 'info');
+            logMessage('🚀 开始测试MockInterview流程');
+            
+            // 重置统计
+            apiCallLog = [];
+            apiCallCounts = {};
+            updateStats();
+            
+            try {
+                // 模拟从HomePage导航到MockInterview的流程
+                const testData = {
+                    sessionId: 'test-session-' + Date.now(),
+                    selectedJob: {
+                        id: 1,
+                        title: 'Test Job',
+                        company: 'Test Company'
+                    },
+                    resumeId: 71,
+                    questions: [] // 空问题数组，触发生成流程
+                };
+                
+                // 打开MockInterview页面
+                const mockInterviewUrl = `/mock-interview?test=true`;
+                testWindow = window.open(mockInterviewUrl, 'mockInterviewTest', 'width=1200,height=800');
+                
+                if (!testWindow) {
+                    throw new Error('无法打开测试窗口，请允许弹窗');
+                }
+                
+                // 等待页面加载
+                setTimeout(() => {
+                    // 向测试窗口发送测试数据
+                    testWindow.postMessage({
+                        type: 'TEST_DATA',
+                        data: testData
+                    }, window.location.origin);
+                    
+                    logMessage('✅ 测试数据已发送到MockInterview页面');
+                    updateStatus('测试进行中，请等待结果...', 'warning');
+                }, 2000);
+                
+                // 10秒后检查结果
+                setTimeout(() => {
+                    const duplicates = apiCallLog.length - Object.keys(apiCallCounts).length;
+                    if (duplicates === 0 && apiCallLog.length > 0) {
+                        updateStatus('✅ 测试通过！没有发现重复API调用', 'success');
+                        logMessage('🎉 测试通过！MockInterview页面没有重复API调用');
+                    } else if (duplicates > 0) {
+                        updateStatus(`❌ 测试失败！发现${duplicates}个重复API调用`, 'error');
+                        logMessage(`❌ 测试失败！发现${duplicates}个重复API调用`);
+                    } else {
+                        updateStatus('⚠️ 测试未完成或没有API调用', 'warning');
+                        logMessage('⚠️ 测试未完成或没有API调用');
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                updateStatus(`测试错误: ${error.message}`, 'error');
+                logMessage(`❌ 测试错误: ${error.message}`);
+            }
+        }
+        
+        async function testDirectAccess() {
+            updateStatus('正在测试直接访问...', 'info');
+            logMessage('🔗 开始测试直接访问MockInterview');
+            
+            // 重置统计
+            apiCallLog = [];
+            apiCallCounts = {};
+            updateStats();
+            
+            try {
+                // 直接打开MockInterview页面
+                testWindow = window.open('/mock-interview', 'mockInterviewDirect', 'width=1200,height=800');
+                
+                if (!testWindow) {
+                    throw new Error('无法打开测试窗口，请允许弹窗');
+                }
+                
+                logMessage('✅ 直接访问MockInterview页面');
+                updateStatus('测试进行中，请等待结果...', 'warning');
+                
+                // 10秒后检查结果
+                setTimeout(() => {
+                    const duplicates = apiCallLog.length - Object.keys(apiCallCounts).length;
+                    if (duplicates === 0 && apiCallLog.length > 0) {
+                        updateStatus('✅ 直接访问测试通过！', 'success');
+                        logMessage('🎉 直接访问测试通过！');
+                    } else if (duplicates > 0) {
+                        updateStatus(`❌ 直接访问测试失败！发现${duplicates}个重复调用`, 'error');
+                        logMessage(`❌ 直接访问测试失败！发现${duplicates}个重复调用`);
+                    } else {
+                        updateStatus('⚠️ 直接访问测试未完成', 'warning');
+                        logMessage('⚠️ 直接访问测试未完成');
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                updateStatus(`测试错误: ${error.message}`, 'error');
+                logMessage(`❌ 测试错误: ${error.message}`);
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="info">日志已清除</div>';
+            apiCallLog = [];
+            apiCallCounts = {};
+            updateStats();
+            updateStatus('准备就绪', 'info');
+            
+            if (testWindow && !testWindow.closed) {
+                testWindow.close();
+            }
+        }
+        
+        // 页面卸载时关闭测试窗口
+        window.addEventListener('beforeunload', function() {
+            if (testWindow && !testWindow.closed) {
+                testWindow.close();
+            }
+        });
+        
+        // 页面加载完成
+        window.addEventListener('load', function() {
+            logMessage('🚀 API重复调用测试工具已就绪');
+            updateStatus('测试工具已就绪，点击按钮开始测试', 'info');
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 面试记录表格更新验证</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e3f2fd;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .result-area {
+            background: #f1f8e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #ffcdd2;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            border-color: #c8e6c9;
+            color: #2e7d32;
+        }
+        
+        .table-preview {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .table-preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-preview th {
+            background: #F8FAFB;
+            border-bottom: 1px solid #E5E7EB;
+            padding: 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .table-preview td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #E5E7EB;
+            font-size: 14px;
+            color: #282828;
+        }
+        .table-preview tr:hover {
+            background: #F9FAFB;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-completed { background: #E8F5E8; color: #2D7738; }
+        .status-in-progress { background: #FEF3C7; color: #92400E; }
+        .status-abandoned { background: #FEE2E2; color: #B91C1C; }
+        .status-ready { background: #EEF9FF; color: #1B5E8C; }
+        .status-created { background: #F3F4F6; color: #6B7280; }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .type-mock { background: #E8F5E8; color: #2D7738; }
+        .type-formal { background: #EEF9FF; color: #1B5E8C; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 面试记录表格更新验证</h1>
+            <p>测试新增的状态列和时长格式 (hh:mm:ss)</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📝 1. 登录并获取Token</div>
+            <button class="test-button" onclick="testLogin()">登录测试</button>
+            <div id="loginResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 2. 获取面试记录数据</div>
+            <button class="test-button" onclick="getInterviewRecords()">获取面试记录</button>
+            <div id="recordsResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧪 3. 测试时长格式化函数</div>
+            <button class="test-button" onclick="testDurationFormatting()">测试时长格式化</button>
+            <div id="durationResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🎨 4. 测试状态格式化函数</div>
+            <button class="test-button" onclick="testStatusFormatting()">测试状态格式化</button>
+            <div id="statusResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📊 5. 预览表格效果</div>
+            <button class="test-button" onclick="previewTable()">预览表格</button>
+            <div id="tablePreview" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        
+        // 登录测试
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '🔄 正在登录...';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    resultDiv.className = 'result-area success';
+                    resultDiv.textContent = `✅ 登录成功！\nToken: ${authToken.substring(0, 50)}...`;
+                } else {
+                    resultDiv.className = 'result-area error';
+                    resultDiv.textContent = `❌ 登录失败: ${data.message || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 登录异常: ${error.message}`;
+            }
+        }
+        
+        // 获取面试记录
+        async function getInterviewRecords() {
+            const resultDiv = document.getElementById('recordsResult');
+            resultDiv.style.display = 'block';
+            
+            if (!authToken) {
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = '❌ 请先登录获取Token';
+                return;
+            }
+            
+            resultDiv.textContent = '🔄 正在获取面试记录...';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/interviews?page=1&per_page=50', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultDiv.className = 'result-area success';
+                    
+                    // 格式化记录以便测试
+                    const formattedRecords = data.data.sessions.map(session => {
+                        const formatDuration = (startTime, endTime) => {
+                            const start = new Date(startTime);
+                            const end = endTime ? new Date(endTime) : new Date();
+                            const diffMs = Math.max(0, end.getTime() - start.getTime());
+                            
+                            const hours = Math.floor(diffMs / 3600000);
+                            const minutes = Math.floor((diffMs % 3600000) / 60000);
+                            const seconds = Math.floor((diffMs % 60000) / 1000);
+                            
+                            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                        };
+                        
+                        const formatStatus = (status) => {
+                            switch (status.toLowerCase()) {
+                                case 'completed': return { text: 'Completed', className: 'status-completed' };
+                                case 'in_progress': return { text: 'In Progress', className: 'status-in-progress' };
+                                case 'abandoned': return { text: 'Abandoned', className: 'status-abandoned' };
+                                case 'ready': return { text: 'Ready', className: 'status-ready' };
+                                case 'created': return { text: 'Created', className: 'status-created' };
+                                default: return { text: status, className: 'status-created' };
+                            }
+                        };
+                        
+                        return {
+                            id: session.session_id,
+                            title: session.title,
+                            duration: formatDuration(session.started_at || session.created_at, session.completed_at),
+                            status: session.status,
+                            statusFormatted: formatStatus(session.status),
+                            interview_type: session.interview_type
+                        };
+                    });
+                    
+                    resultDiv.textContent = `✅ 获取成功！共 ${formattedRecords.length} 条记录\n\n` + 
+                        JSON.stringify(formattedRecords, null, 2);
+                    
+                    // 保存到全局变量供其他函数使用
+                    window.testRecords = formattedRecords;
+                } else {
+                    resultDiv.className = 'result-area error';
+                    resultDiv.textContent = `❌ 获取失败: ${data.message || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result-area error';
+                resultDiv.textContent = `❌ 获取异常: ${error.message}`;
+            }
+        }
+        
+        // 测试时长格式化
+        function testDurationFormatting() {
+            const resultDiv = document.getElementById('durationResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area success';
+            
+            const formatDuration = (startTime, endTime) => {
+                const start = new Date(startTime);
+                const end = endTime ? new Date(endTime) : new Date();
+                const diffMs = Math.max(0, end.getTime() - start.getTime());
+                
+                const hours = Math.floor(diffMs / 3600000);
+                const minutes = Math.floor((diffMs % 3600000) / 60000);
+                const seconds = Math.floor((diffMs % 60000) / 1000);
+                
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            };
+            
+            const testCases = [
+                { start: '2025-08-04T10:00:00Z', end: '2025-08-04T10:30:45Z', desc: '30分45秒的面试' },
+                { start: '2025-08-04T10:00:00Z', end: '2025-08-04T11:15:30Z', desc: '1小时15分30秒的面试' },
+                { start: '2025-08-04T10:00:00Z', end: '2025-08-04T10:05:15Z', desc: '5分15秒的面试' },
+                { start: '2025-08-04T10:00:00Z', end: null, desc: '进行中的面试（到现在）' }
+            ];
+            
+            let result = '🧪 时长格式化测试结果:\n\n';
+            testCases.forEach((testCase, index) => {
+                const duration = formatDuration(testCase.start, testCase.end);
+                result += `${index + 1}. ${testCase.desc}\n`;
+                result += `   开始时间: ${testCase.start}\n`;
+                result += `   结束时间: ${testCase.end || '进行中'}\n`;
+                result += `   格式化结果: ${duration}\n\n`;
+            });
+            
+            resultDiv.textContent = result;
+        }
+        
+        // 测试状态格式化
+        function testStatusFormatting() {
+            const resultDiv = document.getElementById('statusResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-area success';
+            
+            const formatStatus = (status) => {
+                switch (status.toLowerCase()) {
+                    case 'completed': return { text: 'Completed', className: 'bg-[#E8F5E8] text-[#2D7738]' };
+                    case 'in_progress': return { text: 'In Progress', className: 'bg-[#FEF3C7] text-[#92400E]' };
+                    case 'abandoned': return { text: 'Abandoned', className: 'bg-[#FEE2E2] text-[#B91C1C]' };
+                    case 'ready': return { text: 'Ready', className: 'bg-[#EEF9FF] text-[#1B5E8C]' };
+                    case 'created': return { text: 'Created', className: 'bg-[#F3F4F6] text-[#6B7280]' };
+                    default: return { text: status, className: 'bg-[#F3F4F6] text-[#6B7280]' };
+                }
+            };
+            
+            const statusList = ['completed', 'in_progress', 'abandoned', 'ready', 'created', 'unknown'];
+            
+            let result = '🎨 状态格式化测试结果:\n\n';
+            statusList.forEach(status => {
+                const formatted = formatStatus(status);
+                result += `状态: "${status}" → 显示: "${formatted.text}" | 样式: ${formatted.className}\n`;
+            });
+            
+            resultDiv.textContent = result;
+        }
+        
+        // 预览表格效果
+        function previewTable() {
+            const previewDiv = document.getElementById('tablePreview');
+            previewDiv.style.display = 'block';
+            
+            // 使用测试数据或演示数据
+            const records = window.testRecords || [
+                {
+                    id: 'ac5545af-1d34-41e5-b1da-e5fffa0bcacd',
+                    title: 'Product Manager Mock Interview',
+                    duration: '01:23:45',
+                    status: 'abandoned',
+                    statusFormatted: { text: 'Abandoned', className: 'status-abandoned' },
+                    interview_type: 'mock'
+                },
+                {
+                    id: 'demo-completed',
+                    title: 'Software Engineer Interview',
+                    duration: '00:45:30',
+                    status: 'completed',
+                    statusFormatted: { text: 'Completed', className: 'status-completed' },
+                    interview_type: 'comprehensive'
+                },
+                {
+                    id: 'demo-in-progress',
+                    title: 'Data Analyst Interview',
+                    duration: '00:15:22',
+                    status: 'in_progress',
+                    statusFormatted: { text: 'In Progress', className: 'status-in-progress' },
+                    interview_type: 'mock'
+                }
+            ];
+            
+            const convertInterviewType = (type) => {
+                const cleanType = type.includes('.') ? type.split('.').pop()?.toLowerCase() : type.toLowerCase();
+                switch (cleanType) {
+                    case 'mock': return 'Mock Interview';
+                    case 'technical':
+                    case 'hr':
+                    case 'comprehensive': return 'Formal interview';
+                    default: return 'Mock Interview';
+                }
+            };
+            
+            let tableHTML = `
+                <div class="table-preview">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Interview ID</th>
+                                <th>Date</th>
+                                <th>Duration</th>
+                                <th>Interview Type</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            records.forEach(record => {
+                const interviewType = convertInterviewType(record.interview_type);
+                const typeClass = interviewType === 'Mock Interview' ? 'type-mock' : 'type-formal';
+                
+                tableHTML += `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div style="width: 40px; height: 40px; background: #EEF9FF; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <svg style="width: 24px; height: 24px; color: #68C6F1;" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 500;">${record.title}</div>
+                                    <div style="font-size: 12px; color: #6B7280;">#${record.id.substring(0, 8)}...</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>2025/08/04</td>
+                        <td><strong>${record.duration}</strong></td>
+                        <td>
+                            <span class="status-badge ${typeClass}">${interviewType}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge ${record.statusFormatted.className}">${record.statusFormatted.text}</span>
+                        </td>
+                        <td>
+                            <button style="background: #68C6F1; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; margin-right: 8px;">Review</button>
+                            <button style="background: #F87171; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px;">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            previewDiv.innerHTML = `
+                <h4>📊 表格预览效果：</h4>
+                ${tableHTML}
+                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                    ✅ 新增了 "Status" 列显示面试状态<br>
+                    ✅ Duration 格式改为 hh:mm:ss 格式<br>
+                    ✅ 状态使用不同颜色的徽章显示
+                </p>
+            `;
+        }
+        
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            console.log('🎯 面试记录表格更新验证页面已加载');
+            console.log('请按顺序执行测试：1. 登录 → 2. 获取记录 → 3. 测试格式化 → 4. 预览表格');
+        });
+    </script>
+</body>
+</html> 

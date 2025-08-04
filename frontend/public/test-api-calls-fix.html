@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Calls Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        .api-counter { font-weight: bold; color: #1976d2; }
+    </style>
+</head>
+<body>
+    <h1>🔧 API调用次数修复测试</h1>
+    
+    <div>
+        <h3>测试流程：</h3>
+        <p>1. 登录获取token</p>
+        <p>2. 模拟HomePage -> MockInterviewPage流程</p>
+        <p>3. 监控API调用次数</p>
+    </div>
+
+    <div>
+        <button onclick="login()">1. 登录</button>
+        <button onclick="simulateHomepageFlow()">2. 模拟HomePage流程</button>
+        <button onclick="clearLogs()">清除日志</button>
+    </div>
+
+    <div>
+        <h3>API调用计数器：</h3>
+        <div class="api-counter">
+            <div>GET /api/v1/resumes/{id}: <span id="resume-count">0</span> 次</div>
+            <div>GET /api/v1/questions/session/{id}: <span id="session-count">0</span> 次</div>
+            <div>POST /api/v1/questions/generate: <span id="generate-count">0</span> 次</div>
+        </div>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        let token = '';
+        let apiCounts = {
+            resume: 0,
+            session: 0,
+            generate: 0
+        };
+
+        function log(message, type = 'log') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function updateCounter(type) {
+            apiCounts[type]++;
+            document.getElementById(`${type}-count`).textContent = apiCounts[type];
+            
+            if (apiCounts[type] > 1) {
+                log(`⚠️ ${type} API被调用了 ${apiCounts[type]} 次！`, 'warning');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            apiCounts = { resume: 0, session: 0, generate: 0 };
+            document.getElementById('resume-count').textContent = '0';
+            document.getElementById('session-count').textContent = '0';
+            document.getElementById('generate-count').textContent = '0';
+        }
+
+        async function login() {
+            try {
+                log('🔐 开始登录...');
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    token = data.data.access_token;
+                    log('✅ 登录成功', 'success');
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (error) {
+                log(`❌ 登录失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function simulateHomepageFlow() {
+            if (!token) {
+                log('❌ 请先登录', 'error');
+                return;
+            }
+
+            try {
+                log('🚀 模拟HomePage -> MockInterviewPage流程');
+                
+                // 1. 获取简历列表
+                log('📋 获取简历列表...');
+                const resumesResponse = await fetch('http://localhost:5001/api/v1/resumes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const resumesData = await resumesResponse.json();
+                const resumes = resumesData.data?.resumes || resumesData.resumes || [];
+                const processedResumes = resumes.filter(r => r.status === 'processed' || r.status === 'completed');
+                
+                if (processedResumes.length === 0) {
+                    throw new Error('没有已处理的简历');
+                }
+
+                const resumeId = processedResumes[0].id;
+                log(`✅ 找到简历 ID: ${resumeId}`);
+
+                // 2. 获取工作列表
+                log('💼 获取工作列表...');
+                const jobsResponse = await fetch('http://localhost:5001/api/v1/jobs?per_page=10', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const jobsData = await jobsResponse.json();
+                const jobs = jobsData.data?.jobs || jobsData.jobs || [];
+                
+                if (jobs.length === 0) {
+                    throw new Error('没有工作记录');
+                }
+
+                const selectedJob = jobs[0];
+                log(`✅ 选择工作: ${selectedJob.title} @ ${selectedJob.company}`);
+
+                // 3. 创建面试会话（HomePage逻辑）
+                log('🎯 创建面试会话...');
+                const sessionResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: `${selectedJob.title} @ ${selectedJob.company} Mock Interview`
+                    })
+                });
+
+                const sessionData = await sessionResponse.json();
+                const sessionId = sessionData.data?.session_id || sessionData.session_id;
+                log(`✅ 会话创建成功: ${sessionId}`);
+
+                // 4. 模拟MockInterviewPage初始化（修复后的逻辑）
+                log('🎭 模拟MockInterviewPage初始化...');
+                
+                // 这里模拟MockInterviewPage的useEffect逻辑
+                // 情况1：从HomePage传递过来的数据
+                const stateData = {
+                    sessionId: sessionId,
+                    selectedJob: selectedJob,
+                    resumeId: resumeId,
+                    questions: [] // 没有预生成的问题
+                };
+
+                log('📊 开始MockInterviewPage流程（修复后）...');
+                
+                // 获取简历详情
+                log('👤 获取简历详情...');
+                const resumeResponse = await fetch(`http://localhost:5001/api/v1/resumes/${resumeId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                updateCounter('resume');
+                const resumeData = await resumeResponse.json();
+                log(`✅ 获取简历详情成功: ${resumeData.data?.filename || resumeData.filename}`);
+
+                // 获取会话信息
+                log('🔄 获取会话信息...');
+                const sessionInfoResponse = await fetch(`http://localhost:5001/api/v1/questions/session/${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                updateCounter('session');
+                const sessionInfo = await sessionInfoResponse.json();
+                log(`✅ 获取会话信息成功`);
+
+                // 生成问题
+                log('🤖 生成问题...');
+                const generateResponse = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        session_id: sessionId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8
+                    })
+                });
+                updateCounter('generate');
+                const generateData = await generateResponse.json();
+                
+                if (generateData.success) {
+                    const fromCache = generateData.data?.from_cache || false;
+                    const questionsCount = generateData.data?.questions?.length || 0;
+                    log(`✅ 问题生成成功: ${questionsCount} 个问题 ${fromCache ? '(来自缓存)' : '(新生成)'}`, 'success');
+                } else {
+                    throw new Error(generateData.message || '问题生成失败');
+                }
+
+                // 检查API调用次数
+                log('📈 API调用次数统计:', 'success');
+                log(`   - GET /api/v1/resumes/{id}: ${apiCounts.resume} 次`, apiCounts.resume === 1 ? 'success' : 'error');
+                log(`   - GET /api/v1/questions/session/{id}: ${apiCounts.session} 次`, apiCounts.session === 1 ? 'success' : 'error');
+                log(`   - POST /api/v1/questions/generate: ${apiCounts.generate} 次`, apiCounts.generate === 1 ? 'success' : 'error');
+
+                if (apiCounts.resume === 1 && apiCounts.session === 1 && apiCounts.generate === 1) {
+                    log('🎉 修复成功！所有API都只被调用了一次！', 'success');
+                } else {
+                    log('❌ 仍有API被重复调用，需要进一步修复', 'error');
+                }
+
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html> 

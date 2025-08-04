@@ -7,7 +7,7 @@ export interface InterviewSession {
   session_id: string;
   title: string;
   interview_type: 'technical' | 'hr' | 'comprehensive' | 'mock';
-  status: 'created' | 'in_progress' | 'completed' | 'paused' | 'cancelled';
+  status: 'created' | 'ready' | 'in_progress' | 'completed' | 'paused' | 'cancelled' | 'abandoned';
   total_questions: number;
   current_question?: number;
   completed_questions?: number;
@@ -188,6 +188,30 @@ class InterviewService {
       return response.data;
     } catch (error) {
       console.error('结束面试失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 设置面试会话为已放弃状态
+   */
+  async abandonInterview(sessionId: string, reason: string = 'user_action'): Promise<{
+    session: InterviewSession;
+  }> {
+    try {
+      console.log('🔄 [DEBUG] abandonInterview被调用');
+      console.log('🔄 [DEBUG] sessionId:', sessionId);
+      console.log('🔄 [DEBUG] reason:', reason);
+      
+      const response: any = await apiClient.put(`/interviews/${sessionId}/abandon`, {
+        reason: reason
+      });
+      
+      console.log('✅ [DEBUG] abandon API调用成功:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [DEBUG] abandon API调用失败:', error);
+      console.error('放弃面试失败:', error);
       throw error;
     }
   }

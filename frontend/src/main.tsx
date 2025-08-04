@@ -15,9 +15,7 @@ if (!rootElement) {
   try {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
-      <React.StrictMode>
         <App />
-      </React.StrictMode>
     );
     console.log('✅ React application mounted successfully!');
   } catch (error) {

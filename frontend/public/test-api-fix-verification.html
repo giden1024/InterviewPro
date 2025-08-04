@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .api-call {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid #007bff;
+            background-color: #e9ecef;
+        }
+        
+        .api-duplicate {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 API修复验证测试</h1>
+        <p>这个页面用于验证API的Data truncated错误修复和重复调用问题</p>
+        
+        <div class="status info">
+            <strong>测试状态:</strong> <span id="testStatus">准备就绪</span>
+        </div>
+        
+        <button id="loginBtn" onclick="performLogin()">1. 登录测试</button>
+        <button id="generateBtn" onclick="testQuestionGeneration()" disabled>2. 生成问题测试</button>
+        <button id="cacheBtn" onclick="testCacheGeneration()" disabled>3. 缓存测试</button>
+        <button id="clearBtn" onclick="clearLogs()">清除日志</button>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number" id="totalCalls">0</div>
+                <div>总API调用</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="duplicateCalls">0</div>
+                <div>重复调用</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="successCalls">0</div>
+                <div>成功调用</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="errorCalls">0</div>
+                <div>失败调用</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>📊 API调用日志</h3>
+        <div id="logContainer" class="log-container">
+            <div class="info">等待API调用...</div>
+        </div>
+    </div>
+
+    <script>
+        let token = null;
+        let sessionId = null;
+        let apiCallCount = {};
+        let totalCalls = 0;
+        let duplicateCalls = 0;
+        let successCalls = 0;
+        let errorCalls = 0;
+        
+        // 拦截fetch请求来监控API调用
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            
+            // 记录API调用
+            if (url.includes('/api/v1/')) {
+                const apiPath = url.replace('http://localhost:5001', '');
+                const method = options.method || 'GET';
+                const callKey = `${method} ${apiPath}`;
+                
+                totalCalls++;
+                
+                if (apiCallCount[callKey]) {
+                    apiCallCount[callKey]++;
+                    duplicateCalls++;
+                    logApiCall(`🔄 重复调用: ${callKey} (第${apiCallCount[callKey]}次)`, true);
+                } else {
+                    apiCallCount[callKey] = 1;
+                    logApiCall(`📞 API调用: ${callKey}`, false);
+                }
+                
+                updateStats();
+            }
+            
+            return originalFetch.apply(this, args)
+                .then(response => {
+                    if (url.includes('/api/v1/')) {
+                        if (response.ok) {
+                            successCalls++;
+                        } else {
+                            errorCalls++;
+                        }
+                        updateStats();
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    if (url.includes('/api/v1/')) {
+                        errorCalls++;
+                        updateStats();
+                    }
+                    throw error;
+                });
+        };
+        
+        function logApiCall(message, isDuplicate = false) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = isDuplicate ? 'api-call api-duplicate' : 'api-call';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function updateStats() {
+            document.getElementById('totalCalls').textContent = totalCalls;
+            document.getElementById('duplicateCalls').textContent = duplicateCalls;
+            document.getElementById('successCalls').textContent = successCalls;
+            document.getElementById('errorCalls').textContent = errorCalls;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('testStatus');
+            statusElement.textContent = message;
+            statusElement.parentElement.className = `status ${type}`;
+        }
+        
+        async function performLogin() {
+            updateStatus('正在登录...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.data.access_token;
+                    updateStatus('登录成功', 'success');
+                    document.getElementById('generateBtn').disabled = false;
+                    logApiCall('✅ 登录成功，获取token');
+                } else {
+                    updateStatus(`登录失败: ${data.message}`, 'error');
+                    logApiCall(`❌ 登录失败: ${data.message}`);
+                }
+            } catch (error) {
+                updateStatus(`登录错误: ${error.message}`, 'error');
+                logApiCall(`❌ 登录错误: ${error.message}`);
+            }
+        }
+        
+        async function testQuestionGeneration() {
+            if (!token) {
+                updateStatus('请先登录', 'warning');
+                return;
+            }
+            
+            updateStatus('正在创建面试会话...', 'info');
+            
+            try {
+                // 创建面试会话
+                const sessionResponse = await fetch('http://localhost:5001/api/v1/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        interview_type: 'mock'
+                    })
+                });
+                
+                const sessionData = await sessionResponse.json();
+                
+                if (!sessionResponse.ok) {
+                    updateStatus(`创建会话失败: ${sessionData.message}`, 'error');
+                    return;
+                }
+                
+                sessionId = sessionData.data.session.session_id;
+                logApiCall(`✅ 面试会话创建成功: ${sessionId}`);
+                
+                updateStatus('正在生成问题...', 'info');
+                
+                // 生成问题
+                const generateResponse = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        session_id: sessionId
+                    })
+                });
+                
+                const generateData = await generateResponse.json();
+                
+                if (generateResponse.ok) {
+                    const questionsCount = generateData.data.questions.length;
+                    const fromCache = generateData.data.from_cache;
+                    updateStatus(`问题生成成功: ${questionsCount}个问题 (${fromCache ? '来自缓存' : '新生成'})`, 'success');
+                    document.getElementById('cacheBtn').disabled = false;
+                    logApiCall(`✅ 生成${questionsCount}个问题 (${fromCache ? '缓存' : '新生成'})`);
+                } else {
+                    updateStatus(`生成问题失败: ${generateData.message}`, 'error');
+                    logApiCall(`❌ 生成问题失败: ${generateData.message}`);
+                }
+                
+            } catch (error) {
+                updateStatus(`测试错误: ${error.message}`, 'error');
+                logApiCall(`❌ 测试错误: ${error.message}`);
+            }
+        }
+        
+        async function testCacheGeneration() {
+            if (!token || !sessionId) {
+                updateStatus('请先完成问题生成测试', 'warning');
+                return;
+            }
+            
+            updateStatus('正在测试缓存功能...', 'info');
+            
+            try {
+                const generateResponse = await fetch('http://localhost:5001/api/v1/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        session_id: sessionId
+                    })
+                });
+                
+                const generateData = await generateResponse.json();
+                
+                if (generateResponse.ok) {
+                    const questionsCount = generateData.data.questions.length;
+                    const fromCache = generateData.data.from_cache;
+                    updateStatus(`缓存测试成功: ${questionsCount}个问题 (${fromCache ? '来自缓存' : '新生成'})`, 'success');
+                    logApiCall(`✅ 缓存测试: ${questionsCount}个问题 (${fromCache ? '缓存命中' : '缓存未命中'})`);
+                } else {
+                    updateStatus(`缓存测试失败: ${generateData.message}`, 'error');
+                    logApiCall(`❌ 缓存测试失败: ${generateData.message}`);
+                }
+                
+            } catch (error) {
+                updateStatus(`缓存测试错误: ${error.message}`, 'error');
+                logApiCall(`❌ 缓存测试错误: ${error.message}`);
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="info">日志已清除</div>';
+            apiCallCount = {};
+            totalCalls = 0;
+            duplicateCalls = 0;
+            successCalls = 0;
+            errorCalls = 0;
+            updateStats();
+            updateStatus('准备就绪', 'info');
+        }
+        
+        // 页面加载时的初始化
+        window.addEventListener('load', function() {
+            logApiCall('🚀 API监控已启动');
+            updateStatus('准备就绪 - 请点击登录开始测试', 'info');
+        });
+    </script>
+</body>
+</html> 

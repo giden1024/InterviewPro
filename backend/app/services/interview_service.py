@@ -159,18 +159,52 @@ class InterviewService:
     
     def start_interview_session(self, user_id: int, session_id: str) -> InterviewSession:
         """开始面试会话"""
-        session = self.get_interview_session(user_id, session_id)
-        
-        # 修复：允许 created 和 ready 状态的会话启动
-        if session.status not in ['created', 'ready']:
-            raise ValidationError("Interview session already started or completed")
-        
-        session.status = 'in_progress'
-        session.started_at = datetime.utcnow()
-        db.session.commit()
-        
-        logger.info(f"User {user_id} started interview session {session_id}")
-        return session
+        try:
+            logger.info(f"Starting interview session {session_id} for user {user_id}")
+            
+            # 使用数据库锁防止并发问题
+            # 确保user_id是整数类型
+            user_id_int = int(user_id) if isinstance(user_id, str) else user_id
+            session = db.session.query(InterviewSession).filter_by(
+                session_id=session_id,  # 使用session_id字段而不是id字段
+                user_id=user_id_int
+            ).with_for_update().first()
+            
+            if not session:
+                logger.error(f"Interview session {session_id} not found for user {user_id}")
+                raise ValidationError("Interview session not found")
+            
+            logger.info(f"Found session {session_id} with status: {session.status}")
+            
+            # 修复：允许 created 和 ready 状态的会话启动，禁止 abandoned 状态
+            if session.status not in ['created', 'ready', 'in_progress']:
+                if session.status == 'abandoned':
+                    logger.error(f"Cannot start abandoned interview session: {session.status}")
+                    raise ValidationError("Interview session has been abandoned and cannot be started")
+                else:
+                    logger.error(f"Invalid session status for starting: {session.status}")
+                    raise ValidationError(f"Interview session already started or completed. Current status: {session.status}")
+            
+            # 如果会话已经是in_progress状态，直接返回
+            if session.status == 'in_progress':
+                logger.info(f"Session {session_id} is already in progress, returning existing session")
+                return session
+            
+            # 只有created和ready状态才需要实际启动
+            session.status = 'in_progress'
+            session.started_at = datetime.utcnow()
+            db.session.commit()
+            
+            logger.info(f"User {user_id} successfully started interview session {session_id}")
+            return session
+            
+        except ValidationError:
+            # ValidationError应该直接抛出，不需要回滚
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error starting interview session {session_id}: {str(e)}")
+            db.session.rollback()
+            raise ValidationError(f"Failed to start interview session: {str(e)}")
     
     def get_next_question(
         self, 
@@ -217,12 +251,15 @@ class InterviewService:
             logger.error(f"❌ [SERVICE DEBUG] Failed to get session: {e}")
             raise
         
-        # 修正：允许ready和created状态的会话接收答案，并自动启动会话
+        # 修正：允许ready和created状态的会话接收答案，并自动启动会话，禁止abandoned状态
         if session.status in ['ready', 'created']:
             session.status = 'in_progress'
             session.started_at = datetime.utcnow()
             db.session.commit()
             logger.info(f"🔍 [SERVICE DEBUG] Session auto-started from {session.status}")
+        elif session.status == 'abandoned':
+            logger.error(f"❌ [SERVICE DEBUG] Cannot submit answer to abandoned session: {session.status}")
+            raise ValidationError("Interview session has been abandoned and cannot accept answers")
         elif session.status != 'in_progress':
             logger.error(f"❌ [SERVICE DEBUG] Invalid session status: {session.status}")
             raise ValidationError("Interview session not started or already ended")
@@ -322,6 +359,51 @@ class InterviewService:
         logger.info(f"User {user_id} ended interview session {session_id}")
         return session
     
+    def abandon_interview_session(self, user_id: int, session_id: str, reason: str = 'user_action') -> InterviewSession:
+        """设置面试会话为已放弃状态"""
+        try:
+            logger.info(f"Abandoning interview session {session_id} for user {user_id}, reason: {reason}")
+            
+            # 确保user_id是整数类型
+            user_id_int = int(user_id) if isinstance(user_id, str) else user_id
+            session = db.session.query(InterviewSession).filter_by(
+                session_id=session_id,
+                user_id=user_id_int
+            ).with_for_update().first()
+            
+            if not session:
+                logger.error(f"Interview session {session_id} not found for user {user_id}")
+                raise ValidationError("Interview session not found")
+            
+            logger.info(f"Found session {session_id} with status: {session.status}")
+            
+            # 检查当前状态，已完成或已放弃的会话不能再次设置为放弃
+            if session.status in ['completed', 'abandoned']:
+                logger.warning(f"Session {session_id} already in final state: {session.status}")
+                return session
+            
+            # 设置为abandoned状态
+            session.status = 'abandoned'
+            session.updated_at = datetime.utcnow()
+            # 设置完成时间，即使是放弃状态也需要记录结束时间
+            session.completed_at = datetime.utcnow()
+            
+            # 如果会话还没有started_at时间，设置它（用于统计）
+            if not session.started_at:
+                session.started_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            logger.info(f"User {user_id} abandoned interview session {session_id} (reason: {reason})")
+            return session
+            
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error abandoning interview session {session_id}: {str(e)}")
+            db.session.rollback()
+            raise ValidationError(f"Failed to abandon interview session: {str(e)}")
+    
     def delete_interview_session(self, user_id: int, session_id: str) -> bool:
         """删除面试会话"""
         from app.models.question import Answer
@@ -417,12 +499,36 @@ class InterviewService:
         
         # 保存新问题
         for q_data in questions_data:
+            # 确保枚举值正确转换
+            question_type_raw = q_data['question_type']
+            if hasattr(question_type_raw, 'value'):
+                # 如果是枚举对象，取其值
+                question_type_final = question_type_raw.value
+            elif isinstance(question_type_raw, str) and '.' in question_type_raw:
+                # 如果是字符串形式的枚举（如'QuestionType.TECHNICAL'），提取值部分并转换为小写
+                enum_value = question_type_raw.split('.')[-1]
+                question_type_final = enum_value.lower()
+            else:
+                question_type_final = question_type_raw
+            
+            difficulty_raw = q_data['difficulty']
+            if hasattr(difficulty_raw, 'value'):
+                # 如果是枚举对象，取其值
+                difficulty_final = difficulty_raw.value
+            elif isinstance(difficulty_raw, str) and '.' in difficulty_raw:
+                # 如果是字符串形式的枚举（如'QuestionDifficulty.MEDIUM'），提取值部分并转换为小写
+                enum_value = difficulty_raw.split('.')[-1]
+                difficulty_final = enum_value.lower()
+            else:
+                difficulty_final = difficulty_raw
+                
             question = Question(
                 resume_id=session.resume_id,
                 user_id=user_id,
+                session_id=session.id,
                 question_text=q_data['question_text'],
-                question_type=q_data['question_type'],
-                difficulty=q_data['difficulty'],
+                question_type=QuestionType(question_type_final),  # 转换为枚举对象
+                difficulty=QuestionDifficulty(difficulty_final),  # 转换为枚举对象
                 category=q_data.get('category', ''),
                 tags=q_data.get('tags', []),
                 ai_context=q_data.get('ai_context', {}),

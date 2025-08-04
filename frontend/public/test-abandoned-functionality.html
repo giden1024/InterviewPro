@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Abandoned Functionality Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-abandoned { background: #dc3545; color: white; }
+        .status-in_progress { background: #ffc107; color: #212529; }
+        .status-ready { background: #28a745; color: white; }
+        .status-created { background: #6c757d; color: white; }
+        .status-completed { background: #17a2b8; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Abandoned Functionality Test</h1>
+        <p>测试面试会话abandoned状态的完整功能</p>
+
+        <!-- 测试1: 查看当前状态分布 -->
+        <div class="test-section">
+            <h3>📊 1. 当前面试会话状态分布</h3>
+            <button onclick="checkStatusDistribution()">🔍 查看状态分布</button>
+            <div id="statusResult"></div>
+        </div>
+
+        <!-- 测试2: 测试abandon API -->
+        <div class="test-section">
+            <h3>🛑 2. 测试 Abandon API</h3>
+            <button onclick="testAbandonAPI()">🧪 测试Abandon功能</button>
+            <div id="abandonResult"></div>
+        </div>
+
+        <!-- 测试3: 测试abandoned状态的限制 -->
+        <div class="test-section">
+            <h3>🚫 3. 测试Abandoned状态限制</h3>
+            <button onclick="testAbandonedRestrictions()">🔒 测试状态限制</button>
+            <div id="restrictionResult"></div>
+        </div>
+
+        <!-- 测试4: 前端abandonInterview调用 -->
+        <div class="test-section">
+            <h3>💻 4. 前端abandonInterview调用</h3>
+            <button onclick="testFrontendAbandon()">📱 测试前端调用</button>
+            <div id="frontendResult"></div>
+        </div>
+
+        <!-- 测试5: 模拟浏览器关闭场景 -->
+        <div class="test-section">
+            <h3>🌐 5. 浏览器关闭检测</h3>
+            <button onclick="simulateBrowserClose()">🔄 模拟浏览器关闭</button>
+            <div id="browserResult"></div>
+        </div>
+
+        <div id="globalResults"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let currentToken = null;
+
+        // 获取认证token
+        async function getAuthToken() {
+            if (currentToken) return currentToken;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                const data = await response.json();
+                currentToken = data.data.access_token;
+                return currentToken;
+            } catch (error) {
+                console.error('登录失败:', error);
+                throw error;
+            }
+        }
+
+        // 显示结果
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<pre>${message}</pre>`;
+            element.appendChild(resultDiv);
+        }
+
+        // 测试1: 查看状态分布
+        async function checkStatusDistribution() {
+            try {
+                const token = await getAuthToken();
+                const response = await fetch(`${API_BASE}/interviews?page=1&per_page=100`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const sessions = data.data.sessions;
+                    const statusCount = {};
+                    
+                    sessions.forEach(session => {
+                        statusCount[session.status] = (statusCount[session.status] || 0) + 1;
+                    });
+                    
+                    let result = '📊 面试会话状态分布:\n';
+                    Object.entries(statusCount).forEach(([status, count]) => {
+                        result += `  ${status}: ${count} 个\n`;
+                    });
+                    result += `\n总计: ${sessions.length} 个会话`;
+                    
+                    showResult('statusResult', result, 'success');
+                } else {
+                    showResult('statusResult', `❌ 获取失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('statusResult', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试2: 测试abandon API
+        async function testAbandonAPI() {
+            try {
+                const token = await getAuthToken();
+                
+                // 首先获取一个in_progress状态的会话
+                const listResponse = await fetch(`${API_BASE}/interviews?page=1&per_page=20`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const listData = await listResponse.json();
+                
+                const inProgressSession = listData.data.sessions.find(s => s.status === 'in_progress');
+                
+                if (!inProgressSession) {
+                    showResult('abandonResult', '⚠️ 没有找到in_progress状态的会话进行测试', 'warning');
+                    return;
+                }
+                
+                // 测试abandon API
+                const abandonResponse = await fetch(`${API_BASE}/interviews/${inProgressSession.session_id}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason: 'test_abandon_api' })
+                });
+                
+                const abandonData = await abandonResponse.json();
+                
+                if (abandonData.success) {
+                    let result = `✅ Abandon API 测试成功!\n`;
+                    result += `会话ID: ${inProgressSession.session_id}\n`;
+                    result += `原状态: ${inProgressSession.status} → 新状态: ${abandonData.data.session.status}\n`;
+                    result += `放弃原因: test_abandon_api\n`;
+                    result += `响应消息: ${abandonData.message}`;
+                    
+                    showResult('abandonResult', result, 'success');
+                } else {
+                    showResult('abandonResult', `❌ Abandon失败: ${abandonData.message}`, 'error');
+                }
+                
+            } catch (error) {
+                showResult('abandonResult', `❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试3: 测试abandoned状态的限制
+        async function testAbandonedRestrictions() {
+            try {
+                const token = await getAuthToken();
+                
+                // 获取一个abandoned状态的会话
+                const listResponse = await fetch(`${API_BASE}/interviews?page=1&per_page=50`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const listData = await listResponse.json();
+                
+                const abandonedSession = listData.data.sessions.find(s => s.status === 'abandoned');
+                
+                if (!abandonedSession) {
+                    showResult('restrictionResult', '⚠️ 没有找到abandoned状态的会话进行测试', 'warning');
+                    return;
+                }
+                
+                let result = `🔒 测试abandoned状态限制 (会话ID: ${abandonedSession.session_id})\n\n`;
+                
+                // 测试1: 尝试启动abandoned会话
+                try {
+                    const startResponse = await fetch(`${API_BASE}/interviews/${abandonedSession.session_id}/start`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const startData = await startResponse.json();
+                    
+                    if (startResponse.status === 400) {
+                        result += `✅ 启动限制测试通过: ${startData.error.message}\n`;
+                    } else {
+                        result += `❌ 启动限制测试失败: 应该返回400错误\n`;
+                    }
+                } catch (error) {
+                    result += `❌ 启动测试出错: ${error.message}\n`;
+                }
+                
+                // 测试2: 尝试提交答案到abandoned会话
+                try {
+                    const submitResponse = await fetch(`${API_BASE}/interviews/${abandonedSession.session_id}/answers`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            question_id: 1,
+                            answer_text: 'Test answer'
+                        })
+                    });
+                    const submitData = await submitResponse.json();
+                    
+                    if (submitResponse.status === 400) {
+                        result += `✅ 答案提交限制测试通过: ${submitData.error.message}\n`;
+                    } else {
+                        result += `❌ 答案提交限制测试失败: 应该返回400错误\n`;
+                    }
+                } catch (error) {
+                    result += `❌ 答案提交测试出错: ${error.message}\n`;
+                }
+                
+                showResult('restrictionResult', result, 'success');
+                
+            } catch (error) {
+                showResult('restrictionResult', `❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试4: 前端abandonInterview调用
+        async function testFrontendAbandon() {
+            try {
+                const token = await getAuthToken();
+                
+                // 模拟前端interviewService.abandonInterview调用
+                const testSessionId = 'test-session-id';
+                const reason = 'frontend_test';
+                
+                const response = await fetch(`${API_BASE}/interviews/${testSessionId}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason: reason })
+                });
+                
+                const data = await response.json();
+                
+                let result = `💻 前端abandonInterview调用测试:\n`;
+                result += `测试会话ID: ${testSessionId}\n`;
+                result += `测试原因: ${reason}\n`;
+                result += `响应状态: ${response.status}\n`;
+                
+                if (response.status === 400 && data.error.message.includes('not found')) {
+                    result += `✅ API调用格式正确 (会话不存在是预期的)\n`;
+                    result += `错误消息: ${data.error.message}`;
+                    showResult('frontendResult', result, 'success');
+                } else {
+                    result += `响应数据: ${JSON.stringify(data, null, 2)}`;
+                    showResult('frontendResult', result, 'info');
+                }
+                
+            } catch (error) {
+                showResult('frontendResult', `❌ 前端调用测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试5: 模拟浏览器关闭场景
+        async function simulateBrowserClose() {
+            try {
+                const token = await getAuthToken();
+                
+                // 获取一个in_progress状态的会话
+                const listResponse = await fetch(`${API_BASE}/interviews?page=1&per_page=20`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const listData = await listResponse.json();
+                
+                const inProgressSession = listData.data.sessions.find(s => s.status === 'in_progress');
+                
+                if (!inProgressSession) {
+                    showResult('browserResult', '⚠️ 没有找到in_progress状态的会话进行测试', 'warning');
+                    return;
+                }
+                
+                // 模拟beforeunload事件中的fetch调用
+                const response = await fetch(`${API_BASE}/interviews/${inProgressSession.session_id}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason: 'browser_close' }),
+                    keepalive: true // 模拟beforeunload中的keepalive
+                });
+                
+                const data = await response.json();
+                
+                let result = `🌐 浏览器关闭检测测试:\n`;
+                result += `测试会话ID: ${inProgressSession.session_id}\n`;
+                result += `模拟场景: 浏览器关闭/刷新\n`;
+                result += `使用keepalive: true\n`;
+                
+                if (data.success) {
+                    result += `✅ 浏览器关闭检测成功!\n`;
+                    result += `会话状态: ${inProgressSession.status} → ${data.data.session.status}\n`;
+                    result += `放弃原因: browser_close`;
+                    showResult('browserResult', result, 'success');
+                } else {
+                    result += `❌ 浏览器关闭检测失败: ${data.message}`;
+                    showResult('browserResult', result, 'error');
+                }
+                
+            } catch (error) {
+                showResult('browserResult', `❌ 浏览器关闭测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            showResult('globalResults', 
+                '🚀 Abandoned功能测试页面已加载\n' +
+                '📋 测试内容:\n' +
+                '  1. 查看当前面试会话状态分布\n' +
+                '  2. 测试abandon API的基本功能\n' +
+                '  3. 验证abandoned状态的访问限制\n' +
+                '  4. 测试前端abandonInterview调用\n' +
+                '  5. 模拟浏览器关闭场景\n\n' +
+                '👆 点击上方按钮开始测试各项功能', 
+                'info'
+            );
+        };
+    </script>
+</body>
+</html> 

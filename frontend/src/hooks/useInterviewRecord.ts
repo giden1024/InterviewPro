@@ -8,6 +8,7 @@ export interface InterviewRecord {
   duration: string;
   type: 'Mock Interview' | 'Formal interview';
   status: string;
+  statusFormatted: { text: string; className: string };
   session: InterviewSession;
 }
 
@@ -25,21 +26,18 @@ export const useInterviewRecord = (): UseInterviewRecordReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 格式化时间差为可读格式
+  // 格式化时间差为 hh:mm:ss 格式
   const formatDuration = (startTime: string, endTime?: string): string => {
-    if (!endTime) return '未完成';
-    
+    // 如果没有结束时间，计算从开始时间到现在的时长（进行中的面试）
     const start = new Date(startTime);
-    const end = new Date(endTime);
-    const diffMs = end.getTime() - start.getTime();
+    const end = endTime ? new Date(endTime) : new Date();
+    const diffMs = Math.max(0, end.getTime() - start.getTime());
     
-    const minutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMs / 3600000);
+    const minutes = Math.floor((diffMs % 3600000) / 60000);
     const seconds = Math.floor((diffMs % 60000) / 1000);
     
-    if (minutes > 0) {
-      return `${minutes}min ${seconds}sec`;
-    }
-    return `${seconds}sec`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
   // 格式化日期
@@ -53,15 +51,54 @@ export const useInterviewRecord = (): UseInterviewRecordReturn => {
 
   // 转换面试类型
   const convertInterviewType = (type: string): 'Mock Interview' | 'Formal interview' => {
-    switch (type) {
+    // 处理枚举对象格式 (如 'InterviewType.MOCK')
+    const cleanType = type.includes('.') ? type.split('.').pop()?.toLowerCase() : type.toLowerCase();
+    
+    switch (cleanType) {
+      case 'mock':
+        return 'Mock Interview';
       case 'technical':
-        return 'Formal interview';
       case 'hr':
-        return 'Formal interview';
       case 'comprehensive':
         return 'Formal interview';
       default:
         return 'Mock Interview';
+    }
+  };
+
+  // 格式化状态显示
+  const formatStatus = (status: string): { text: string; className: string } => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return { 
+          text: 'Completed', 
+          className: 'bg-[#E8F5E8] text-[#2D7738]' 
+        };
+      case 'in_progress':
+        return { 
+          text: 'In Progress', 
+          className: 'bg-[#FEF3C7] text-[#92400E]' 
+        };
+      case 'abandoned':
+        return { 
+          text: 'Abandoned', 
+          className: 'bg-[#FEE2E2] text-[#B91C1C]' 
+        };
+      case 'ready':
+        return { 
+          text: 'Ready', 
+          className: 'bg-[#EEF9FF] text-[#1B5E8C]' 
+        };
+      case 'created':
+        return { 
+          text: 'Created', 
+          className: 'bg-[#F3F4F6] text-[#6B7280]' 
+        };
+      default:
+        return { 
+          text: status, 
+          className: 'bg-[#F3F4F6] text-[#6B7280]' 
+        };
     }
   };
 
@@ -83,6 +120,7 @@ export const useInterviewRecord = (): UseInterviewRecordReturn => {
         duration: formatDuration(session.started_at || session.created_at, session.completed_at || undefined),
         type: convertInterviewType(session.interview_type),
         status: session.status,
+        statusFormatted: formatStatus(session.status),
         session
       }));
 
@@ -97,18 +135,20 @@ export const useInterviewRecord = (): UseInterviewRecordReturn => {
           id: 'demo-1',
           title: 'Product Management of TikTok Live',
           date: '2025/04/16',
-          duration: '1min 44sec',
+          duration: '01:44:00',
           type: 'Formal interview',
           status: 'completed',
+          statusFormatted: formatStatus('completed'),
           session: {} as InterviewSession
         },
         {
           id: 'demo-2',
           title: 'Product Management of TikTok Live',
           date: '2025/04/16',
-          duration: '1min 44sec',
+          duration: '01:44:00',
           type: 'Mock Interview',
           status: 'completed',
+          statusFormatted: formatStatus('completed'),
           session: {} as InterviewSession
         }
       ]);

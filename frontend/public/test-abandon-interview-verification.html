@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚪 Interview Abandon Function Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
+        .test-button {
+            background: linear-gradient(to right, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        .test-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        .result-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #059669; }
+        .error { color: #dc2626; }
+        .warning { color: #d97706; }
+        .info { color: #0284c7; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        .status-success { background: #dcfce7; color: #166534; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚪 面试放弃功能验证测试</h1>
+            <p>测试 MockInterviewPage 点击 Leave 按钮的完整流程</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📝 1. 用户登录</div>
+            <button class="test-button" onclick="testLogin()">登录测试</button>
+            <div id="loginResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🎯 2. 创建面试会话</div>
+            <button class="test-button" onclick="createInterviewSession()">创建会话</button>
+            <div id="sessionResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🚪 3. 测试放弃面试 API</div>
+            <button class="test-button" onclick="testAbandonInterview()">放弃面试</button>
+            <div id="abandonResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔍 4. 验证数据库状态</div>
+            <button class="test-button" onclick="verifySessionStatus()">检查会话状态</button>
+            <div id="verifyResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📊 5. 检查历史记录显示</div>
+            <button class="test-button" onclick="checkInterviewRecords()">查看面试记录</button>
+            <div id="recordsResult" class="result-area" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🎯 6. 测试特定会话 (254bb28d-cb6b-4958-9822-2e7f33278a12)</div>
+            <button class="test-button" onclick="checkSpecificSession()">检查指定会话</button>
+            <div id="specificResult" class="result-area" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let currentSessionId = '';
+        const API_BASE = 'http://localhost:5001/api/v1';
+
+        // 测试登录
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在登录...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.access_token;
+                    resultDiv.innerHTML = `✅ 登录成功!\n用户ID: ${data.user.id}\n邮箱: ${data.user.email}\nToken: ${authToken.substring(0, 50)}...`;
+                } else {
+                    resultDiv.innerHTML = `❌ 登录失败: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 登录错误: ${error.message}`;
+            }
+        }
+
+        // 创建面试会话
+        async function createInterviewSession() {
+            const resultDiv = document.getElementById('sessionResult');
+            resultDiv.style.display = 'block';
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '❌ 请先登录';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 正在创建面试会话...';
+
+            try {
+                const response = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: 71,
+                        interview_type: 'mock',
+                        job_id: 1
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentSessionId = data.session_id;
+                    resultDiv.innerHTML = `✅ 会话创建成功!\n会话ID: ${currentSessionId}\n状态: ${data.status}\n创建时间: ${data.created_at}`;
+                } else {
+                    resultDiv.innerHTML = `❌ 创建失败: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 创建错误: ${error.message}`;
+            }
+        }
+
+        // 测试放弃面试
+        async function testAbandonInterview() {
+            const resultDiv = document.getElementById('abandonResult');
+            resultDiv.style.display = 'block';
+            
+            const sessionId = currentSessionId || '254bb28d-cb6b-4958-9822-2e7f33278a12';
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '❌ 请先登录';
+                return;
+            }
+
+            resultDiv.innerHTML = `🔄 正在放弃面试会话: ${sessionId}...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/interviews/${sessionId}/abandon`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `✅ 面试放弃成功!\n会话ID: ${sessionId}\n新状态: ${data.status}\n完成时间: ${data.completed_at}\n更新时间: ${data.updated_at}`;
+                } else {
+                    resultDiv.innerHTML = `❌ 放弃失败 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 放弃错误: ${error.message}`;
+            }
+        }
+
+        // 验证会话状态
+        async function verifySessionStatus() {
+            const resultDiv = document.getElementById('verifyResult');
+            resultDiv.style.display = 'block';
+            
+            const sessionId = currentSessionId || '254bb28d-cb6b-4958-9822-2e7f33278a12';
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '❌ 请先登录';
+                return;
+            }
+
+            resultDiv.innerHTML = `🔄 正在检查会话状态: ${sessionId}...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/interviews/${sessionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const statusClass = data.status === 'abandoned' ? 'status-success' : 'status-warning';
+                    const completedAtStatus = data.completed_at ? 'status-success' : 'status-error';
+                    
+                    resultDiv.innerHTML = `✅ 会话状态查询成功!\n会话ID: ${sessionId}\n状态: ${data.status} <span class="status-badge ${statusClass}">${data.status === 'abandoned' ? '✓ 正确' : '⚠ 异常'}</span>\n创建时间: ${data.created_at}\n开始时间: ${data.started_at || 'null'}\n完成时间: ${data.completed_at || 'null'} <span class="status-badge ${completedAtStatus}">${data.completed_at ? '✓ 已设置' : '✗ 缺失'}</span>\n更新时间: ${data.updated_at}`;
+                } else {
+                    resultDiv.innerHTML = `❌ 查询失败 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 查询错误: ${error.message}`;
+            }
+        }
+
+        // 检查面试记录
+        async function checkInterviewRecords() {
+            const resultDiv = document.getElementById('recordsResult');
+            resultDiv.style.display = 'block';
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '❌ 请先登录';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 正在获取面试记录...';
+
+            try {
+                const response = await fetch(`${API_BASE}/interviews?page=1&per_page=50`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let recordsHtml = `✅ 面试记录获取成功! (共 ${data.sessions.length} 条)\n\n`;
+                    
+                    data.sessions.forEach((session, index) => {
+                        const duration = calculateDuration(session.started_at || session.created_at, session.completed_at);
+                        const statusClass = session.status === 'abandoned' ? '✓' : (session.status === 'completed' ? '✓' : '⚠');
+                        
+                        recordsHtml += `${index + 1}. 会话: ${session.session_id.substring(0, 8)}...\n`;
+                        recordsHtml += `   状态: ${session.status} ${statusClass}\n`;
+                        recordsHtml += `   类型: ${session.interview_type}\n`;
+                        recordsHtml += `   时长: ${duration}\n`;
+                        recordsHtml += `   完成时间: ${session.completed_at || 'null'}\n\n`;
+                    });
+                    
+                    resultDiv.innerHTML = recordsHtml;
+                } else {
+                    resultDiv.innerHTML = `❌ 获取失败 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 获取错误: ${error.message}`;
+            }
+        }
+
+        // 检查特定会话
+        async function checkSpecificSession() {
+            const resultDiv = document.getElementById('specificResult');
+            resultDiv.style.display = 'block';
+            
+            const sessionId = '254bb28d-cb6b-4958-9822-2e7f33278a12';
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '❌ 请先登录';
+                return;
+            }
+
+            resultDiv.innerHTML = `🔄 正在检查特定会话: ${sessionId}...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/interviews/${sessionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const duration = calculateDuration(data.started_at || data.created_at, data.completed_at);
+                    const isAbandoned = data.status === 'abandoned';
+                    const hasCompletedAt = !!data.completed_at;
+                    
+                    resultDiv.innerHTML = `📊 特定会话详情:\n\n` +
+                        `会话ID: ${sessionId}\n` +
+                        `状态: ${data.status} ${isAbandoned ? '✅' : '❌'}\n` +
+                        `面试类型: ${data.interview_type}\n` +
+                        `创建时间: ${data.created_at}\n` +
+                        `开始时间: ${data.started_at || 'null'}\n` +
+                        `完成时间: ${data.completed_at || 'null'} ${hasCompletedAt ? '✅' : '❌'}\n` +
+                        `更新时间: ${data.updated_at}\n` +
+                        `计算时长: ${duration}\n\n` +
+                        `🎯 验证结果:\n` +
+                        `- 状态为 abandoned: ${isAbandoned ? '✅ 通过' : '❌ 失败'}\n` +
+                        `- 有完成时间: ${hasCompletedAt ? '✅ 通过' : '❌ 失败'}\n` +
+                        `- 整体评估: ${isAbandoned && hasCompletedAt ? '🎉 完全正确!' : '⚠️ 需要修复'}`;
+                } else {
+                    resultDiv.innerHTML = `❌ 查询失败 (${response.status}): ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 查询错误: ${error.message}`;
+            }
+        }
+
+        // 计算时长
+        function calculateDuration(startTime, endTime) {
+            if (!startTime) return '00:00:00';
+            
+            const start = new Date(startTime);
+            const end = endTime ? new Date(endTime) : new Date();
+            const diffMs = Math.max(0, end.getTime() - start.getTime());
+            
+            const hours = Math.floor(diffMs / 3600000);
+            const minutes = Math.floor((diffMs % 3600000) / 60000);
+            const seconds = Math.floor((diffMs % 60000) / 1000);
+            
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            console.log('🚪 面试放弃功能验证测试页面已加载');
+            console.log('请按顺序执行测试：1. 登录 → 2. 创建会话 → 3. 放弃面试 → 4. 验证状态');
+        });
+    </script>
+</body>
+</html> 

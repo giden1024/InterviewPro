@@ -38,9 +38,12 @@ CORS(app, resources={
 })
 
 # 初始化数据库和扩展
-from app.extensions import db, jwt
+from app.extensions import db, jwt, init_redis
 db.init_app(app)
 jwt.init_app(app)
+
+# 初始化Redis
+init_redis(app)
 
 # 注册所有API蓝图
 from app.api.auth import auth_bp

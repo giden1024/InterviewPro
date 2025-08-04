@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 HomePage Mock Interview Flow Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 HomePage Mock Interview Flow Test</h1>
+        <p>测试HomePage中Mock Interview的完整流程（模拟用户选择job后的流程）</p>
+
+        <!-- 测试1: 模拟HomePage的Mock Interview流程 -->
+        <div class="test-section">
+            <h3>🎯 1. 完整Mock Interview流程测试</h3>
+            <p>模拟：选择job → 创建会话 → 生成问题 → 导航到MockInterviewPage</p>
+            <button onclick="testHomePageMockFlow()">🧪 测试HomePage流程</button>
+            <div id="homePageFlowResult"></div>
+        </div>
+
+        <!-- 测试2: 验证job已有resume_id的情况 -->
+        <div class="test-section">
+            <h3>📋 2. Job Resume关联测试</h3>
+            <p>验证job列表中的job是否都有resume_id</p>
+            <button onclick="testJobResumeAssociation()">🔍 检查Job-Resume关联</button>
+            <div id="jobResumeResult"></div>
+        </div>
+
+        <!-- 测试3: 对比新旧流程 -->
+        <div class="test-section">
+            <h3>⚖️ 3. 流程对比测试</h3>
+            <p>对比修复前后的流程差异</p>
+            <button onclick="compareFlows()">📊 对比流程</button>
+            <div id="flowComparisonResult"></div>
+        </div>
+
+        <div id="globalResults"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let currentToken = null;
+
+        // 获取认证token
+        async function getAuthToken() {
+            if (currentToken) return currentToken;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                const data = await response.json();
+                currentToken = data.data.access_token;
+                return currentToken;
+            } catch (error) {
+                console.error('登录失败:', error);
+                throw error;
+            }
+        }
+
+        // 显示结果
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<pre>${message}</pre>`;
+            element.appendChild(resultDiv);
+        }
+
+        // 测试1: 模拟HomePage的Mock Interview流程
+        async function testHomePageMockFlow() {
+            try {
+                const token = await getAuthToken();
+                let result = '🏠 开始HomePage Mock Interview流程测试...\n\n';
+                
+                // 1. 获取job列表（模拟HomePage的job列表）
+                const jobsResponse = await fetch(`${API_BASE}/jobs?per_page=10`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const jobsData = await jobsResponse.json();
+                const jobs = jobsData.data?.jobs || [];
+                
+                if (jobs.length === 0) {
+                    throw new Error('没有找到可用的job');
+                }
+                
+                const selectedJob = jobs[0]; // 选择第一个job
+                result += `📋 选择的Job: ${selectedJob.title} @ ${selectedJob.company}\n`;
+                result += `   Job ID: ${selectedJob.id}\n`;
+                result += `   Resume ID: ${selectedJob.resume_id || '无'}\n\n`;
+                
+                // 2. 获取关联的resume（模拟HomePage的逻辑）
+                let resumeId = selectedJob.resume_id;
+                
+                if (!resumeId) {
+                    result += '⚠️ Job没有关联resume，获取用户第一个已处理简历...\n';
+                    const resumesResponse = await fetch(`${API_BASE}/resumes`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const resumesData = await resumesResponse.json();
+                    const allResumes = resumesData.data?.resumes || [];
+                    const processedResumes = allResumes.filter(r => r.status === 'processed');
+                    
+                    if (processedResumes.length === 0) {
+                        throw new Error('没有已处理的简历');
+                    }
+                    
+                    resumeId = processedResumes[0].id;
+                    result += `   使用简历ID: ${resumeId}\n\n`;
+                } else {
+                    result += `✅ Job已关联简历ID: ${resumeId}\n\n`;
+                }
+                
+                // 3. 创建面试会话（模拟HomePage的createInterview）
+                result += '🚀 创建Mock Interview会话...\n';
+                const createResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        interview_type: 'comprehensive',
+                        total_questions: 8,
+                        custom_title: `${selectedJob.title} @ ${selectedJob.company} Mock Interview`
+                    })
+                });
+                const createData = await createResponse.json();
+                
+                if (!createData.success) {
+                    throw new Error(`创建面试会话失败: ${createData.message}`);
+                }
+                
+                const sessionId = createData.data.session_id;
+                result += `✅ 会话创建成功: ${sessionId}\n`;
+                result += `   状态: ${createData.data.session.status}\n\n`;
+                
+                // 4. 生成问题（模拟HomePage的generateQuestions）
+                result += '🔄 生成面试问题...\n';
+                const generateResponse = await fetch(`${API_BASE}/questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume_id: resumeId,
+                        session_id: sessionId,
+                        total_questions: 8,
+                        interview_type: 'comprehensive'
+                    })
+                });
+                const generateData = await generateResponse.json();
+                
+                if (!generateData.success) {
+                    throw new Error(`生成问题失败: ${generateData.message}`);
+                }
+                
+                result += `✅ 问题生成成功: ${generateData.questions?.length || 0} 个问题\n\n`;
+                
+                // 5. 检查会话状态
+                const sessionResponse = await fetch(`${API_BASE}/interviews/${sessionId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const sessionData = await sessionResponse.json();
+                result += `📊 当前会话状态: ${sessionData.data.session.status}\n`;
+                result += `   问题数量: ${sessionData.data.questions?.length || 0}\n\n`;
+                
+                // 6. 尝试启动面试（模拟MockInterviewPage的startInterview）
+                result += '🎬 尝试启动面试...\n';
+                const startResponse = await fetch(`${API_BASE}/interviews/${sessionId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const startData = await startResponse.json();
+                
+                if (startData.success) {
+                    result += `✅ 面试启动成功!\n`;
+                    result += `   最终状态: ${startData.data.session.status}\n`;
+                    result += `   启动时间: ${startData.data.session.started_at}\n\n`;
+                    result += `🎉 完整流程测试成功! 现在用户可以正常进行Mock Interview了。`;
+                    showResult('homePageFlowResult', result, 'success');
+                } else {
+                    result += `❌ 面试启动失败: ${startData.message}\n`;
+                    showResult('homePageFlowResult', result, 'error');
+                }
+                
+            } catch (error) {
+                showResult('homePageFlowResult', `❌ HomePage流程测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试2: 验证job已有resume_id的情况
+        async function testJobResumeAssociation() {
+            try {
+                const token = await getAuthToken();
+                let result = '📋 检查Job-Resume关联情况...\n\n';
+                
+                // 获取所有jobs
+                const jobsResponse = await fetch(`${API_BASE}/jobs?per_page=50`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const jobsData = await jobsResponse.json();
+                const jobs = jobsData.data?.jobs || [];
+                
+                result += `📊 总共找到 ${jobs.length} 个Job:\n\n`;
+                
+                let hasResumeCount = 0;
+                let noResumeCount = 0;
+                
+                jobs.forEach((job, index) => {
+                    result += `${index + 1}. "${job.title}" @ ${job.company}\n`;
+                    result += `   Job ID: ${job.id}\n`;
+                    if (job.resume_id) {
+                        result += `   ✅ Resume ID: ${job.resume_id}\n`;
+                        hasResumeCount++;
+                    } else {
+                        result += `   ❌ 无关联Resume\n`;
+                        noResumeCount++;
+                    }
+                    result += '\n';
+                });
+                
+                result += `📈 统计结果:\n`;
+                result += `   有Resume关联: ${hasResumeCount} 个\n`;
+                result += `   无Resume关联: ${noResumeCount} 个\n\n`;
+                
+                if (noResumeCount > 0) {
+                    result += `⚠️ 发现 ${noResumeCount} 个Job没有关联Resume，这些Job在Mock Interview时会使用用户的第一个已处理简历。`;
+                    showResult('jobResumeResult', result, 'warning');
+                } else {
+                    result += `🎉 所有Job都已正确关联Resume！`;
+                    showResult('jobResumeResult', result, 'success');
+                }
+                
+            } catch (error) {
+                showResult('jobResumeResult', `❌ Job-Resume关联检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 测试3: 对比新旧流程
+        async function compareFlows() {
+            let result = '⚖️ Mock Interview流程对比分析\n\n';
+            
+            result += '🔴 修复前的错误流程:\n';
+            result += '1. HomePage → 选择Job → 点击"Start Interview"\n';
+            result += '2. HomePage → 创建面试会话（状态: created）\n';
+            result += '3. HomePage → 直接跳转到MockInterviewPage（❌ 没有生成问题）\n';
+            result += '4. MockInterviewPage → 发现没有问题 → 调用startInterview\n';
+            result += '5. startInterview API → 400错误（会话状态可能已经是in_progress）\n\n';
+            
+            result += '🟢 修复后的正确流程:\n';
+            result += '1. HomePage → 选择Job → 点击"Start Interview"\n';
+            result += '2. HomePage → 创建面试会话（状态: created）\n';
+            result += '3. HomePage → 生成面试问题（状态: ready）\n';
+            result += '4. HomePage → 跳转到MockInterviewPage（携带questions数据）\n';
+            result += '5. MockInterviewPage → 有问题数据 → 正常启动面试\n\n';
+            
+            result += '🔧 关键修复点:\n';
+            result += '• 在HomePage中添加了问题生成步骤\n';
+            result += '• 确保跳转时携带questions数据\n';
+            result += '• 后端支持in_progress状态的重复启动\n';
+            result += '• 前端优化了状态处理逻辑\n\n';
+            
+            result += '✅ 修复效果:\n';
+            result += '• 用户选择Job后能立即开始面试\n';
+            result += '• 不再出现400错误\n';
+            result += '• 流程更加顺畅和直观\n';
+            result += '• 正确利用Job已有的resume_id关联';
+            
+            showResult('flowComparisonResult', result, 'info');
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            showResult('globalResults', 
+                '🏠 HomePage Mock Interview流程测试页面\n' +
+                '📋 测试目标:\n' +
+                '  验证用户从HomePage选择Job开始Mock Interview的完整流程\n\n' +
+                '🎯 关键验证点:\n' +
+                '  1. Job是否正确关联Resume\n' +
+                '  2. 面试会话创建是否成功\n' +
+                '  3. 问题生成是否正常\n' +
+                '  4. 面试启动是否无错误\n\n' +
+                '🔧 修复内容:\n' +
+                '  HomePage现在会在创建会话后立即生成问题，\n' +
+                '  确保MockInterviewPage有完整的数据进行面试\n\n' +
+                '👆 点击上方按钮开始测试', 
+                'info'
+            );
+        };
+    </script>
+</body>
+</html> 

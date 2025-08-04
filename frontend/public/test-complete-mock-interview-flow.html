@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Mock Interview Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+        button { padding: 10px 15px; margin: 5px; border: none; border-radius: 3px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        #results { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; white-space: pre-wrap; }
+        .step { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Complete Mock Interview Flow Test</h1>
+    
+    <div class="test-section">
+        <h3>测试说明：</h3>
+        <p>模拟用户从HomePage点击Mock Interview，选择Marketing Planner的完整流程</p>
+        <ul>
+            <li>✅ 登录用户：3938930977@qq.com</li>
+            <li>✅ 获取用户简历</li>
+            <li>✅ 创建面试会话</li>
+            <li>✅ 生成问题</li>
+            <li>🔍 <strong>测试startInterview调用（重点）</strong></li>
+        </ul>
+    </div>
+    
+    <button class="btn-primary" onclick="runCompleteTest()">🚀 运行完整测试</button>
+    <button class="btn-success" onclick="clearResults()">🧹 清空结果</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let testResults = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            testResults.push(logMessage);
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = testResults.join('\n');
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            
+            console.log(logMessage);
+        }
+        
+        function clearResults() {
+            testResults = [];
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const response = await fetch(url, options);
+            const data = await response.json();
+            
+            log(`API: ${options.method || 'GET'} ${endpoint} -> ${response.status}`, 
+                response.ok ? 'success' : 'error');
+                
+            if (!response.ok) {
+                log(`错误详情: ${JSON.stringify(data)}`, 'error');
+            }
+            
+            return { response, data };
+        }
+        
+        async function runCompleteTest() {
+            try {
+                clearResults();
+                log('🎯 开始完整Mock Interview流程测试', 'info');
+                
+                // Step 1: 登录
+                log('\n📝 Step 1: 用户登录', 'info');
+                const { data: loginData } = await apiCall('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: '3938930977@qq.com',
+                        password: '12345678'
+                    })
+                });
+                
+                if (!loginData.success) {
+                    throw new Error('登录失败: ' + loginData.message);
+                }
+                
+                const token = loginData.data.access_token;
+                log('✅ 登录成功，获取token', 'success');
+                
+                // Step 2: 获取简历
+                log('\n📄 Step 2: 获取用户简历', 'info');
+                const { data: resumesData } = await apiCall('/resumes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const resumes = resumesData.data?.resumes || resumesData.resumes || [];
+                const processedResume = resumes.find(r => r.status === 'processed');
+                
+                if (!processedResume) {
+                    throw new Error('没有找到已处理的简历');
+                }
+                
+                log(`✅ 找到已处理简历: ID=${processedResume.id}`, 'success');
+                
+                // Step 3: 创建面试会话（模拟选择Marketing Planner）
+                log('\n🎯 Step 3: 创建Mock Interview会话', 'info');
+                const { data: interviewData } = await apiCall('/interviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: processedResume.id,
+                        interview_type: 'mock',
+                        total_questions: 5,
+                        difficulty_distribution: {
+                            'easy': 2,
+                            'medium': 2,
+                            'hard': 1
+                        },
+                        type_distribution: {
+                            'behavioral': 2,
+                            'technical': 2,
+                            'situational': 1
+                        },
+                        custom_title: 'Marketing Planner Mock Interview'
+                    })
+                });
+                
+                if (!interviewData.success) {
+                    throw new Error('创建面试会话失败: ' + interviewData.message);
+                }
+                
+                const sessionId = interviewData.data.session_id;
+                log(`✅ 创建面试会话成功: ${sessionId}`, 'success');
+                
+                // Step 4: 生成问题
+                log('\n❓ Step 4: 生成面试问题', 'info');
+                const { data: questionsData } = await apiCall('/questions/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        resume_id: processedResume.id,
+                        session_id: sessionId
+                    })
+                });
+                
+                if (!questionsData.success) {
+                    throw new Error('生成问题失败: ' + questionsData.message);
+                }
+                
+                log(`✅ 生成问题成功: ${questionsData.data.questions.length}个问题`, 'success');
+                log(`📊 会话状态: ${questionsData.data.session.status}`, 'info');
+                
+                // Step 5: 关键测试 - startInterview
+                log('\n🚀 Step 5: 启动面试（关键测试）', 'warning');
+                log('🔍 测试场景：模拟前端可能的重复调用', 'info');
+                
+                // 5a: 第一次调用
+                log('\n🔄 5a: 第一次启动面试调用', 'info');
+                const startResponse1 = await fetch(`${API_BASE}/interviews/${sessionId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const startData1 = await startResponse1.json();
+                log(`📊 第1次调用: ${startResponse1.status} - ${startData1.success ? '成功' : '失败'}`, 
+                    startResponse1.status === 200 ? 'success' : 'error');
+                
+                if (!startData1.success) {
+                    log(`❌ 第1次调用错误: ${startData1.message || JSON.stringify(startData1)}`, 'error');
+                }
+                
+                // 5b: 短暂延迟后第二次调用（模拟前端逻辑中的重复调用）
+                log('\n⏱️ 等待100ms后进行第二次调用...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                log('🔄 5b: 第二次启动面试调用', 'info');
+                const startResponse2 = await fetch(`${API_BASE}/interviews/${sessionId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const startData2 = await startResponse2.json();
+                log(`📊 第2次调用: ${startResponse2.status} - ${startData2.success ? '成功' : '失败'}`, 
+                    startResponse2.status === 200 ? 'success' : 'warning');
+                
+                if (!startData2.success) {
+                    log(`⚠️ 第2次调用错误: ${startData2.message || JSON.stringify(startData2)}`, 'warning');
+                }
+                
+                // 分析结果
+                log('\n📈 测试结果分析:', 'info');
+                log(`第1次调用: ${startResponse1.status}`, 'info');
+                log(`第2次调用: ${startResponse2.status}`, 'info');
+                
+                if (startResponse1.status === 200 && startResponse2.status === 400) {
+                    log('✅ 完美！第一次成功，第二次被正确阻止（预期行为）', 'success');
+                } else if (startResponse1.status === 200 && startResponse2.status === 200) {
+                    log('⚠️ 警告：两次调用都成功了，可能存在并发问题', 'warning');
+                } else if (startResponse1.status === 400) {
+                    log('❌ 错误：第一次调用就失败了，检查会话状态', 'error');
+                } else {
+                    log('❓ 其他情况，需要进一步分析', 'warning');
+                }
+                
+                // Step 6: 验证最终状态
+                log('\n🔍 Step 6: 验证最终会话状态', 'info');
+                const { data: finalSessionData } = await apiCall(`/interviews/${sessionId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (finalSessionData.success) {
+                    log(`📊 最终会话状态: ${finalSessionData.data.status}`, 'info');
+                    log(`📊 启动时间: ${finalSessionData.data.started_at || '未启动'}`, 'info');
+                }
+                
+                log('\n🎉 完整流程测试完成！', 'success');
+                
+            } catch (error) {
+                log(`❌ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html> 

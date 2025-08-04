@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API重复调用调试工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        .info { background: #e3f2fd; color: #1565c0; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        .counter { font-weight: bold; color: #1976d2; font-size: 18px; margin: 10px 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .api-stats { background: #f0f8ff; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .instance-info { background: #fffacd; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 API重复调用调试工具</h1>
+    
+    <div class="section">
+        <h3>测试步骤</h3>
+        <ol>
+            <li>点击"开始监控"按钮</li>
+            <li>打开新标签页访问 <code>http://localhost:3000/home</code></li>
+            <li>登录账号：<code>3938930977@qq.com / 12345678</code></li>
+            <li>点击"Mock Interview"</li>
+            <li>选择任意职位</li>
+            <li>观察此页面的实时监控日志</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h3>监控控制</h3>
+        <button onclick="startMonitoring()">开始监控</button>
+        <button onclick="stopMonitoring()">停止监控</button>
+        <button onclick="clearLogs()">清除日志</button>
+        <button onclick="exportLogs()">导出日志</button>
+    </div>
+
+    <div class="section">
+        <h3>组件实例追踪</h3>
+        <div id="instance-tracker" class="instance-info">
+            等待检测组件实例...
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>API调用统计</h3>
+        <div id="api-stats" class="api-stats">
+            <div>总API调用次数: <span id="total-calls">0</span></div>
+            <div id="api-breakdown"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>实时监控日志</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let isMonitoring = false;
+        let apiCalls = {};
+        let instances = new Set();
+        let logEntries = [];
+
+        function log(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = { timestamp, message, type };
+            logEntries.push(entry);
+            
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${timestamp}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            
+            // 更新统计信息
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('total-calls').textContent = Object.values(apiCalls).reduce((sum, count) => sum + count, 0);
+            
+            const breakdown = document.getElementById('api-breakdown');
+            breakdown.innerHTML = '';
+            Object.entries(apiCalls).forEach(([api, count]) => {
+                const div = document.createElement('div');
+                div.innerHTML = `${api}: <strong>${count}次</strong> ${count > 1 ? '⚠️' : '✅'}`;
+                breakdown.appendChild(div);
+            });
+            
+            const instanceTracker = document.getElementById('instance-tracker');
+            instanceTracker.innerHTML = `检测到 ${instances.size} 个组件实例: ${Array.from(instances).join(', ')}`;
+        }
+
+        function trackApiCall(apiName) {
+            apiCalls[apiName] = (apiCalls[apiName] || 0) + 1;
+            
+            if (apiCalls[apiName] === 1) {
+                log(`✅ ${apiName} 首次调用`, 'success');
+            } else {
+                log(`⚠️ ${apiName} 重复调用 (第${apiCalls[apiName]}次)`, 'warning');
+            }
+        }
+
+        function trackInstance(instanceId) {
+            if (!instances.has(instanceId)) {
+                instances.add(instanceId);
+                log(`🎭 新组件实例: ${instanceId}`, 'info');
+            }
+        }
+
+        function startMonitoring() {
+            if (isMonitoring) return;
+            
+            isMonitoring = true;
+            log('🚀 开始监控API调用', 'success');
+            
+            // 监听所有网络请求
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const [url, options] = args;
+                
+                if (typeof url === 'string' && url.includes('/api/v1/')) {
+                    const apiName = extractApiName(url, options?.method || 'GET');
+                    trackApiCall(apiName);
+                    log(`📡 网络请求: ${apiName}`);
+                }
+                
+                return originalFetch.apply(this, args);
+            };
+            
+            // 监听控制台日志
+            const originalConsoleLog = console.log;
+            console.log = function(...args) {
+                const message = args.join(' ');
+                
+                // 检测组件实例
+                if (message.includes('MockInterviewPage实例创建:')) {
+                    const instanceId = message.split(':')[1]?.trim();
+                    if (instanceId) trackInstance(instanceId);
+                }
+                
+                // 检测API调用追踪
+                if (message.includes('API调用追踪:')) {
+                    const parts = message.split('API调用追踪:')[1]?.trim();
+                    if (parts) {
+                        const apiName = parts.split('(')[0]?.trim();
+                        log(`🔍 组件内API调用: ${apiName}`, 'info');
+                    }
+                }
+                
+                // 检测重复调用警告
+                if (message.includes('检测到重复API调用:')) {
+                    const apiName = message.split('检测到重复API调用:')[1]?.trim();
+                    log(`🚨 组件检测到重复调用: ${apiName}`, 'error');
+                }
+                
+                // 检测useEffect执行
+                if (message.includes('useEffect执行:')) {
+                    const instanceId = message.split(':')[1]?.trim();
+                    log(`🔄 useEffect执行: ${instanceId}`, 'info');
+                }
+                
+                // 检测StrictMode
+                if (message.includes('StrictMode重复执行检测')) {
+                    log(`🔄 StrictMode重复执行被拦截`, 'warning');
+                }
+                
+                return originalConsoleLog.apply(this, args);
+            };
+            
+            log('✅ 监控已启动，等待API调用...', 'success');
+        }
+
+        function stopMonitoring() {
+            isMonitoring = false;
+            log('⏹️ 监控已停止', 'warning');
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            apiCalls = {};
+            instances.clear();
+            logEntries = [];
+            updateStats();
+            log('🧹 日志已清除', 'info');
+        }
+
+        function exportLogs() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                apiCalls,
+                instances: Array.from(instances),
+                logs: logEntries
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `api-debug-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('📄 日志已导出', 'success');
+        }
+
+        function extractApiName(url, method) {
+            const path = url.replace(/^.*\/api\/v1\//, '');
+            const cleanPath = path.split('?')[0];
+            return `${method} /api/v1/${cleanPath}`;
+        }
+
+        // 页面加载时自动开始监控
+        window.onload = function() {
+            log('🔧 API重复调用调试工具已加载');
+            log('💡 请按照测试步骤进行操作');
+            startMonitoring();
+        };
+    </script>
+</body>
+</html> 

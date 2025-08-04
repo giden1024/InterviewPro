@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test useEffect Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        .counter { font-weight: bold; color: #1976d2; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 useEffect依赖修复测试</h1>
+    <p>此页面用于测试修复后的API调用次数</p>
+    
+    <div>
+        <button onclick="testFlow()">测试HomePage -> MockInterviewPage流程</button>
+        <button onclick="clearLogs()">清除日志</button>
+    </div>
+
+    <div>
+        <h3>API调用计数器：</h3>
+        <div class="counter">
+            <div>总API调用次数: <span id="total-count">0</span></div>
+            <div>GET /api/v1/resumes/{id}: <span id="resume-count">0</span> 次</div>
+            <div>GET /api/v1/questions/session/{id}: <span id="session-count">0</span> 次</div>
+            <div>POST /api/v1/questions/generate: <span id="generate-count">0</span> 次</div>
+        </div>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        let apiCounts = {
+            total: 0,
+            resume: 0,
+            session: 0,
+            generate: 0
+        };
+
+        function log(message, type = 'log') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function updateCounter(type) {
+            apiCounts[type]++;
+            apiCounts.total++;
+            document.getElementById(`${type}-count`).textContent = apiCounts[type];
+            document.getElementById('total-count').textContent = apiCounts.total;
+            
+            if (apiCounts[type] > 1) {
+                log(`⚠️ ${type} API被调用了 ${apiCounts[type]} 次！可能存在重复调用问题`, 'warning');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            apiCounts = { total: 0, resume: 0, session: 0, generate: 0 };
+            document.getElementById('total-count').textContent = '0';
+            document.getElementById('resume-count').textContent = '0';
+            document.getElementById('session-count').textContent = '0';
+            document.getElementById('generate-count').textContent = '0';
+        }
+
+        // 监听所有网络请求
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const [url, options] = args;
+            
+            // 记录API调用
+            if (typeof url === 'string') {
+                if (url.includes('/api/v1/resumes/') && !url.includes('/analyze') && options?.method !== 'POST') {
+                    updateCounter('resume');
+                    log(`📋 API调用: GET ${url}`);
+                } else if (url.includes('/api/v1/questions/session/')) {
+                    updateCounter('session');
+                    log(`🔄 API调用: GET ${url}`);
+                } else if (url.includes('/api/v1/questions/generate')) {
+                    updateCounter('generate');
+                    log(`🤖 API调用: POST ${url}`);
+                }
+            }
+            
+            return originalFetch.apply(this, args);
+        };
+
+        async function testFlow() {
+            log('🚀 开始测试HomePage -> MockInterviewPage流程');
+            log('📝 请在浏览器中执行以下操作:');
+            log('1. 打开 http://localhost:3000/home');
+            log('2. 点击 "Mock Interview"');
+            log('3. 选择任意职位');
+            log('4. 观察此页面的API调用计数器');
+            log('');
+            log('⏱️ 等待10秒后检查结果...');
+            
+            setTimeout(() => {
+                log('📊 测试结果分析:', 'success');
+                if (apiCounts.total === 0) {
+                    log('ℹ️ 没有检测到API调用，请确保已执行测试步骤', 'warning');
+                } else {
+                    log(`📈 总共检测到 ${apiCounts.total} 次API调用`);
+                    
+                    if (apiCounts.resume <= 1 && apiCounts.session <= 1 && apiCounts.generate <= 1) {
+                        log('🎉 修复成功！每个API都只被调用了一次或零次！', 'success');
+                    } else {
+                        log('❌ 仍存在重复调用问题，需要进一步修复', 'error');
+                        if (apiCounts.resume > 1) log(`  - GET /api/v1/resumes/{id} 被调用了 ${apiCounts.resume} 次`, 'error');
+                        if (apiCounts.session > 1) log(`  - GET /api/v1/questions/session/{id} 被调用了 ${apiCounts.session} 次`, 'error');
+                        if (apiCounts.generate > 1) log(`  - POST /api/v1/questions/generate 被调用了 ${apiCounts.generate} 次`, 'error');
+                    }
+                }
+            }, 10000);
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            log('✅ 测试页面已加载，开始监听API调用');
+            log('💡 此页面会自动监听所有fetch请求并统计API调用次数');
+        };
+    </script>
+</body>
+</html> 
