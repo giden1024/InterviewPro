@@ -208,18 +208,18 @@ Job Requirements
           setJobDescription(result.text);
           console.log('OCR识别成功，文本已填充到Job description');
         } else {
-          setError('未能从图片中识别到文字内容');
+          setError('Unable to recognize text from the image');
         }
       } catch (err: any) {
         console.error('OCR识别失败:', err);
-        setError(err.message || '图片文字识别失败，请重试');
+        setError(err.message || 'Image text recognition failed, please try again');
       } finally {
         setLoading(false);
       }
     } else {
       // 其他文件类型的处理逻辑
       console.log('File uploaded:', file);
-      setError('请上传图片文件（支持 PNG, JPG, JPEG, BMP, TIFF, WEBP 格式）');
+      setError('Please upload an image file (supported formats: PNG, JPG, JPEG, BMP, TIFF, WEBP)');
     }
   };
 
@@ -532,7 +532,7 @@ Job Requirements
                         color: '#666666'
                       }}
                     >
-                      正在识别图片中的文字...
+                      Recognizing text from image...
                     </p>
                   </div>
                 ) : (
@@ -602,7 +602,7 @@ Job Requirements
                     maxWidth: '291px'
                   }}
                 >
-                  支持图片格式: PNG, JPG, JPEG, BMP, TIFF, WEBP
+                  Supported formats: PNG, JPG, JPEG, BMP, TIFF, WEBP
                 </p>
                 <input
                   type="file"
@@ -624,7 +624,7 @@ Job Requirements
                     fontFamily: 'Poppins'
                   }}
                 >
-                  选择图片文件
+                  Choose Image File
                 </label>
                   </>
                 )}
