@@ -26,12 +26,23 @@ app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
 
-# 启用CORS - 修复配置以支持所有端点
+# 获取CORS配置 - 支持生产环境和开发环境
+cors_origins_env = os.environ.get('CORS_ORIGINS', '')
+if cors_origins_env:
+    # 从环境变量解析CORS origins (生产环境)
+    cors_origins = [origin.strip() for origin in cors_origins_env.split(',')]
+    print(f"✅ 生产环境CORS配置: {cors_origins}")
+else:
+    # 开发环境默认配置
+    cors_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", 
+                   "http://localhost:3003", "http://localhost:3004", "http://localhost:3005", 
+                   "http://localhost:3006", "http://localhost:3007"]
+    print(f"🔧 开发环境CORS配置: {cors_origins}")
+
+# 启用CORS - 支持所有端点
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", 
-                   "http://localhost:3003", "http://localhost:3004", "http://localhost:3005", 
-                   "http://localhost:3006", "http://localhost:3007"],
+        "origins": cors_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }

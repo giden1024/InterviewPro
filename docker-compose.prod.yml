@@ -60,7 +60,7 @@ services:
       - FLASK_ENV=production
       - DATABASE_URL=mysql+pymysql://user:password@mysql:3306/interviewpro
       - JWT_SECRET_KEY=super-secret-jwt-key-for-production-e44a98f58724257596e5e14c0f04bcc9
-      - CORS_ORIGINS=http://3.138.194.143,https://3.138.194.143,http://offerott.com,https://offerott.com
+      - CORS_ORIGINS=http://3.138.194.143,https://3.138.194.143,http://offerott.com,https://offerott.com,https://www.offerott.com
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_FOLDER=/app/uploads
       - LOG_LEVEL=INFO
@@ -79,6 +79,11 @@ services:
           memory: 384M
         reservations:
           memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   nginx:
     image: nginx:alpine
