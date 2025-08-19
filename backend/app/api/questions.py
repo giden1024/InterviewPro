@@ -1208,4 +1208,204 @@ def clear_reference_cache():
         
     except Exception as e:
         current_app.logger.error(f"Error clearing reference cache: {e}")
-        return error_response("Failed to clear cache", 500) 
+        return error_response("Failed to clear cache", 500)
+
+# 简化问题生成相关导入
+import os
+import re
+import json
+import openai
+from werkzeug.utils import secure_filename
+from app.services.resume_parser import ResumeParser
+
+# 简化问题生成API
+@questions_bp.route('/simple-generate', methods=['POST'])
+@jwt_required()
+def simple_generate_questions():
+    """简化的问题生成API - 直接基于简历文本生成问题"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # 检查请求中是否有文件
+        if 'resume' not in request.files:
+            return error_response("Please upload a resume file", 400)
+        
+        file = request.files['resume']
+        
+        if file.filename == '':
+            return error_response("Please select a file", 400)
+        
+        # 验证文件类型
+        if not file.filename.lower().endswith('.pdf'):
+            return error_response("Only PDF files are supported", 400)
+        
+        # 验证文件大小 (10MB)
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 10 * 1024 * 1024:
+            return error_response("File size too large (max 10MB)", 400)
+        
+        # 保存临时文件
+        filename = secure_filename(file.filename)
+        temp_filename = f"temp_{uuid.uuid4().hex}_{filename}"
+        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        temp_file_path = os.path.join(upload_dir, temp_filename)
+        file.save(temp_file_path)
+        
+        try:
+            # 解析PDF为文本
+            parser = ResumeParser()
+            result = parser._extract_text(temp_file_path, 'pdf')
+            
+            if not result or len(result.strip()) < 50:
+                return error_response("Unable to extract text from PDF or content too short", 400)
+            
+            # 调用DeepSeek API生成问题
+            questions = _generate_questions_with_deepseek(result)
+            
+            return success_response(
+                data={
+                    'questions': questions,
+                    'resume_text': result[:1000],  # 返回前1000字符预览
+                    'total_questions': len(questions)
+                },
+                message=f"Successfully generated {len(questions)} interview questions"
+            )
+            
+        finally:
+            # 清理临时文件
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+    
+    except Exception as e:
+        current_app.logger.error(f"Simple question generation failed: {e}")
+        return error_response(f"Question generation failed: {str(e)}", 500)
+
+def _generate_questions_with_deepseek(resume_text: str):
+    """使用DeepSeek API生成面试问题"""
+    try:
+        api_key = current_app.config.get('DEEPSEEK_API_KEY')
+        if not api_key:
+            return _get_fallback_questions()
+        
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com"
+        )
+        
+        prompt = f"""Help me generate 10 interview questions based on the content of my resume.
+
+Resume Content:
+{resume_text}
+
+Please generate exactly 10 relevant interview questions that would be asked based on this resume. Format your response as a JSON array with objects containing 'question' and 'type' fields.
+
+Example format:
+[
+  {{"question": "Tell me about your experience with...", "type": "experience"}},
+  {{"question": "How did you handle...", "type": "behavioral"}}
+]
+
+Focus on:
+- Technical skills mentioned in the resume
+- Work experience and projects
+- Leadership and teamwork
+- Problem-solving scenarios
+- Career goals and motivations"""
+
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert HR interviewer. Generate relevant, professional interview questions based on the provided resume. Always respond with valid JSON format."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=1500
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # 尝试解析JSON响应
+        try:
+            questions_data = json.loads(content)
+            if isinstance(questions_data, list):
+                # 添加ID并验证格式
+                formatted_questions = []
+                for i, q in enumerate(questions_data[:10]):  # 限制为10个问题
+                    if isinstance(q, dict) and 'question' in q:
+                        formatted_questions.append({
+                            'id': i + 1,
+                            'question': q['question'],
+                            'type': q.get('type', 'general')
+                        })
+                return formatted_questions
+        except json.JSONDecodeError:
+            current_app.logger.warning("Failed to parse AI response as JSON, using fallback")
+        
+        # 如果JSON解析失败，尝试从文本中提取问题
+        return _parse_questions_from_text(content)
+        
+    except Exception as e:
+        current_app.logger.error(f"DeepSeek API call failed: {e}")
+        return _get_fallback_questions()
+
+def _parse_questions_from_text(text: str):
+    """从文本中解析问题"""
+    questions = []
+    lines = text.split('\n')
+    question_id = 1
+    
+    for line in lines:
+        line = line.strip()
+        # 寻找问题模式
+        if ('?' in line and len(line) > 10 and 
+            any(starter in line.lower() for starter in ['tell', 'describe', 'how', 'what', 'why', 'when', 'where'])):
+            # 清理格式
+            question = line
+            # 移除编号和引号
+            question = re.sub(r'^\d+[\.\)]\s*', '', question)
+            question = question.strip('"\'')
+            
+            if len(question) > 15:  # 确保问题有意义
+                questions.append({
+                    'id': question_id,
+                    'question': question,
+                    'type': 'general'
+                })
+                question_id += 1
+                
+                if len(questions) >= 10:
+                    break
+    
+    # 如果没有找到足够的问题，使用备用问题
+    if len(questions) < 5:
+        return _get_fallback_questions()
+    
+    return questions
+
+def _get_fallback_questions():
+    """备用问题列表"""
+    return [
+        {'id': 1, 'question': 'Tell me about yourself and your professional background.', 'type': 'general'},
+        {'id': 2, 'question': 'What interests you most about this position?', 'type': 'motivation'},
+        {'id': 3, 'question': 'Describe a challenging project you worked on and how you overcame obstacles.', 'type': 'behavioral'},
+        {'id': 4, 'question': 'What are your greatest professional strengths?', 'type': 'strengths'},
+        {'id': 5, 'question': 'Where do you see yourself in 3-5 years?', 'type': 'career_goals'},
+        {'id': 6, 'question': 'How do you handle working under pressure or tight deadlines?', 'type': 'behavioral'},
+        {'id': 7, 'question': 'Describe a time when you had to work with a difficult team member.', 'type': 'teamwork'},
+        {'id': 8, 'question': 'What technical skills do you consider your strongest assets?', 'type': 'technical'},
+        {'id': 9, 'question': 'How do you stay updated with industry trends and technologies?', 'type': 'learning'},
+        {'id': 10, 'question': 'Why are you looking to make a career change at this time?', 'type': 'motivation'}
+    ] 

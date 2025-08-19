@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom'
 import './landingPage.less'
 import { Collapse } from 'antd';
 import { CaretRightOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons';
@@ -29,6 +29,7 @@ import rightArrowImg from '../assets/rightArrow.png'
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeCore, setActiveCore] = useState(0)
 
@@ -49,6 +50,17 @@ const LandingPage: React.FC = () => {
     { title: 'Multi-Scenario Interview Simulation', content: 'Practice with realistic interview scenarios across various industries and roles, from technical deep-dives to behavioral assessments and case studies.' },
     { title: 'Real-Time Interview Assistance', content: 'Get instant, intelligent prompts and suggestions during live interviews to help you deliver confident, well-structured responses that showcase your expertise.' }
   ];
+
+  // Handle URL parameters for tab navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const tab = urlParams.get('tab');
+    if (tab === 'pricing') {
+      setActiveIndex(1); // Pricing tab is index 1 in tabsData array
+    } else if (tab === 'contact') {
+      setActiveIndex(2); // Contact Us tab is index 2 in tabsData array
+    }
+  }, [location.search]);
   return (
     <div className="min-h-screen">
       <div className="offerLetterCss">
