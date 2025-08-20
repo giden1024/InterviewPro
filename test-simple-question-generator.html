@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Question Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background: linear-gradient(to right, #9CFAFF, #6BBAFF);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .question-list {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .question-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            border-left: 4px solid #2196F3;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simple Question Generator Test</h1>
+    
+    <div class="test-section">
+        <h2>📋 Test Overview</h2>
+        <p>This page tests the new simple question generator functionality:</p>
+        <ol>
+            <li>Upload a PDF resume file</li>
+            <li>Extract text from PDF</li>
+            <li>Send to DeepSeek API for question generation</li>
+            <li>Display generated questions</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔐 Step 1: Login</h2>
+        <p>First, we need to login to get a valid token:</p>
+        <div>
+            <input type="email" id="email" placeholder="Email" value="test@example.com">
+            <input type="password" id="password" placeholder="Password" value="password">
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📄 Step 2: Upload Resume</h2>
+        <p>Select a PDF resume file to test:</p>
+        <input type="file" id="resumeFile" accept=".pdf">
+        <button onclick="generateQuestions()" disabled id="generateBtn">Generate Questions</button>
+        <div id="upload-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Generated Questions</h2>
+        <div id="questions-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Direct API Tests</h2>
+        <button onclick="testAPIEndpoint()">Test API Endpoint</button>
+        <button onclick="testFrontendPage()">Test Frontend Page</button>
+        <div id="api-result"></div>
+    </div>
+
+    <script>
+        let authToken = null;
+
+        // Login function
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('login-result');
+            
+            resultDiv.innerHTML = '<p>⏳ Logging in...</p>';
+            
+            try {
+                const response = await fetch('https://offerott.com/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    localStorage.setItem('token', authToken);
+                    resultDiv.innerHTML = '<p class="success">✅ Login successful!</p>';
+                    document.getElementById('generateBtn').disabled = false;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">❌ Login failed: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Login error: ${error.message}</p>`;
+            }
+        }
+
+        // Generate questions function
+        async function generateQuestions() {
+            const fileInput = document.getElementById('resumeFile');
+            const resultDiv = document.getElementById('upload-result');
+            const questionsDiv = document.getElementById('questions-result');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select a PDF file first!');
+                return;
+            }
+            
+            if (!authToken) {
+                alert('Please login first!');
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating questions...</p></div>';
+            questionsDiv.innerHTML = '';
+            
+            try {
+                const formData = new FormData();
+                formData.append('resume', fileInput.files[0]);
+                
+                const response = await fetch('https://offerott.com/api/v1/questions/simple-generate', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML = '<p class="success">✅ Questions generated successfully!</p>';
+                    
+                    // Display questions
+                    let questionsHtml = `<h3>Generated ${data.data.questions.length} Questions:</h3>`;
+                    data.data.questions.forEach((q, index) => {
+                        questionsHtml += `
+                            <div class="question-item">
+                                <strong>Q${index + 1}:</strong> ${q.question}
+                                ${q.type ? `<span style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">${q.type}</span>` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    // Show resume preview if available
+                    if (data.data.resume_text) {
+                        questionsHtml += `
+                            <h4>Resume Text Preview:</h4>
+                            <div style="background: #f5f5f5; padding: 10px; border-radius: 3px; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                ${data.data.resume_text.substring(0, 1000)}${data.data.resume_text.length > 1000 ? '...' : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    questionsDiv.innerHTML = `<div class="question-list">${questionsHtml}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">❌ Failed: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        // Test API endpoint
+        async function testAPIEndpoint() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<p>⏳ Testing API endpoint...</p>';
+            
+            try {
+                const response = await fetch('https://offerott.com/api/v1/questions/simple-generate', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken || 'invalid-token'}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<p class="success">✅ API endpoint exists! (401 Unauthorized - expected without valid data)</p>';
+                } else if (response.status === 400) {
+                    resultDiv.innerHTML = '<p class="success">✅ API endpoint exists! (400 Bad Request - expected without file)</p>';
+                } else {
+                    resultDiv.innerHTML = `<p class="error">❌ Unexpected response: ${response.status}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ API test error: ${error.message}</p>`;
+            }
+        }
+
+        // Test frontend page
+        function testFrontendPage() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<p>🔗 Opening frontend page...</p>';
+            window.open('https://offerott.com/simple-questions', '_blank');
+        }
+
+        // Auto-load token from localStorage
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                authToken = savedToken;
+                document.getElementById('login-result').innerHTML = '<p class="success">✅ Using saved token</p>';
+                document.getElementById('generateBtn').disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

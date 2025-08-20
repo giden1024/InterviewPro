@@ -155,9 +155,9 @@ class ApiClient {
   }
 
   // 文件上传请求
-  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, string>): Promise<T> {
+  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, string>, fileFieldName: string = 'file'): Promise<T> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append(fileFieldName, file); // 使用自定义字段名
     
     if (additionalData) {
       Object.entries(additionalData).forEach(([key, value]) => {
@@ -178,6 +178,13 @@ class ApiClient {
     });
 
     return this.handleResponse<T>(response);
+  }
+
+  /**
+   * 专门用于简化问题生成的文件上传方法
+   */
+  async uploadResumeForQuestions<T>(endpoint: string, resumeFile: File): Promise<T> {
+    return this.uploadFile<T>(endpoint, resumeFile, undefined, 'resume');
   }
 }
 

@@ -2,21 +2,16 @@ import React, { useState } from 'react';
 import { Upload, Button, Card, List, Typography, Alert, Spin, message } from 'antd';
 import { UploadOutlined, FileTextOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd';
+import { questionService, SimpleQuestion, SimpleGenerateResponse } from '../services/questionService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Dragger } = Upload;
 
+// 使用questionService中定义的接口，这里保留是为了兼容性
 interface GeneratedQuestion {
   id: number;
   question: string;
   type?: string;
-}
-
-interface ApiResponse {
-  success: boolean;
-  questions?: GeneratedQuestion[];
-  error?: string;
-  resume_text?: string;
 }
 
 const SimpleQuestionGeneratorPage: React.FC = () => {
@@ -68,27 +63,14 @@ const SimpleQuestionGeneratorPage: React.FC = () => {
     setQuestions([]);
 
     try {
-      const formData = new FormData();
-      formData.append('resume', fileList[0] as any);
+      // 使用questionService的简化问题生成方法
+      const file = fileList[0] as any;
+      const data: SimpleGenerateResponse = await questionService.simpleGenerateQuestions(file);
 
-      const response = await fetch('/api/v1/questions/simple-generate', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: ApiResponse = await response.json();
-
-      if (data.success && data.questions) {
-        setQuestions(data.questions);
-        setResumeText(data.resume_text || '');
-        message.success(`成功生成 ${data.questions.length} 个面试问题！`);
+      if (data.success && data.data?.questions) {
+        setQuestions(data.data.questions);
+        setResumeText(data.data.resume_text || '');
+        message.success(`成功生成 ${data.data.questions.length} 个面试问题！`);
       } else {
         setError(data.error || '生成问题失败');
         message.error(data.error || '生成问题失败');

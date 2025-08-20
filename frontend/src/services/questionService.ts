@@ -62,6 +62,24 @@ export interface QuestionStats {
   recent_generation_count: number;
 }
 
+// 简化问题生成相关接口
+export interface SimpleQuestion {
+  id: number;
+  question: string;
+  type: string;
+}
+
+export interface SimpleGenerateResponse {
+  success: boolean;
+  data?: {
+    questions: SimpleQuestion[];
+    resume_text: string;
+    total_questions: number;
+  };
+  message?: string;
+  error?: string;
+}
+
 class QuestionService {
   /**
    * 获取用户的问题列表
@@ -503,6 +521,23 @@ class QuestionService {
       return response.data;
     } catch (error) {
       console.error('批量生成AI参考答案失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 简化问题生成 - 直接上传PDF生成问题
+   */
+  async simpleGenerateQuestions(resumeFile: File): Promise<SimpleGenerateResponse> {
+    try {
+      // 使用API客户端的专用方法上传简历文件
+      const response: SimpleGenerateResponse = await apiClient.uploadResumeForQuestions(
+        '/questions/simple-generate',
+        resumeFile
+      );
+      return response;
+    } catch (error) {
+      console.error('简化问题生成失败:', error);
       throw error;
     }
   }
