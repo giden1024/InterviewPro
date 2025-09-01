@@ -103,6 +103,7 @@ def register_blueprints(app):
     from app.api.analysis import analysis
     from app.api.jobs import jobs_bp
     from app.api.health import health_bp
+    from app.api.billing import billing_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(resumes_bp, url_prefix='/api/v1/resumes')
@@ -111,6 +112,7 @@ def register_blueprints(app):
     app.register_blueprint(analysis, url_prefix='/api/v1/analysis')
     app.register_blueprint(jobs_bp, url_prefix='/api/v1/jobs')
     app.register_blueprint(health_bp, url_prefix='/api/v1')
+    app.register_blueprint(billing_bp, url_prefix='/api/v1/billing')
 
 def register_error_handlers(app):
     """注册错误处理器"""

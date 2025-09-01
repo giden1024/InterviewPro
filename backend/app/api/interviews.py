@@ -7,6 +7,7 @@ from app.services.simple_ai_responder import SimpleAIResponder
 from app.services.question_matcher import QuestionMatcher
 from app.models.question import InterviewType
 from app.utils.exceptions import APIError, ValidationError, NotFoundError
+from app.utils.subscription_utils import subscription_required
 from datetime import datetime
 
 interviews_bp = Blueprint('interviews', __name__)
@@ -29,6 +30,7 @@ class SubmitAnswerSchema(Schema):
 
 @interviews_bp.route('', methods=['POST'])
 @jwt_required()
+@subscription_required(feature='interviews', usage_type='interviews')
 def create_interview():
     """创建面试会话"""
     try:

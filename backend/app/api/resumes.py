@@ -12,6 +12,7 @@ from app.services.resume_parser import ResumeParser
 from app.services.cache_service import CacheService
 from app.utils.response import success_response, error_response
 from app.utils.validation import validate_file
+from app.utils.subscription_utils import subscription_required
 
 resumes_bp = Blueprint('resumes', __name__)
 
@@ -503,6 +504,7 @@ def preview_resume(resume_id):
 
 @resumes_bp.route('/<int:resume_id>/analyze', methods=['POST'])
 @jwt_required()
+@subscription_required(feature='resume_analysis', usage_type='resume_analysis')
 def analyze_resume(resume_id):
     """智能分析简历"""
     try:

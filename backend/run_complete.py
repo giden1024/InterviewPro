@@ -63,6 +63,7 @@ from app.api.interviews import interviews_bp
 from app.api.questions import questions_bp
 from app.api.analysis import analysis
 from app.api.jobs import jobs_bp
+from app.api.billing import billing_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
 app.register_blueprint(resumes_bp, url_prefix='/api/v1/resumes')
@@ -70,6 +71,7 @@ app.register_blueprint(interviews_bp, url_prefix='/api/v1/interviews')
 app.register_blueprint(questions_bp, url_prefix='/api/v1/questions')
 app.register_blueprint(analysis, url_prefix='/api/v1/analysis')
 app.register_blueprint(jobs_bp, url_prefix='/api/v1/jobs')
+app.register_blueprint(billing_bp, url_prefix='/api/v1/billing')
 
 # 注册异常处理器
 from app.utils.exceptions import handle_errors
@@ -240,8 +242,11 @@ def create_tables():
         print("📊 数据库表已创建")
 
 if __name__ == '__main__':
+    # 从环境变量获取端口，默认为5001
+    port = int(os.environ.get('PORT', 5001))
+    
     print("🚀 启动完整后端服务...")
-    print(f"🌐 访问地址: http://localhost:5001")
+    print(f"🌐 访问地址: http://localhost:{port}")
     print("📋 可用API:")
     print("  - /api/v1/auth/*")
     print("  - /api/v1/resumes/*")
@@ -249,6 +254,7 @@ if __name__ == '__main__':
     print("  - /api/v1/questions/*")
     print("  - /api/v1/analysis/*")
     print("  - /api/v1/jobs/*")
+    print("  - /api/v1/billing/*")
     print("🔧 开发API:")
     print("  - POST /api/v1/dev/create-test-user")
     print("  - POST /api/v1/dev/login")
@@ -265,7 +271,7 @@ if __name__ == '__main__':
     # 启动应用
     app.run(
         host='0.0.0.0',
-        port=5001,
+        port=port,
         debug=False,  # 关闭调试模式避免重载问题
         threaded=True,
         use_reloader=False  # 禁用重载器

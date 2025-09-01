@@ -29,6 +29,16 @@ class Config:
     # AI模型配置
     DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY') or 'sk-f33bab4e7cef421e8739c295670cb15c'
     
+    # Creem.io 付费配置 - 正式环境
+    CREEM_API_KEY = os.environ.get('CREEM_API_KEY') or 'creem_6AIW9sH8lsSGaAABHgfdJl'
+    CREEM_TEST_MODE = os.environ.get('CREEM_TEST_MODE', 'False').lower() == 'true'  # 默认关闭测试模式
+    CREEM_TEST_PRODUCT_ID = os.environ.get('CREEM_TEST_PRODUCT_ID') or 'prod_7GCAq6iP6E27GOwil4gfDU'
+    CREEM_BASIC_PRODUCT_ID = os.environ.get('CREEM_BASIC_PRODUCT_ID') or 'prod_7GCAq6iP6E27GOwil4gfDU'  # 基础版产品ID
+    CREEM_PREMIUM_PRODUCT_ID = os.environ.get('CREEM_PREMIUM_PRODUCT_ID') or 'prod_2kqnPDGAScR6Ocf6ujtGi'  # 高级版产品ID
+    
+    # 前端URL配置
+    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:3000'
+    
     # 国际化配置 - Internationalization Configuration
     QUESTION_LANGUAGE = os.environ.get('QUESTION_LANGUAGE', 'english')  # 支持: 'english', 'chinese'
     DEFAULT_LOCALE = os.environ.get('DEFAULT_LOCALE', 'en_US')

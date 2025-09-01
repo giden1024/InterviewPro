@@ -1,4 +1,0 @@
-Deployment Trigger: 2025-07-22T16:07:00Z
-Force AWS backend code update
-Backend error messages changed from Chinese to English
-Commit: 2231ad8 

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing状态调试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+        .success { background: #f6ffed; border-color: #b7eb8f; }
+        .error { background: #fff2f0; border-color: #ffccc7; }
+        .info { background: #f0f9ff; border-color: #91d5ff; }
+        .warning { background: #fffbe6; border-color: #ffe58f; }
+        
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        .json-display {
+            background: #f6f6f6;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Billing状态调试工具</h1>
+        <p>用于诊断购买成功后权益显示问题</p>
+        
+        <!-- 登录状态检查 -->
+        <div class="section info">
+            <h3>1. 登录状态检查</h3>
+            <button onclick="checkLoginStatus()">检查登录状态</button>
+            <button onclick="loginUser()">登录测试用户</button>
+            <div id="loginStatus"></div>
+        </div>
+        
+        <!-- API连接测试 -->
+        <div class="section info">
+            <h3>2. API连接测试</h3>
+            <button onclick="testBackendConnection()">测试后端连接</button>
+            <button onclick="testBillingAPI()">测试Billing API</button>
+            <div id="apiStatus"></div>
+        </div>
+        
+        <!-- 订阅状态获取 -->
+        <div class="section info">
+            <h3>3. 订阅状态获取</h3>
+            <button onclick="getSubscriptionStatus()">获取订阅状态</button>
+            <button onclick="refreshSubscriptionStatus()">强制刷新订阅状态</button>
+            <div id="subscriptionStatus"></div>
+        </div>
+        
+        <!-- 数据库直接查询 -->
+        <div class="section info">
+            <h3>4. 数据对比</h3>
+            <button onclick="compareData()">对比前后端数据</button>
+            <div id="dataComparison"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api/v1';
+        let authToken = localStorage.getItem('access_token') || localStorage.getItem('auth_token') || '';
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+        
+        function displayJSON(elementId, data, title = '') {
+            const element = document.getElementById(elementId);
+            const jsonStr = JSON.stringify(data, null, 2);
+            element.innerHTML += `
+                ${title ? `<h4>${title}</h4>` : ''}
+                <div class="json-display">${jsonStr}</div>
+            `;
+        }
+        
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                },
+                ...options
+            };
+            
+            try {
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message,
+                    data: null
+                };
+            }
+        }
+        
+        async function checkLoginStatus() {
+            const element = document.getElementById('loginStatus');
+            element.innerHTML = '';
+            
+            log('loginStatus', '检查登录状态...', 'info');
+            
+            // 检查本地存储的token
+            if (authToken) {
+                log('loginStatus', `✅ 找到本地token: ${authToken.substring(0, 20)}...`, 'success');
+            } else {
+                log('loginStatus', '❌ 没有找到本地token', 'error');
+            }
+            
+            // 测试token是否有效
+            if (authToken) {
+                const result = await apiCall('/billing/subscription');
+                if (result.success) {
+                    log('loginStatus', '✅ Token有效，用户已登录', 'success');
+                    displayJSON('loginStatus', result.data, 'Token验证成功 - 用户信息:');
+                } else {
+                    log('loginStatus', `❌ Token无效: ${result.data?.msg || result.error}`, 'error');
+                    authToken = '';
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('auth_token');
+                }
+            }
+        }
+        
+        async function loginUser() {
+            const element = document.getElementById('loginStatus');
+            
+            log('loginStatus', '尝试登录测试用户...', 'info');
+            
+            const result = await apiCall('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: '393893095@qq.com',
+                    password: 'test123'
+                })
+            });
+            
+            if (result.success && result.data.success) {
+                authToken = result.data.data.access_token;
+                localStorage.setItem('access_token', authToken);
+                log('loginStatus', '✅ 登录成功！', 'success');
+                displayJSON('loginStatus', result.data.data, '登录成功 - 用户信息:');
+            } else {
+                log('loginStatus', `❌ 登录失败: ${result.data?.message || result.error}`, 'error');
+                displayJSON('loginStatus', result.data, '登录失败详情:');
+            }
+        }
+        
+        async function testBackendConnection() {
+            const element = document.getElementById('apiStatus');
+            element.innerHTML = '';
+            
+            log('apiStatus', '测试后端连接...', 'info');
+            
+            // 测试基本连接
+            try {
+                const response = await fetch(`${API_BASE}/billing/plans`);
+                if (response.ok) {
+                    log('apiStatus', '✅ 后端连接正常', 'success');
+                    const data = await response.json();
+                    displayJSON('apiStatus', data, '后端响应:');
+                } else {
+                    log('apiStatus', `❌ 后端连接失败: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log('apiStatus', `❌ 后端连接错误: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testBillingAPI() {
+            const element = document.getElementById('apiStatus');
+            
+            log('apiStatus', '测试Billing API...', 'info');
+            
+            if (!authToken) {
+                log('apiStatus', '❌ 需要先登录', 'error');
+                return;
+            }
+            
+            const result = await apiCall('/billing/subscription');
+            if (result.success) {
+                log('apiStatus', '✅ Billing API正常', 'success');
+                displayJSON('apiStatus', result.data, 'Billing API响应:');
+            } else {
+                log('apiStatus', `❌ Billing API失败: ${result.data?.msg || result.error}`, 'error');
+                displayJSON('apiStatus', result.data, 'Billing API错误详情:');
+            }
+        }
+        
+        async function getSubscriptionStatus() {
+            const element = document.getElementById('subscriptionStatus');
+            element.innerHTML = '';
+            
+            log('subscriptionStatus', '获取订阅状态...', 'info');
+            
+            if (!authToken) {
+                log('subscriptionStatus', '❌ 需要先登录', 'error');
+                return;
+            }
+            
+            const result = await apiCall('/billing/subscription');
+            if (result.success) {
+                log('subscriptionStatus', '✅ 订阅状态获取成功', 'success');
+                displayJSON('subscriptionStatus', result.data, '当前订阅状态:');
+                
+                // 解析关键信息
+                const subscription = result.data.data.subscription;
+                const usage = result.data.data.usage;
+                const features = result.data.data.features;
+                
+                log('subscriptionStatus', `📋 计划: ${subscription.plan}`, 'info');
+                log('subscriptionStatus', `📊 面试使用: ${usage.interviews.used}/${usage.interviews.limit}`, 'info');
+                log('subscriptionStatus', `🤖 AI问题使用: ${usage.ai_questions.used}/${usage.ai_questions.limit}`, 'info');
+                log('subscriptionStatus', `📄 简历分析使用: ${usage.resume_analysis.used}/${usage.resume_analysis.limit}`, 'info');
+                log('subscriptionStatus', `🎤 语音面试: ${features.voice_interview ? '✅' : '❌'}`, features.voice_interview ? 'success' : 'warning');
+            } else {
+                log('subscriptionStatus', `❌ 获取失败: ${result.data?.msg || result.error}`, 'error');
+                displayJSON('subscriptionStatus', result.data, '错误详情:');
+            }
+        }
+        
+        async function refreshSubscriptionStatus() {
+            const element = document.getElementById('subscriptionStatus');
+            
+            log('subscriptionStatus', '强制刷新订阅状态...', 'info');
+            
+            // 清除可能的缓存
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                for (const cacheName of cacheNames) {
+                    await caches.delete(cacheName);
+                }
+                log('subscriptionStatus', '✅ 清除了浏览器缓存', 'success');
+            }
+            
+            // 重新获取状态
+            await getSubscriptionStatus();
+        }
+        
+        async function compareData() {
+            const element = document.getElementById('dataComparison');
+            element.innerHTML = '';
+            
+            log('dataComparison', '对比前后端数据...', 'info');
+            
+            if (!authToken) {
+                log('dataComparison', '❌ 需要先登录', 'error');
+                return;
+            }
+            
+            // 获取后端数据
+            const backendResult = await apiCall('/billing/subscription');
+            
+            // 模拟前端billingService调用
+            try {
+                const frontendResponse = await fetch('http://localhost:3001/api/billing/subscription', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                let frontendData = null;
+                if (frontendResponse.ok) {
+                    frontendData = await frontendResponse.json();
+                }
+                
+                log('dataComparison', '📊 数据对比结果:', 'info');
+                
+                if (backendResult.success) {
+                    displayJSON('dataComparison', backendResult.data, '🔧 后端数据 (直接调用):');
+                } else {
+                    log('dataComparison', '❌ 后端数据获取失败', 'error');
+                    displayJSON('dataComparison', backendResult, '后端错误:');
+                }
+                
+                if (frontendData) {
+                    displayJSON('dataComparison', frontendData, '🖥️ 前端数据 (通过前端服务):');
+                } else {
+                    log('dataComparison', '❌ 前端数据获取失败', 'error');
+                }
+                
+            } catch (error) {
+                log('dataComparison', `❌ 前端数据获取错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时自动检查状态
+        window.onload = function() {
+            checkLoginStatus();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试订阅状态修复</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 测试订阅状态修复</h1>
+        
+        <div class="section info">
+            <h3>📋 测试说明</h3>
+            <p>这个页面用于测试用户 393893095@qq.com 的订阅状态是否已成功修复</p>
+            <p><strong>期望结果：</strong> 应该显示 "basic" 计划，而不是 "free" 计划</p>
+        </div>
+
+        <div class="section">
+            <h3>🔑 步骤1: 登录</h3>
+            <button onclick="login()">登录测试账号</button>
+            <div id="loginResult"></div>
+        </div>
+
+        <div class="section">
+            <h3>📊 步骤2: 获取订阅状态</h3>
+            <button onclick="getSubscriptionStatus()">获取当前订阅状态</button>
+            <div id="subscriptionResult"></div>
+        </div>
+
+        <div class="section">
+            <h3>🎯 步骤3: 测试权限控制</h3>
+            <button onclick="testPermissions()">测试权限功能</button>
+            <div id="permissionResult"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 测试日志</h3>
+            <div id="logs"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api/v1';
+        let authToken = null;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logsDiv.innerHTML += `<div class="section ${className}">[${timestamp}] ${message}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        async function login() {
+            try {
+                log('🔄 正在登录...');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: '393893095@qq.com',
+                        password: 'testpassword123'  // 使用测试密码
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.access_token;
+                    localStorage.setItem('access_token', authToken);
+                    
+                    document.getElementById('loginResult').innerHTML = 
+                        '<div class="success">✅ 登录成功！</div>';
+                    log('✅ 登录成功', 'success');
+                } else {
+                    document.getElementById('loginResult').innerHTML = 
+                        `<div class="error">❌ 登录失败: ${data.message || '未知错误'}</div>`;
+                    log(`❌ 登录失败: ${data.message || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                const errorMsg = `登录请求失败: ${error.message}`;
+                document.getElementById('loginResult').innerHTML = 
+                    `<div class="error">❌ ${errorMsg}</div>`;
+                log(`❌ ${errorMsg}`, 'error');
+            }
+        }
+
+        async function getSubscriptionStatus() {
+            try {
+                if (!authToken) {
+                    authToken = localStorage.getItem('access_token');
+                }
+                
+                if (!authToken) {
+                    log('❌ 请先登录', 'error');
+                    return;
+                }
+
+                log('🔄 正在获取订阅状态...');
+                const response = await fetch(`${API_BASE}/billing/subscription`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const subscription = data.data.subscription;
+                    const usage = data.data.usage;
+                    
+                    const resultHtml = `
+                        <div class="success">
+                            <h4>✅ 订阅状态获取成功</h4>
+                            <p><strong>计划:</strong> ${subscription.plan}</p>
+                            <p><strong>状态:</strong> ${subscription.status}</p>
+                            <p><strong>到期时间:</strong> ${subscription.end_date || '无限制'}</p>
+                            <h5>使用情况:</h5>
+                            <ul>
+                                <li>面试: ${usage.interviews.used}/${usage.interviews.limit}</li>
+                                <li>AI问题: ${usage.ai_questions.used}/${usage.ai_questions.limit}</li>
+                                <li>简历分析: ${usage.resume_analysis.used}/${usage.resume_analysis.limit}</li>
+                            </ul>
+                        </div>
+                    `;
+                    
+                    document.getElementById('subscriptionResult').innerHTML = resultHtml;
+                    
+                    if (subscription.plan === 'basic') {
+                        log('🎉 成功！订阅状态已修复为基础版', 'success');
+                    } else {
+                        log(`⚠️ 订阅状态仍为: ${subscription.plan}`, 'error');
+                    }
+                } else {
+                    const errorMsg = `获取订阅状态失败: ${data.message || '未知错误'}`;
+                    document.getElementById('subscriptionResult').innerHTML = 
+                        `<div class="error">❌ ${errorMsg}</div>`;
+                    log(`❌ ${errorMsg}`, 'error');
+                }
+            } catch (error) {
+                const errorMsg = `获取订阅状态请求失败: ${error.message}`;
+                document.getElementById('subscriptionResult').innerHTML = 
+                    `<div class="error">❌ ${errorMsg}</div>`;
+                log(`❌ ${errorMsg}`, 'error');
+            }
+        }
+
+        async function testPermissions() {
+            try {
+                if (!authToken) {
+                    authToken = localStorage.getItem('access_token');
+                }
+                
+                if (!authToken) {
+                    log('❌ 请先登录', 'error');
+                    return;
+                }
+
+                log('🔄 正在测试权限控制...');
+                
+                // 测试创建面试
+                const interviewResponse = await fetch(`${API_BASE}/interviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        resume_id: 1,  // 假设的简历ID
+                        interview_type: 'mock'
+                    })
+                });
+
+                const interviewData = await interviewResponse.json();
+                
+                let resultHtml = '<h4>权限测试结果:</h4>';
+                
+                if (interviewResponse.ok) {
+                    resultHtml += '<div class="success">✅ 面试权限正常 - 可以创建面试</div>';
+                    log('✅ 面试权限测试通过', 'success');
+                } else {
+                    resultHtml += `<div class="error">❌ 面试权限测试失败: ${interviewData.message}</div>`;
+                    log(`❌ 面试权限测试失败: ${interviewData.message}`, 'error');
+                }
+                
+                document.getElementById('permissionResult').innerHTML = resultHtml;
+                
+            } catch (error) {
+                const errorMsg = `权限测试失败: ${error.message}`;
+                document.getElementById('permissionResult').innerHTML = 
+                    `<div class="error">❌ ${errorMsg}</div>`;
+                log(`❌ ${errorMsg}`, 'error');
+            }
+        }
+
+        // 页面加载时检查是否已登录
+        window.onload = function() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                authToken = token;
+                log('🔑 发现已保存的登录token', 'info');
+            }
+            log('📱 页面加载完成，请按步骤进行测试', 'info');
+        };
+    </script>
+</body>
+</html>

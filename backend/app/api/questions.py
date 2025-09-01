@@ -11,6 +11,7 @@ from app.models.user import User
 from app.services.ai_question_generator import AIQuestionGenerator
 from app.services.cache_service import CacheService
 from app.utils.response import success_response, error_response
+from app.utils.subscription_utils import subscription_required
 # from app.tasks.question_tasks import generate_questions_async, generate_ai_reference_async
 
 questions_bp = Blueprint('questions', __name__)
@@ -173,6 +174,7 @@ def create_question():
 
 @questions_bp.route('/generate', methods=['POST'])
 @jwt_required()
+@subscription_required(feature='ai_questions', usage_type='ai_questions')
 def generate_questions():
     """基于简历生成面试问题"""
     try:
@@ -401,6 +403,7 @@ def generate_questions():
 
 @questions_bp.route('/generate-async', methods=['POST'])
 @jwt_required()
+@subscription_required(feature='ai_questions', usage_type='ai_questions')
 def generate_questions_async_endpoint():
     """同步生成面试问题（原异步接口改为同步）"""
     try:

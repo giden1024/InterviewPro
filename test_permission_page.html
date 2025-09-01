@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限测试页面验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1890ff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #1890ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .step h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .step p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .link {
+            display: inline-block;
+            background: #1890ff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        .link:hover {
+            background: #40a9ff;
+        }
+        .success {
+            color: #52c41a;
+            font-weight: bold;
+        }
+        .warning {
+            color: #faad14;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff4d4f;
+            font-weight: bold;
+        }
+        .info {
+            color: #1890ff;
+            font-weight: bold;
+        }
+        .checklist {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .checklist ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .checklist li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 权限测试页面验证指南</h1>
+        
+        <div class="step">
+            <h3>📋 页面状态</h3>
+            <p><span class="success">✅ 编译成功</span> - 前端代码已成功编译</p>
+            <p><span class="success">✅ 服务运行</span> - 前端服务运行在 http://localhost:3001</p>
+            <p><span class="success">✅ 路由配置</span> - 权限测试页面路由已添加</p>
+        </div>
+
+        <div class="step">
+            <h3>🚀 访问页面</h3>
+            <p>点击下面的链接访问权限测试页面：</p>
+            <a href="http://localhost:3001/permission-test" class="link" target="_blank">
+                打开权限测试页面
+            </a>
+        </div>
+
+        <div class="step">
+            <h3>🔐 测试账号</h3>
+            <p><strong>邮箱：</strong>test@example.com</p>
+            <p><strong>密码：</strong>test123456</p>
+            <p><span class="info">💡 提示：</span>页面会自动填充这些信息</p>
+        </div>
+
+        <div class="step">
+            <h3>🧪 测试流程</h3>
+            <div class="checklist">
+                <h4>验证清单：</h4>
+                <ul>
+                    <li>□ 登录页面显示正常，有测试账号信息</li>
+                    <li>□ 成功登录后显示订阅状态（免费版）</li>
+                    <li>□ 使用统计显示：3次面试，10次AI问题，1次简历分析</li>
+                    <li>□ 功能权限显示：语音面试、自定义问题、高级分析都不可用</li>
+                    <li>□ 点击"测试面试创建权限"按钮</li>
+                    <li>□ 点击"测试AI问题生成权限"按钮</li>
+                    <li>□ 点击"测试简历分析权限"按钮</li>
+                    <li>□ 查看测试结果和使用次数变化</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>📊 预期结果</h3>
+            <p><span class="success">🟢 成功状态：</span>功能执行成功，权限检查通过</p>
+            <p><span class="info">🔵 信息状态：</span>通过权限检查，但资源不存在（404错误，正常现象）</p>
+            <p><span class="warning">🟡 警告状态：</span>权限限制生效，已达使用上限（403错误）</p>
+            <p><span class="error">🔴 错误状态：</span>系统错误或其他异常</p>
+        </div>
+
+        <div class="step">
+            <h3>🔍 故障排除</h3>
+            <p><strong>如果页面无法访问：</strong></p>
+            <ul>
+                <li>确认前端服务正在运行（http://localhost:3001）</li>
+                <li>确认后端服务正在运行（http://localhost:5001）</li>
+                <li>检查浏览器控制台是否有错误</li>
+                <li>尝试刷新页面或清除浏览器缓存</li>
+            </ul>
+            
+            <p><strong>如果登录失败：</strong></p>
+            <ul>
+                <li>确认测试用户已创建</li>
+                <li>检查后端API是否正常响应</li>
+                <li>查看网络请求是否成功</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>📚 相关链接</h3>
+            <a href="http://localhost:3001/home" class="link" target="_blank">主页</a>
+            <a href="http://localhost:3001/billing" class="link" target="_blank">付费页面</a>
+            <a href="http://localhost:5001/api/v1/billing/plans" class="link" target="_blank">API测试</a>
+        </div>
+
+        <div class="step">
+            <h3>🎯 验证要点</h3>
+            <div class="checklist">
+                <p>通过这个页面，你应该能够验证：</p>
+                <ul>
+                    <li><strong>权限装饰器是否生效</strong> - 看是否有使用次数限制</li>
+                    <li><strong>使用次数统计是否准确</strong> - 测试后次数是否增加</li>
+                    <li><strong>功能权限是否正确</strong> - 免费用户是否无法使用高级功能</li>
+                    <li><strong>错误处理是否完善</strong> - 达到限制时的提示是否清晰</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 检查服务状态
+        async function checkServices() {
+            try {
+                // 检查前端服务
+                const frontendResponse = await fetch('http://localhost:3001/');
+                console.log('✅ 前端服务正常');
+                
+                // 检查后端服务
+                const backendResponse = await fetch('http://localhost:5001/api/v1/billing/plans');
+                console.log('✅ 后端服务正常');
+                
+            } catch (error) {
+                console.error('❌ 服务检查失败:', error);
+            }
+        }
+        
+        // 页面加载时检查服务
+        checkServices();
+    </script>
+</body>
+</html>

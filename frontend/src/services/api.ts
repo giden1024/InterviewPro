@@ -2,7 +2,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
   (process.env.NODE_ENV === 'production' 
     ? 'https://offerott.com/api/v1'
-    : 'http://localhost:5001/api/v1');
+    : 'http://localhost:5002/api/v1');
 
 // 导入认证工具
 import { authUtils } from '../utils/authUtils';

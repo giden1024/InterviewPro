@@ -18,6 +18,9 @@ import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import QuestionEditPage from './pages/QuestionEditPage';
 import CreateQuestionPage from './pages/CreateQuestionPage';
 import SimpleQuestionGeneratorPage from './pages/SimpleQuestionGeneratorPage';
+import { BillingPage } from './pages/BillingPage';
+import BillingSuccessPage from './pages/BillingSuccessPage';
+import PermissionTestPage from './pages/PermissionTestPage';
 import { useAuthRedirect } from './hooks/useAuthRedirect';
 import './index.css';
 
@@ -54,6 +57,10 @@ const App: React.FC = () => {
           <Route path="/questions/:questionId/edit" element={<QuestionEditPage />} />
           <Route path="/questions/create" element={<CreateQuestionPage />} />
           <Route path="/simple-questions" element={<SimpleQuestionGeneratorPage />} />
+          <Route path="/billing" element={<BillingPage />} />
+          <Route path="/billing/success" element={<BillingSuccessPage />} />
+          <Route path="/billing/cancel" element={<div className="p-8">支付已取消。</div>} />
+          <Route path="/permission-test" element={<PermissionTestPage />} />
           {/* Other routes can be added here */}
           <Route path="/demo" element={<div className="p-8">Demo Page - Coming Soon</div>} />
           <Route path="/contact" element={<div className="p-8">Contact Page - Coming Soon</div>} />
